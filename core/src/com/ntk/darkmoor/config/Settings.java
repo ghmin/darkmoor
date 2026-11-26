@@ -42,6 +42,7 @@ public class Settings {
 	
 	public static Settings loadSettings(FileHandle handle) throws IOException {
 
+
 		final Properties props = new Properties();
 		
 		props.load(handle.read());

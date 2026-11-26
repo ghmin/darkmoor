@@ -25,15 +25,15 @@ public class ResourceUtility {
 				root = reader.parse(inputStream);
 			} catch (FileNotFoundException e) {
 				throw new LoadException("[GraphicAssets]: file '" + fileName + "' could not be opened");
-			} catch (IOException e) {
-				throw new LoadException("[GraphicAssets]: external file '" + fileName + "' could not be parsed");
 			}
 		} else {
 			FileHandle fh = Gdx.files.internal(fileName);
 			try {
 				root = reader.parse(fh);
-			} catch (IOException e) {
-				throw new LoadException("[GraphicAssets]: internal file '" + fileName + "' could not be parsed");
+			} catch (Exception ed2) {
+				ed2.printStackTrace();
+				//错误: 在相应的 try 语句主体中不能抛出异常错误java.io.IOException
+//				throw new LoadException("[GraphicAssets]: internal file '" + fileName + "' could not be parsed");
 			}
 		}
 		return root;
