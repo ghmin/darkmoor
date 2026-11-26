@@ -1,7 +1,7 @@
 package com.ntk.darkmoor.engine.script.gui;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -85,14 +85,16 @@ public class GUIScriptButton extends Button {
 		
 		GUI.drawSimpleBevel(batch, rectangle, backColor, GameColors.Light, GameColors.Dark, reverse);
 
-		// Text size
-		TextBounds textsize = GUI.getDialogFont().getBounds(text);
+		// Text size - libGDX 1.10+ removed BitmapFont.TextBounds / getBounds();
+		// GlyphLayout is the modern equivalent (compute metrics for a font+text pair).
+		GlyphLayout layout = new GlyphLayout();
+		layout.setText(GUI.getDialogFont(), text);
 
 		// Get text location
 		Vector2 pos = new Vector2
 		(
-			rectangle.x + (rectangle.width - textsize.width) / 2,
-			rectangle.y + (rectangle.height - textsize.height) / 2
+			rectangle.x + (rectangle.width - layout.width) / 2,
+			rectangle.y + (rectangle.height - layout.height) / 2
 		);
 
 		// Color

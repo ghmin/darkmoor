@@ -14,6 +14,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.XmlReader;
+import com.badlogic.gdx.utils.Align;
 import com.ntk.darkmoor.config.LanguagesManager;
 import com.ntk.darkmoor.config.Log;
 import com.ntk.darkmoor.config.SaveGame;
@@ -514,7 +515,7 @@ public class CharGen extends GameScreenBase {
 		// section Select hero
 		case SelectHero: {
 			font.setColor(Color.WHITE);
-			font.draw(batch, LanguagesManager.getString("Chargen", 1), 304, 160, 300, 64);
+			font.draw(batch, LanguagesManager.getString("Chargen", 1), 304, 160, 300, Align.center, false);
 
 			// Team is ready, game can begin...
 			if (isTeamReadyToPlay())

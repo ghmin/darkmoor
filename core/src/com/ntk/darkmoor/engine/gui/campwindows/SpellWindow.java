@@ -139,7 +139,7 @@ public class SpellWindow extends BaseWindow {
 		if (hero != null)
 			return;
 
-		setTitle("Spells Available :");
+		getTitleLabel().setText("Spells Available :"); // libGDX 1.10+: use getTitleLabel().setText()
 
 		ScreenButton button;
 		button = new ScreenButton("Clear", new Rectangle(16, 244, 96, 28));

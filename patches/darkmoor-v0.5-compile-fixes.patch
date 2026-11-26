@@ -1,0 +1,68 @@
+diff --git a/core/src/com/ntk/darkmoor/CharGen.java b/core/src/com/ntk/darkmoor/CharGen.java
+index 464a812..be8cb63 100644
+--- a/core/src/com/ntk/darkmoor/CharGen.java
++++ b/core/src/com/ntk/darkmoor/CharGen.java
+@@ -14,6 +14,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+ import com.badlogic.gdx.math.Rectangle;
+ import com.badlogic.gdx.math.Vector2;
+ import com.badlogic.gdx.utils.XmlReader;
++import com.badlogic.gdx.utils.Align;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.config.Log;
+ import com.ntk.darkmoor.config.SaveGame;
+@@ -514,7 +515,7 @@ public class CharGen extends GameScreenBase {
+ 		// section Select hero
+ 		case SelectHero: {
+ 			font.setColor(Color.WHITE);
+-			font.draw(batch, LanguagesManager.getString("Chargen", 1), 304, 160, 300, 64);
++			font.draw(batch, LanguagesManager.getString("Chargen", 1), 304, 160, 300, Align.center, false);
+ 
+ 			// Team is ready, game can begin...
+ 			if (isTeamReadyToPlay())
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/campwindows/SpellWindow.java b/core/src/com/ntk/darkmoor/engine/gui/campwindows/SpellWindow.java
+index ae6424f..50734bc 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/campwindows/SpellWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/campwindows/SpellWindow.java
+@@ -139,7 +139,7 @@ public class SpellWindow extends BaseWindow {
+ 		if (hero != null)
+ 			return;
+ 
+-		setTitle("Spells Available :");
++		getTitleLabel().setText("Spells Available :"); // libGDX 1.10+: use getTitleLabel().setText()
+ 
+ 		ScreenButton button;
+ 		button = new ScreenButton("Clear", new Rectangle(16, 244, 96, 28));
+diff --git a/core/src/com/ntk/darkmoor/engine/script/gui/GUIScriptButton.java b/core/src/com/ntk/darkmoor/engine/script/gui/GUIScriptButton.java
+index be825fd..2cfc897 100644
+--- a/core/src/com/ntk/darkmoor/engine/script/gui/GUIScriptButton.java
++++ b/core/src/com/ntk/darkmoor/engine/script/gui/GUIScriptButton.java
+@@ -1,7 +1,7 @@
+ package com.ntk.darkmoor.engine.script.gui;
+ 
+ import com.badlogic.gdx.graphics.Color;
+-import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
++import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+ import com.badlogic.gdx.math.Rectangle;
+ import com.badlogic.gdx.math.Vector2;
+@@ -85,14 +85,16 @@ public class GUIScriptButton extends Button {
+ 		
+ 		GUI.drawSimpleBevel(batch, rectangle, backColor, GameColors.Light, GameColors.Dark, reverse);
+ 
+-		// Text size
+-		TextBounds textsize = GUI.getDialogFont().getBounds(text);
++		// Text size - libGDX 1.10+ removed BitmapFont.TextBounds / getBounds();
++		// GlyphLayout is the modern equivalent (compute metrics for a font+text pair).
++		GlyphLayout layout = new GlyphLayout();
++		layout.setText(GUI.getDialogFont(), text);
+ 
+ 		// Get text location
+ 		Vector2 pos = new Vector2
+ 		(
+-			rectangle.x + (rectangle.width - textsize.width) / 2,
+-			rectangle.y + (rectangle.height - textsize.height) / 2
++			rectangle.x + (rectangle.width - layout.width) / 2,
++			rectangle.y + (rectangle.height - layout.height) / 2
+ 		);
+ 
+ 		// Color
