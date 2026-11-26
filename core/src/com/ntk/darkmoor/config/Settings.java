@@ -19,6 +19,7 @@ public class Settings {
 	private static final String SETTING_LANGUAGE = "language";
 	private static final String SETTING_INPUTSCHEME = "inputscheme";
 	private static final String SETTING_SAVE_SLOTS = "saveSlots";
+	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
 	
 	// last loaded instance. (almost) a singleton
 	private static Settings instance;
@@ -31,6 +32,7 @@ public class Settings {
 	private boolean effects;
 	private boolean fullScreen;
 	private int saveSlots;
+	private boolean showMinimap;
 
 	// the properties that hold all settings
 	private Properties props;
@@ -57,6 +59,7 @@ public class Settings {
 		settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
 		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
 		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
+		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
 		
 		instance = settings;
 		
@@ -184,6 +187,14 @@ public class Settings {
 			this.saveSlots = saveSlots;
 		} else 
 			this.saveSlots = 6;
+	}
+
+	public boolean isShowMinimap() {
+		return showMinimap;
+	}
+
+	public void setShowMinimap(boolean showMinimap) {
+		this.showMinimap = showMinimap;
 	}
 
 	public static Settings getLastLoadedInstance() {

@@ -22,6 +22,7 @@ import com.ntk.darkmoor.engine.Team;
 import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
 import com.ntk.darkmoor.engine.graphics.InventoryGroup;
 import com.ntk.darkmoor.engine.graphics.MazeGroup;
+import com.ntk.darkmoor.engine.graphics.MinimapGroup;
 import com.ntk.darkmoor.engine.graphics.NavigationControlsGroup;
 import com.ntk.darkmoor.engine.graphics.StatisticsGroup;
 import com.ntk.darkmoor.resource.Resources;
@@ -49,6 +50,7 @@ public class GameScreen extends GameScreenBase {
 	private MazeGroup mazeGroup;
 	private StatisticsGroup statisticsGroup;
 	private NavigationControlsGroup navControlsGroup;
+	private MinimapGroup minimapGroup;
 
 	public GameScreen(Game game) {
 		super(game);
@@ -163,6 +165,13 @@ public class GameScreen extends GameScreenBase {
 		navControlsGroup.initialize();
 		stage.addActor(navControlsGroup);
 
+		// Minimap overlay — 显示当前楼层的实时缩略图
+		minimapGroup = new MinimapGroup();
+		minimapGroup.team = GameScreen.team;
+		minimapGroup.uiSkin = uiSkin;
+		minimapGroup.initialize();
+		stage.addActor(minimapGroup);
+
 	}
 
 	public boolean loadGameSlot(int slotid) {
@@ -244,8 +253,12 @@ public class GameScreen extends GameScreenBase {
 	public void update(float delta, boolean hasFocus, boolean isCovered) {
 		super.update(delta, hasFocus, isCovered);
 
-		if (team.getMaze() != null)
+		if (team.getMaze() != null) {
 			mazeGroup.update();
+			// 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
+			minimapGroup.setVisible(interfaceType == TeamInterface.Main);
+			minimapGroup.update();
+		}
 
 		if (interfaceType == TeamInterface.Main) {
 

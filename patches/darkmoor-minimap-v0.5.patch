@@ -1,0 +1,1191 @@
+diff --git a/android/assets/data/settings.properties b/android/assets/data/settings.properties
+index adbdd37..73fab42 100644
+--- a/android/assets/data/settings.properties
++++ b/android/assets/data/settings.properties
+@@ -4,4 +4,5 @@ HPAsBar=False
+ Music=true
+ Effects=true
+ FullScreen=False
+-saveSlots=6
+\ No newline at end of file
++saveSlots=6
++ShowMinimap=true
+diff --git a/core/src/com/ntk/darkmoor/GameScreen.java b/core/src/com/ntk/darkmoor/GameScreen.java
+index d5fd3e9..d1e6341 100644
+--- a/core/src/com/ntk/darkmoor/GameScreen.java
++++ b/core/src/com/ntk/darkmoor/GameScreen.java
+@@ -22,6 +22,7 @@ import com.ntk.darkmoor.engine.Team;
+ import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
+ import com.ntk.darkmoor.engine.graphics.InventoryGroup;
+ import com.ntk.darkmoor.engine.graphics.MazeGroup;
++import com.ntk.darkmoor.engine.graphics.MinimapGroup;
+ import com.ntk.darkmoor.engine.graphics.NavigationControlsGroup;
+ import com.ntk.darkmoor.engine.graphics.StatisticsGroup;
+ import com.ntk.darkmoor.resource.Resources;
+@@ -49,6 +50,7 @@ public class GameScreen extends GameScreenBase {
+ 	private MazeGroup mazeGroup;
+ 	private StatisticsGroup statisticsGroup;
+ 	private NavigationControlsGroup navControlsGroup;
++	private MinimapGroup minimapGroup;
+ 
+ 	public GameScreen(Game game) {
+ 		super(game);
+@@ -163,6 +165,13 @@ public class GameScreen extends GameScreenBase {
+ 		navControlsGroup.initialize();
+ 		stage.addActor(navControlsGroup);
+ 
++		// Minimap overlay — 显示当前楼层的实时缩略图
++		minimapGroup = new MinimapGroup();
++		minimapGroup.team = GameScreen.team;
++		minimapGroup.uiSkin = uiSkin;
++		minimapGroup.initialize();
++		stage.addActor(minimapGroup);
++
+ 	}
+ 
+ 	public boolean loadGameSlot(int slotid) {
+@@ -244,8 +253,12 @@ public class GameScreen extends GameScreenBase {
+ 	public void update(float delta, boolean hasFocus, boolean isCovered) {
+ 		super.update(delta, hasFocus, isCovered);
+ 
+-		if (team.getMaze() != null)
++		if (team.getMaze() != null) {
+ 			mazeGroup.update();
++			// 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
++			minimapGroup.setVisible(interfaceType == TeamInterface.Main);
++			minimapGroup.update();
++		}
+ 
+ 		if (interfaceType == TeamInterface.Main) {
+ 
+diff --git a/core/src/com/ntk/darkmoor/config/Settings.java b/core/src/com/ntk/darkmoor/config/Settings.java
+index 0a6b263..124cdff 100644
+--- a/core/src/com/ntk/darkmoor/config/Settings.java
++++ b/core/src/com/ntk/darkmoor/config/Settings.java
+@@ -19,6 +19,7 @@ public class Settings {
+ 	private static final String SETTING_LANGUAGE = "language";
+ 	private static final String SETTING_INPUTSCHEME = "inputscheme";
+ 	private static final String SETTING_SAVE_SLOTS = "saveSlots";
++	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
+ 	
+ 	// last loaded instance. (almost) a singleton
+ 	private static Settings instance;
+@@ -31,6 +32,7 @@ public class Settings {
+ 	private boolean effects;
+ 	private boolean fullScreen;
+ 	private int saveSlots;
++	private boolean showMinimap;
+ 
+ 	// the properties that hold all settings
+ 	private Properties props;
+@@ -57,6 +59,7 @@ public class Settings {
+ 		settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
+ 		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
+ 		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
++		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
+ 		
+ 		instance = settings;
+ 		
+@@ -186,6 +189,14 @@ public class Settings {
+ 			this.saveSlots = 6;
+ 	}
+ 
++	public boolean isShowMinimap() {
++		return showMinimap;
++	}
++
++	public void setShowMinimap(boolean showMinimap) {
++		this.showMinimap = showMinimap;
++	}
++
+ 	public static Settings getLastLoadedInstance() {
+ 		return instance;
+ 	}
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+new file mode 100644
+index 0000000..f436b30
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+@@ -0,0 +1,301 @@
++package com.ntk.darkmoor.engine.graphics;
++
++import com.badlogic.gdx.graphics.Color;
++import com.badlogic.gdx.graphics.Pixmap;
++import com.badlogic.gdx.graphics.Texture;
++import com.badlogic.gdx.graphics.g2d.TextureRegion;
++import com.badlogic.gdx.math.Vector2;
++import com.badlogic.gdx.scenes.scene2d.ui.Image;
++import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
++import com.badlogic.gdx.utils.Disposable;
++import com.ntk.darkmoor.config.Settings;
++import com.ntk.darkmoor.engine.Compass.CardinalPoint;
++import com.ntk.darkmoor.engine.DisplayCoordinates;
++import com.ntk.darkmoor.engine.DungeonLocation;
++import com.ntk.darkmoor.engine.Maze;
++import com.ntk.darkmoor.engine.Square;
++import com.ntk.darkmoor.engine.Square.SquareType;
++import com.ntk.darkmoor.engine.Team;
++import com.ntk.darkmoor.engine.actor.Door;
++import com.ntk.darkmoor.engine.actor.Pit;
++import com.ntk.darkmoor.engine.actor.Stair;
++import com.ntk.darkmoor.engine.actor.Teleporter;
++
++/**
++ * 小地图模块 — 在主游戏界面左上角显示当前楼层的实时缩略图。
++ *
++ * <p>显示内容：
++ * <ul>
++ *   <li>墙体 / 幻象墙 / 地面（深灰 / 中灰 / 浅灰）</li>
++ *   <li>门（黄）/ 楼梯（浅绿）/ 陷阱（深蓝）/ 传送器（紫）</li>
++ *   <li>怪物（红）/ 地面物品（橙）</li>
++ *   <li>玩家位置（蓝）+ 朝向箭头（白）</li>
++ * </ul>
++ *
++ * <p>渲染技术：每帧用 {@link Pixmap} 在内存中重绘整个 minimap，
++ * 通过 {@link Texture#draw(Pixmap, int, int)} 上传到 GPU，
++ * 由一个 {@link Image} 渲染到 stage。
++ *
++ * <p>设计文档：{@code docs/v0.5/08-minimap-design.md}
++ * <p>地图系统总览：{@code docs/v0.5/modules/12-maze-system.md}
++ *
++ * @see GameScreenGroup
++ * @see Maze
++ * @see Team
++ */
++public class MinimapGroup extends GameScreenGroup implements Disposable {
++
++	/** minimap 显示区域宽度（像素） */
++	public static final int MINIMAP_WIDTH = 220;
++	/** minimap 显示区域高度（像素） */
++	public static final int MINIMAP_HEIGHT = 220;
++	/** minimap 左下角 X（stage 坐标） */
++	public static final float MINIMAP_X = 8f;
++	/** minimap 左下角 Y（stage 坐标）— 紧贴第一人称视图顶部 */
++	public static final float MINIMAP_Y = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - MINIMAP_HEIGHT - 8f;
++
++	/** minimap 内边距（避免地图贴边） */
++	private static final int PADDING = 4;
++
++	// 颜色方案 — 与 docs/v0.5/08-minimap-design.md §8.5 一致
++	private static final Color COLOR_BG = new Color(0f, 0f, 0f, 0.65f);
++	private static final Color COLOR_BORDER = Color.LIGHT_GRAY;
++	private static final Color COLOR_WALL = new Color(0.19f, 0.19f, 0.19f, 1f);
++	private static final Color COLOR_ILLUSION = new Color(0.4f, 0.4f, 0.4f, 1f);
++	private static final Color COLOR_GROUND = new Color(0.85f, 0.85f, 0.85f, 1f);
++	private static final Color COLOR_DOOR = new Color(1f, 1f, 0.33f, 1f);
++	private static final Color COLOR_STAIR = new Color(0.57f, 0.81f, 0.54f, 1f);
++	private static final Color COLOR_PIT = new Color(0.17f, 0.19f, 0.54f, 1f);
++	private static final Color COLOR_TELEPORTER = new Color(0.7f, 0.3f, 0.9f, 1f);
++	private static final Color COLOR_MONSTER = new Color(1f, 0.33f, 0.33f, 1f);
++	private static final Color COLOR_ITEM = new Color(1f, 0.65f, 0f, 1f);
++	private static final Color COLOR_TEAM = new Color(0.4f, 0.41f, 0.71f, 1f);
++	private static final Color COLOR_ARROW = Color.WHITE;
++
++	public Team team;
++
++	private Pixmap pixmap;
++	private Texture texture;
++	private Image image;
++
++	@Override
++	public void initialize() {
++		pixmap = new Pixmap(MINIMAP_WIDTH, MINIMAP_HEIGHT, Pixmap.Format.RGBA8888);
++		texture = new Texture(pixmap);
++		texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
++
++		image = new Image(new TextureRegionDrawable(new TextureRegion(texture)));
++		image.setBounds(MINIMAP_X, MINIMAP_Y, MINIMAP_WIDTH, MINIMAP_HEIGHT);
++		addActor(image);
++	}
++
++	@Override
++	public void update() {
++		if (team == null || team.getMaze() == null)
++			return;
++
++		// 根据 Settings 决定可见性
++		Settings settings = Settings.getLastLoadedInstance();
++		setVisible(settings == null || settings.isShowMinimap());
++		if (!isVisible())
++			return;
++
++		redraw();
++	}
++
++	/**
++	 * 重绘整个 minimap。每帧调用。
++	 *
++	 * <p>步骤：
++	 * <ol>
++	 *   <li>清空 pixmap（半透明黑色背景 + 边框）</li>
++	 *   <li>计算 tile 像素大小（保持长宽比，使地图居中填满）</li>
++	 *   <li>遍历所有 tile，按优先级绘制颜色方块</li>
++	 *   <li>绘制玩家位置（蓝方块 + 白色朝向箭头）</li>
++	 *   <li>把 pixmap 上传到 texture</li>
++	 * </ol>
++	 */
++	private void redraw() {
++		Maze maze = team.getMaze();
++		if (maze == null || maze.getSize() == null)
++			return;
++
++		int mazeW = (int) maze.getSize().x;
++		int mazeH = (int) maze.getSize().y;
++		if (mazeW <= 0 || mazeH <= 0)
++			return;
++
++		// 计算 tile 像素大小（保持长宽比，地图居中）
++		float tilePxF = Math.min(
++				(float) (MINIMAP_WIDTH - 2 * PADDING) / mazeW,
++				(float) (MINIMAP_HEIGHT - 2 * PADDING) / mazeH);
++		if (tilePxF < 1f)
++			tilePxF = 1f;
++
++		int tilePx = (int) Math.floor(tilePxF);
++		if (tilePx < 1)
++			tilePx = 1;
++
++		int drawW = tilePx * mazeW;
++		int drawH = tilePx * mazeH;
++		int offsetX = (MINIMAP_WIDTH - drawW) / 2;
++		int offsetY = (MINIMAP_HEIGHT - drawH) / 2;
++
++		// 1. 清空 + 背景
++		pixmap.setColor(COLOR_BG);
++		pixmap.fill();
++
++		// 边框
++		pixmap.setColor(COLOR_BORDER);
++		pixmap.drawRectangle(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
++
++		// 2. 遍历所有 tile
++		DungeonLocation loc = team.getLocation();
++		Vector2 coord = (loc != null) ? loc.getCoordinates() : null;
++		String currentMazeName = maze.getName();
++
++		Vector2 probe = new Vector2();
++		for (int y = 0; y < mazeH; y++) {
++			for (int x = 0; x < mazeW; x++) {
++				probe.set(x, y);
++				Square sq = maze.getSquare(probe);
++				if (sq == null)
++					continue;
++
++				Color color = tileColor(sq);
++				int px = offsetX + x * tilePx;
++				int py = offsetY + y * tilePx;
++				pixmap.setColor(color);
++				pixmap.fillRectangle(px, py, tilePx, tilePx);
++			}
++		}
++
++		// 3. 绘制玩家位置 + 朝向箭头
++		if (loc != null && coord != null && currentMazeName != null
++				&& currentMazeName.equals(loc.getMaze())) {
++			int tx = (int) coord.x;
++			int ty = (int) coord.y;
++			if (tx >= 0 && tx < mazeW && ty >= 0 && ty < mazeH) {
++				int px = offsetX + tx * tilePx;
++				int py = offsetY + ty * tilePx;
++
++				// 玩家方块（蓝色，比 tile 大 1px 边缘）
++				pixmap.setColor(COLOR_TEAM);
++				pixmap.fillRectangle(px, py, tilePx, tilePx);
++
++				// 朝向箭头
++				CardinalPoint dir = loc.getDirection();
++				if (dir != null) {
++					drawDirectionArrow(px, py, tilePx, dir);
++				}
++			}
++		}
++
++		// 4. 上传到 GPU
++		texture.draw(pixmap, 0, 0);
++	}
++
++	/**
++	 * 决定单个 tile 的颜色。优先级（从低到高）：
++	 * <pre>
++	 *   Wall/Illusion/Ground → Item → Door/Stair/Pit/Teleporter → Monster
++	 * </pre>
++	 * 玩家位置在 redraw() 末尾单独画，不进入此方法。
++	 */
++	private Color tileColor(Square sq) {
++		// 基础颜色
++		Color color;
++		SquareType type = sq.getType();
++		if (type == SquareType.Wall) {
++			color = COLOR_WALL;
++		} else if (type == SquareType.Illusion) {
++			color = COLOR_ILLUSION;
++		} else {
++			color = COLOR_GROUND;
++		}
++
++		// 物品（覆盖地面）
++		if (sq.getItemCount() > 0) {
++			color = COLOR_ITEM;
++		}
++
++		// Actor（覆盖物品；按类型选择颜色）
++		Object actor = sq.getActor();
++		if (actor instanceof Door) {
++			color = COLOR_DOOR;
++		} else if (actor instanceof Stair) {
++			color = COLOR_STAIR;
++		} else if (actor instanceof Pit) {
++			color = COLOR_PIT;
++		} else if (actor instanceof Teleporter) {
++			color = COLOR_TELEPORTER;
++		}
++
++		// 怪物（最高优先级，覆盖一切 — 威胁优先）
++		if (sq.getMonsterCount() > 0) {
++			color = COLOR_MONSTER;
++		}
++
++		return color;
++	}
++
++	/**
++	 * 在玩家方块上画一个白色三角形箭头指示朝向。
++	 *
++	 * <p>注意 Pixmap 坐标系 Y 向下：
++	 * <ul>
++	 *   <li>North（迷宫 -Y）→ 箭头朝 pixmap 上方</li>
++	 *   <li>South（迷宫 +Y）→ 箭头朝 pixmap 下方</li>
++	 *   <li>East（迷宫 +X）→ 箭头朝 pixmap 右方</li>
++	 *   <li>West（迷宫 -X）→ 箭头朝 pixmap 左方</li>
++	 * </ul>
++	 */
++	private void drawDirectionArrow(int px, int py, int tilePx, CardinalPoint dir) {
++		int cx = px + tilePx / 2;
++		int cy = py + tilePx / 2;
++		int armLen = Math.max(tilePx + 2, 4);
++		int half = Math.max(tilePx / 2, 1);
++
++		pixmap.setColor(COLOR_ARROW);
++		switch (dir) {
++			case North:
++				// 顶点在玩家方块上方
++				pixmap.fillTriangle(
++						cx, cy - armLen,
++						cx - half, cy,
++						cx + half, cy);
++				break;
++			case South:
++				pixmap.fillTriangle(
++						cx, cy + armLen,
++						cx - half, cy,
++						cx + half, cy);
++				break;
++			case East:
++				pixmap.fillTriangle(
++						cx + armLen, cy,
++						cx, cy - half,
++						cx, cy + half);
++				break;
++			case West:
++				pixmap.fillTriangle(
++						cx - armLen, cy,
++						cx, cy - half,
++						cx, cy + half);
++				break;
++		}
++	}
++
++	@Override
++	public void dispose() {
++		if (texture != null) {
++			texture.dispose();
++			texture = null;
++		}
++		if (pixmap != null) {
++			pixmap.dispose();
++			pixmap = null;
++		}
++		image = null;
++	}
++}
+diff --git a/desktop/resources/data/settings.properties b/desktop/resources/data/settings.properties
+index adbdd37..73fab42 100644
+--- a/desktop/resources/data/settings.properties
++++ b/desktop/resources/data/settings.properties
+@@ -4,4 +4,5 @@ HPAsBar=False
+ Music=true
+ Effects=true
+ FullScreen=False
+-saveSlots=6
+\ No newline at end of file
++saveSlots=6
++ShowMinimap=true
+diff --git a/docs/v0.5/08-minimap-design.md b/docs/v0.5/08-minimap-design.md
+new file mode 100644
+index 0000000..0ab92d1
+--- /dev/null
++++ b/docs/v0.5/08-minimap-design.md
+@@ -0,0 +1,303 @@
++# 08. 小地图模块设计与实现
++
++> **状态**：v0.5 阶段新增模块
++> **目的**：解决"玩家不知道自己在哪儿"的核心可用性问题
++> **相关源码**：
++> - `core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java`（新建）
++> - `core/src/com/ntk/darkmoor/GameScreen.java`（修改：注册 MinimapGroup）
++> - `core/src/com/ntk/darkmoor/config/Settings.java`（修改：加 showMinimap 开关）
++> - `android/assets/data/settings.properties` + `desktop/resources/data/settings.properties`（加 `ShowMinimap=true`）
++
++---
++
++## 8.1 背景与问题
++
++在 v0.5 截图（见用户上传截图）中，玩家看到的是：
++
++```
++┌─────────────────────────────────┐
++│                                 │
++│   第一人称石砖走廊视图           │
++│   （空无一物，没有地标）         │
++│                                 │
++├─────────────────────────────────┤
++│  Nav   | Compass | CAMP         │
++└─────────────────────────────────┘
++```
++
++**问题**：玩家完全不知道自己在楼层里的哪个位置、面朝什么方向、附近有什么。
++
++对地牢爬行类游戏（Blobber CRPG）来说，这是致命的可用性缺陷。原版 EOB2 通过画在屏幕角落的"自动化地图"（AutoMap）解决，darkmoor 项目中 `AutoMap.java` 是一个 73 行的 stub，`Maze.drawMiniMap()` 也只有颜色逻辑、`batch.fillRectangle` 是 TODO 注释。
++
++## 8.2 设计目标
++
++| 目标 | 说明 |
++|---|---|
++| 实时显示玩家在楼层里的位置 | 包括坐标和朝向 |
++| 显示附近的可交互对象 | 门、楼梯、陷阱、传送器 |
++| 显示威胁与战利品 | 怪物（红）、地面物品（橙） |
++| 不遮挡主视角 | 放在第一人称视图的左上角，半透明 |
++| 可开关 | Settings 里加 `ShowMinimap` 开关 |
++| 性能可接受 | 每帧重绘 220×220 像素的 Pixmap，开销低 |
++| 通用、可扩展 | 后续可加战争迷雾、大地图模式 |
++
++## 8.3 屏幕布局选择
++
++截图分析与候选位置：
++
++| 候选位置 | 优势 | 劣势 | 是否选用 |
++|---|---|---|---|
++| **左上角**（第一人称视图左上） | 不遮挡主走廊视图；视觉习惯（HUD 通常在角落） | 可能遮挡远处墙体的左上角 | ✅ 选用 |
++| 右上角 | 同上 | 右上是角色面板区，没空间 | ✗ |
++| 左下角（导航按钮上方） | 有空间 | 遮挡第一人称视图的近处地面，影响操作预判 | ✗ |
++| 中间偏左 | 显眼 | 遮挡主视图 | ✗ |
++| 浮窗（按 M 切换） | 不占常驻空间 | 玩家无法持续感知位置 | 留作未来扩展 |
++
++**最终位置**：
++
++```
++MINIMAP_X = 8                              // 距屏幕左边 8 px
++MINIMAP_Y = PLAYABLE_WINDOW_HEIGHT
++          - MINIMAP_HEIGHT - 8             // 距第一人称视图顶部 8 px
++                                          //（PLAYABLE_WINDOW_HEIGHT = 775）
++MINIMAP_WIDTH = MINIMAP_HEIGHT = 220       // 正方形
++```
++
++stage 坐标系（Y 向上）下，这相当于：
++
++```
++y = 775 - 220 - 8 = 547    // Image 左下角的 Y
++```
++
++正好覆盖第一人称视图的左上角，但因为视图本身在那里通常是远处的墙顶/天花板，遮挡影响小。
++
++## 8.4 渲染技术选型
++
++### 候选 A：scene2d Image 池（仿 MazeGroup）
++
++为每个 tile 创建一个 `Image`，每帧更新 `Drawable`。
++
++- ✅ 与项目现有风格一致
++- ❌ 40×40 楼层 = 1600 个 Image，过多
++- ❌ 每帧切换 1600 个 Drawable 性能差
++
++### 候选 B：ShapeRenderer 直接绘制
++
++重写 `draw(Batch, float)`，在 `Batch.end()` 后用 `ShapeRenderer` 画方块。
++
++- ✅ 灵活、性能好
++- ❌ scene2d Group 与 ShapeRenderer 混用容易出错（坐标系、Batch 状态）
++- ❌ 与项目其他 Group 风格不一致
++
++### 候选 C：Pixmap + Texture + Image（最终选用）
++
++每帧用 `Pixmap` 在内存中重绘整个 minimap，上传到一个 `Texture`，再由一个 `Image` 渲染。
++
++- ✅ 单个 Image，scene2d 集成干净
++- ✅ Pixmap 提供 `fillRectangle`、`fillTriangle` 等基本绘图，够用
++- ✅ 220×220 RGBA8888 = ~190KB，每帧重绘开销可接受
++- ⚠️ `texture.draw(pixmap, 0, 0)` 每帧调用会触发 GPU 上传，但单帧 < 1ms
++- ✅ 易于扩展（战争迷雾、注释等只需在 Pixmap 上画更多东西）
++
++## 8.5 颜色方案
++
++沿用 `Maze.drawMiniMap()` 的颜色判断逻辑，扩展物品和传送器：
++
++| 元素 | 颜色 | RGBA | 来源 |
++|---|---|---|---|
++| 墙 (Wall) | 深灰 | (48, 48, 48, 255) | 比纯黑更柔和 |
++| 幻象墙 (Illusion) | 中灰 | (102, 102, 102, 255) | 略亮于墙 |
++| 地面 (Ground) | 浅灰 | (217, 217, 217, 255) | 主背景色 |
++| 门 (Door) | 黄 | (255, 255, 85, 255) | `GameColors.Yellow` |
++| 楼梯 (Stair) | 浅绿 | (146, 207, 138, 255) | `GameColors.LightGreen` |
++| 陷阱 (Pit) | 深蓝 | (44, 48, 138, 255) | `GameColors.DarkBlue` |
++| 传送器 (Teleporter) | 紫 | (179, 77, 230, 255) | 新增，区别于楼梯 |
++| 怪物 (Monster) | 红 | (255, 85, 85, 255) | `GameColors.Red` |
++| 地面物品 (Item) | 橙 | (255, 165, 0, 255) | 新增 |
++| 玩家 (Team) | 蓝 | (101, 105, 182, 255) | `GameColors.Blue` |
++| 朝向箭头 | 白 | (255, 255, 255, 255) | 高对比 |
++
++**优先级**（同一 tile 上有多个东西时的覆盖顺序，从低到高）：
++
++```
++Wall/Illusion/Ground (基础)
++  → Item (橙)
++    → Door / Stair / Pit / Teleporter (Actor)
++      → Monster (红，最高优先级，因为最威胁)
++        → Team (蓝，玩家自己)
++```
++
++## 8.6 坐标系处理
++
++**关键陷阱**：迷宫坐标系 Y 向下（+Y = South），Pixmap 坐标系 Y 也向下（(0,0) = 左上）。两者方向一致，所以**直接用** `pixmap.fillRectangle(x, y, ...)` 即可。
++
++但 `Image` 在 stage 坐标系中 Y 向上，Texture 默认会被 Image 正确渲染（Pixmap 顶部 = Image 顶部）。这一点通过实测验证：libGDX 的 Texture 默认 `useMipMaps = false`，TextureRegion 默认不翻转 Y。
++
++**tile 像素大小计算**：
++
++```java
++float tilePx = Math.min(
++    (float)(MINIMAP_WIDTH - 8) / mazeW,
++    (float)(MINIMAP_HEIGHT - 8) / mazeH);
++```
++
++- 40×40 楼层 → tilePx ≈ 5.3 → 5px
++- 20×17 楼层 → tilePx ≈ 10.85 → 10px
++- 始终保持长宽比，地图居中显示
++
++## 8.7 朝向箭头绘制
++
++玩家朝向用三角形箭头表示，从玩家 tile 中心向朝向方向延伸：
++
++```java
++int cx = px + sz / 2;
++int cy = py + sz / 2;
++int armLen = sz + 2;
++switch (dir) {
++    case North: // 朝上（迷宫 -Y 方向）
++        pixmap.fillTriangle(cx, cy - armLen, cx - sz/2, cy, cx + sz/2, cy);
++        break;
++    case South: // 朝下
++        pixmap.fillTriangle(cx, cy + armLen, cx - sz/2, cy, cx + sz/2, cy);
++        break;
++    case East:  // 朝右
++        pixmap.fillTriangle(cx + armLen, cy, cx, cy - sz/2, cx, cy + sz/2);
++        break;
++    case West:  // 朝左
++        pixmap.fillTriangle(cx - armLen, cy, cx, cy - sz/2, cx, cy + sz/2);
++        break;
++}
++```
++
++由于 Pixmap Y 向下，`cy - armLen` 实际显示在玩家方块上方（北边），符合"北朝上"的视觉惯例。
++
++## 8.8 类结构
++
++```
++MinimapGroup extends GameScreenGroup implements Disposable
++├── 字段
++│   ├── public Team team           // 由 GameScreen 注入
++│   ├── public Skin uiSkin         // 由 GameScreen 注入
++│   ├── private Pixmap pixmap      // 220×220 内存位图
++│   ├── private Texture texture    // pixmap 上传到 GPU
++│   └── private Image image        // 显示 texture 的 scene2d Actor
++├── 方法
++│   ├── initialize()               // 创建 pixmap/texture/image，加入 Group
++│   ├── update()                   // 每帧调用，触发 redraw() 并处理可见性
++│   ├── redraw()                   // 实际重绘逻辑
++│   └── dispose()                  // 释放 pixmap/texture
++└── 常量
++    ├── MINIMAP_WIDTH = 220
++    ├── MINIMAP_HEIGHT = 220
++    ├── MINIMAP_X = 8
++    └── MINIMAP_Y = PLAYABLE_WINDOW_HEIGHT - 228
++```
++
++## 8.9 集成到 GameScreen
++
++### 8.9.1 字段声明
++
++```java
++// 在 GameScreen 类的字段区添加：
++private MinimapGroup minimapGroup;
++```
++
++### 8.9.2 在 `initScreenObjects()` 末尾添加
++
++```java
++minimapGroup = new MinimapGroup();
++minimapGroup.team = GameScreen.team;
++minimapGroup.uiSkin = uiSkin;
++minimapGroup.initialize();
++stage.addActor(minimapGroup);
++```
++
++### 8.9.3 在 `update()` 中添加更新调用
++
++在 `if (team.getMaze() != null) mazeGroup.update();` 之后：
++
++```java
++if (team.getMaze() != null) {
++    minimapGroup.setVisible(interfaceType == TeamInterface.Main);
++    minimapGroup.update();
++}
++```
++
++只在主界面（非 Inventory/Statistic）显示小地图，避免遮挡物品/统计视图。
++
++### 8.9.4 在 `unloadContent()` 中添加 dispose
++
++```java
++if (minimapGroup != null)
++    minimapGroup.dispose();
++minimapGroup = null;
++```
++
++## 8.10 Settings 开关
++
++### 8.10.1 Settings.java 修改
++
++```java
++// 1. 加常量
++private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
++
++// 2. 加字段
++private boolean showMinimap;
++
++// 3. 在 loadSettings() 中添加
++settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
++
++// 4. 加 getter/setter
++public boolean isShowMinimap() { return showMinimap; }
++public void setShowMinimap(boolean v) { this.showMinimap = v; }
++```
++
++### 8.10.2 settings.properties 修改
++
++在文件末尾添加：
++
++```
++ShowMinimap=true
++```
++
++需同时改 `android/assets/data/settings.properties` 和 `desktop/resources/data/settings.properties`。
++
++## 8.11 性能分析
++
++| 操作 | 频率 | 开销估算 |
++|---|---|---|
++| `pixmap.fill()` 清空 | 每帧 | ~0.05ms (220×220) |
++| `maze.getSquare(x,y)` 调用 | 每帧 1600 次（40×40） | ~0.5ms |
++| `pixmap.fillRectangle()` | 每帧 1600 次 | ~0.3ms |
++| `texture.draw(pixmap, 0, 0)` | 每帧 | ~0.2ms（GPU 上传） |
++| **总计** | 每帧 | ~1ms，可接受 |
++
++如果未来需要优化：
++- 只在 `team.hasMoved` 时重绘（移动事件驱动）
++- 用脏矩形只重绘变化区域
++- 缓存静态部分（墙/门），只重绘动态部分（怪物/玩家）
++
++## 8.12 测试清单
++
++| 测试项 | 期望结果 |
++|---|---|
++| 加载存档进入游戏 | 左上角出现 220×220 半透明 minimap |
++| 玩家移动 | minimap 中蓝色方块移动，箭头方向不变 |
++| 玩家转向 | 箭头方向变化，蓝色方块位置不变 |
++| 进入有怪物的楼层 | minimap 中可见红点 |
++| 走过门 | 黄色方块在身后出现 |
++| 踩楼梯切楼层 | minimap 整体刷新为新楼层布局 |
++| Settings 设 `ShowMinimap=false` | minimap 消失 |
++| Inventory/Statistic 视图 | minimap 隐藏 |
++| 40×40 大楼层 | minimap 缩小显示完整布局 |
++| 20×17 小楼层 | minimap 居中显示，tiles 较大 |
++
++## 8.13 后续扩展方向
++
++详见 [12-maze-system.md §12.11](modules/12-maze-system.md#1211-未来扩展方向)。
++
++短期可考虑：
++
++1. **战争迷雾**：在 `Square` 加 `boolean explored`，初始 false，`onTeamEnter()` 时置 true。Minimap 只画 `explored=true` 的 tile，未探索区域画黑。这能恢复游戏的"探索感"。
++2. **大地图模式**：实现 `AutoMap` stub，做成全屏 `ScreenAdapter`，按 M 键切换。可以显示当前楼层的全图（无迷雾）+ 楼层切换列表。
++3. **小地图旋转**：让玩家朝向始终朝上（北朝上→玩家朝上）。需要旋转 Pixmap 或用 `Image.setRotation()`，但 Pixmap 旋转较复杂，可能需要用 `SpriteBatch.draw(texture, ..., rotation)` 路径。
+diff --git a/docs/v0.5/modules/12-maze-system.md b/docs/v0.5/modules/12-maze-system.md
+new file mode 100644
+index 0000000..826d4fc
+--- /dev/null
++++ b/docs/v0.5/modules/12-maze-system.md
+@@ -0,0 +1,454 @@
++# 12. 地图系统模块（Maze System）
++
++> **覆盖包**：`com.ntk.darkmoor.engine`（根包内的迷宫/方块/位置相关类）
++> **关键类**：`Dungeon`、`Maze`、`Square`、`SquareActor` 及其子类、`DungeonLocation`、`Compass`、`Team`、`ViewField`、`DisplayCoordinates`
++> **适合谁看**：想理解"我在哪儿"、"地图怎么存"、"主视角怎么画出来"、"如何加小地图/自动化地图"的人
++
++---
++
++## 12.1 一句话总结
++
++darkmoor 的地图系统是一个**多层 tile 网格**：
++
++- 一个 `Dungeon`（地下城）包含若干 `Maze`（楼层）
++- 每个 `Maze` 是 `width × height` 的 `Square` 二维网格
++- 每个 `Square` 上可以放：墙/地面、1 个 `SquareActor`（门/楼梯/陷阱/传送器等）、最多 4 个 `Monster`、若干 `Item`
++- `Team.location` 是**唯一**的玩家位置真相来源，类型是 `DungeonLocation`（迷宫名 + 坐标 + 朝向 + 子位置）
++- `ViewField` 把 `DungeonLocation` 转换成"眼前能看见的 15 个方块"
++- `DisplayCoordinates` 是从 XML 加载的静态查找表，决定 15 个方块各自落在屏幕的哪个像素位置
++
++---
++
++## 12.2 关键概念速查表
++
++| 概念 | 类 / 字段 | 取值范围 | 说明 |
++|---|---|---|---|
++| 楼层 | `Maze.name` (String) | `"Forest"`、`"Catacomb - 01"`、`"Temple - 02"` 等 | 不是整数编号，是字符串名 |
++| 楼层尺寸 | `Maze.size` (Vector2) | 典型 20×17 ~ 40×40 | x=宽，y=高 |
++| Tile 坐标 | `DungeonLocation.coordinate` (Vector2) | (0,0) ~ (size.x-1, size.y-1) | **(0,0) = NW 角，+X 向东，+Y 向南** |
++| 朝向 | `DungeonLocation.direction` (CardinalPoint) | North / South / West / East | North=-Y，South=+Y，West=-X，East=+X |
++| 子位置 | `DungeonLocation.position` (SquarePosition) | NW / NE / SW / SE / Center | 一个 tile 内的 4 个角 + 中心，用于英雄/怪物精确站位 |
++| 玩家位置 | `Team.location` | 上述 4 个的组合 | 整个项目**唯一**的"我在哪儿"字段 |
++| 当前楼层实例 | `Team.maze` | `Maze` 引用 | 由 `location.maze` 字符串解析得到 |
++| 当前 tile | `Team.square` | `Square` 引用 | 缓存，避免每次都查 `maze.getSquare(...)` |
++| 前方 tile | `Team.getFrontSquare()` | `Square` | 当前朝向上的相邻 tile |
++| 视野 | `new ViewField(team.getMaze(), team.getLocation())` | 15 个 `ViewFieldPosition` (A~O + Team) | 计算可见的 15 个方块 |
++
++---
++
++## 12.3 坐标系详解
++
++### 12.3.1 迷宫 tile 坐标
++
++```
++                +X (East)
++                ──────►
++           ┌──────────────────┐
++           │(0,0) (1,0) (2,0) │   ← 迷宫北边（NW 角 = (0,0)）
++           │(0,1) (1,1) (2,1) │
++       +Y  │(0,2) (1,2) (2,2) │
++       (South)                │
++           │                  │
++           └──────────────────┘
++                                ↑
++                            迷宫南边（SW 角 = (0, height-1)）
++```
++
++**关键约定**：
++
++- 原点 (0,0) 在迷宫的 **西北角**（NW corner，左上角）
++- +X 方向是**东**（→）
++- +Y 方向是**南**（↓）
++- 这与"屏幕像素坐标系 Y 向下"一致，但与"libGDX scene2d 坐标系 Y 向上"**相反**——做小地图时要小心
++
++### 12.3.2 子位置（SquarePosition）
++
++一个 tile 内部分成 4 个角 + 中心，用于精确站位：
++
++```
++    ┌──────┬──────┐
++    │  NW  │  NE  │     0 = NorthWest
++    │  (0) │  (1) │     1 = NorthEast
++    ├──┐   ┌──┤     2 = SouthWest
++    │  │ E │  │     3 = SouthEast
++    │  │(4)│  │     4 = Center
++    ├──┘   └──┤
++    │  SW  │  SE  │
++    │  (2) │  (3) │
++    └──────┴──────┘
++```
++
++### 12.3.3 朝向（CardinalPoint）
++
++```java
++public enum CardinalPoint {
++    North(0), South(1), West(2), East(3);
++}
++```
++
++- `North` → -Y 方向（向迷宫北边走）
++- `South` → +Y 方向
++- `West` → -X 方向
++- `East` → +X 方向
++
++`Compass` 类提供静态工具方法：
++
++| 方法 | 作用 |
++|---|---|
++| `Compass.rotate(dir, CompassRotation.Rotate90)` | 顺/逆时针旋转 90° |
++| `Compass.getOppositeDirection(dir)` | 取反方向（North↔South、West↔East） |
++| `Compass.seekDirection(from, target)` | 从 `from` 朝 `target` 的方向 |
++| `Compass.isFacing(from, target)` | 是否面对面 |
++| `Compass.getDirectionFromView(view, side)` | 把"玩家朝向 + 相对方位"翻译成绝对方向 |
++
++### 12.3.4 屏幕 / Stage 坐标
++
++| 常量 | 值 | 含义 |
++|---|---|---|
++| `DarkmoorGame.DISPLAY_WIDTH` | 1280 | 设计分辨率宽 |
++| `DarkmoorGame.DISPLAY_HEIGHT` | 720 | 设计分辨率高 |
++| `DisplayCoordinates.TOP_LEFT_X` | 0 | 第一人称迷宫视图左上角 X |
++| `DisplayCoordinates.TOP_LEFT_Y` | 505 | 第一人称迷宫视图左上角 Y（从屏幕底部量） |
++| `DisplayCoordinates.PLAYABLE_WINDOW_WIDTH` | 712 | 第一人称视图宽 |
++| `DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT` | 775 | 第一人称视图高 |
++
++> ⚠️ **已知 bug**：`GameScreenBase` 用的是 `new StretchViewport(DISPLAY_WIDTH, DISPLAY_WIDTH)`（即 1280×1280），不是 `1280×720`。Stage 内部坐标系被纵向压缩到 720 高。所有 scene2d 坐标都按 1280×1280 系设计。
++
++### 12.3.5 视野（ViewField）
++
++`ViewField` 把"玩家所在 DungeonLocation"翻译成"眼前能看见的 15 个方块"。布局如下（玩家朝北时）：
++
++```
++   远处
++   ─────
++   A E B D C       ← 第 3 行（最远）
++   F J G I H       ← 第 2 行
++     K M L         ← 第 1 行
++     N ↑ O         ← 第 0 行（玩家所在行，↑ = Team）
++   ─────
++   近处
++```
++
++`ViewField` 构造函数一次完成所有 15 个 `Square` 的查找：
++
++```java
++ViewField pov = new ViewField(team.getMaze(), team.getLocation());
++Square s = pov.getBlock(ViewFieldPosition.G);  // 玩家正前方 2 格的中间
++```
++
++无论玩家朝哪个方向，`ViewField` 内部会根据 `direction` 旋转坐标偏移，所以 `ViewFieldPosition.A` 永远是"远处最左"。
++
++---
++
++## 12.4 类层级与职责
++
++### 12.4.1 数据模型层
++
++```
++Dungeon
++  └─ HashMap<String, Maze> mazes         // 楼层名 → 楼层实例
++  └─ DungeonLocation startLocation       // 入口
++
++Maze
++  └─ ArrayList<List<Square>> squares     // [y][x] 二维网格
++  └─ Vector2 size                        // width × height
++  └─ String wallTilesetName              // 墙体贴图集
++  └─ ArrayList<ThrownItem> thrownItems   // 飞行中的物品（投掷物/法术）
++  └─ ArrayList<MazeZone> zones           // 触发区（脚本钩子）
++
++Square
++  └─ Vector2 location                    // (x, y)
++  └─ SquareType type                     // Ground / Wall / Illusion
++  └─ SquareActor actor                   // 门/楼梯/陷阱...（可空）
++  └─ Monster[4] monsters                 // 4 个子位置各一个怪物槽
++  └─ int[4] decorations                  // 4 个方向的装饰
++  └─ ArrayList<List<Item>> items         // 4 个子位置的物品堆
++
++DungeonLocation
++  └─ String maze                         // 楼层名
++  └─ Vector2 coordinate                  // (x, y)
++  └─ CardinalPoint direction             // 朝向
++  └─ SquarePosition position             // 子位置（NW/NE/SW/SE/Center）
++```
++
++### 12.4.2 行为层
++
++| 类 | 角色 | 关键方法 |
++|---|---|---|
++| `Team` | 玩家小队（**位置的唯一修改者**） | `walk(front, strafe)`、`offset(dir, n)`、`teleport(loc)`、`getFrontLocation()`、`getFrontSquare()` |
++| `Hero` | 单个角色（不存自身位置，通过 `GameScreen.getTeam()` 访问） | `useHand()`、`attack()` |
++| `Monster` | 怪物（自带位置） | `move(offset)`、`teleport(square, pos)`、`getLocation()` |
++| `SquareActor` (abstract) | tile 上的"东西"基类 | `onTeamEnter/Stand/Leave`、`onMonsterEnter/Leave`、`onItemDropped/Collected`、`onClick` |
++| `Door` | 门（9 种类型，6 种状态） | `isBlocking` 取决于状态 |
++| `Stair` | 楼梯 → 楼层切换 | `onTeamEnter()` 调用 `team.teleport(target)` |
++| `Teleporter` | 传送器 | 同上 |
++| `Pit` | 陷阱 | 落入后传送到 `target`，可能造成伤害 |
++| `PressurePlate` | 压力板 | 触发 `PressurePlateScript` 列表 |
++| `WallSwitch` | 墙上开关/拉杆 | 需要 `neededItem` 或解锁 `lockLevel` |
++| `ForceField` | 力场（旋转/推动队伍） | `onTeamEnter()` 改变朝向或位置 |
++| `EventSquare` | 触发区 | 触发 `ScriptedDialog` 或消息 |
++| `AlcoveActor` | 壁龛（4 个方向各一个 `Alcove`） | 物品放入/取出脚本钩子 |
++
++### 12.4.3 渲染层
++
++| 类 | 角色 | 说明 |
++|---|---|---|
++| `MazeGroup` | 主视角 3D-like 视图（scene2d Group） | 每帧用 `ViewField` 重画 15 个方块的墙/装饰/Actor |
++| `DisplayCoordinates` | 静态坐标查找表 | 从 `MazeElements.xml` 加载，包含 16 个 ViewFieldPosition 各自的墙/门/楼梯/陷阱/地面/怪物位置 |
++| `TileDrawing` | 单个绘制指令数据 | (tileset ID, 屏幕坐标, 朝向, 翻转, 缩放) |
++| `SpriteEffects` | 翻转枚举 | NONE / FLIP_HORIZONTALLY / FLIP_VERTICALY |
++| `NavigationControlsGroup` | 底部导航按钮 + 罗盘 | 6 个方向按钮 + 3 张罗盘图 |
++| `HeroInterfaceGroup` | 右侧 6 个角色面板 | 头像 + 血条 + 双手装备 |
++| `Maze.drawMiniMap(batch, point)` | **遗留未实现**的小地图方法 | 只有颜色逻辑，`batch.fillRectangle` 是 TODO 注释 |
++
++---
++
++## 12.5 玩家位置的全局访问点
++
++```java
++// 玩家位置的唯一来源
++GameScreen.getTeam()                        // → Team 单例
++GameScreen.getTeam().getLocation()          // → DungeonLocation（位置结构体）
++GameScreen.getTeam().getMaze()              // → Maze（当前楼层实例）
++GameScreen.getTeam().getSquare()            // → Square（当前 tile）
++GameScreen.getTeam().getDirection()         // → CardinalPoint（朝向）
++GameScreen.getTeam().getFrontLocation()     // → DungeonLocation（前方一格）
++GameScreen.getTeam().getFrontSquare()       // → Square（前方一格）
++
++// 全局资源
++DarkmoorGame.getInstance()                  // → DarkmoorGame 单例
++Resources.getDungeon()                      // → Dungeon（当前地下城）
++Settings.getLastLoadedInstance()            // → Settings 单例
++```
++
++> **重要**：项目中**没有任何其他地方**保存玩家位置。所有需要"我在哪儿"的代码都通过 `GameScreen.getTeam().getLocation()` 读取。
++
++---
++
++## 12.6 玩家移动的完整流程
++
++以"按 ↑ 前进一步"为例：
++
++```
++用户点击 NavigationControlsGroup 的"前进"按钮
++  ↓
++team.walk(0, -1)            // front=0（不转向）, strafe=-1（向前）
++  ↓
++Team.walk():
++  1. 检查 canMove()          // 冷却时间 + 是否在战斗
++  2. 计算 destCoord = location.coordinate + direction 的偏移
++  3. maze.getSquare(destCoord)  // 取目标 tile
++  4. 检查 square.isWall() / actor.isBlocking()  // 撞墙检查
++  5. 若可走：
++     a. 调用 location.getSquare().onTeamLeave()
++     b. location.coordinate.add(offset)
++     c. 调用 newSquare.onTeamEnter()   // 可能触发楼梯/陷阱/事件
++     d. 缓存 this.square = newSquare
++     e. lastMove = now                  // 更新冷却计时
++  ↓
++GameScreen.update() → mazeGroup.update()
++  ↓
++MazeGroup.update():
++  1. 读取 team.getLocation()
++  2. new ViewField(team.getMaze(), location)  // 重新计算视野
++  3. setUpBackground(location)         // 背景翻转判断
++  4. for each ViewFieldPosition in [A..O]:
++       updateSquare(...)               // 设置 Image pool 中的对应 sprite
++  ↓
++stage.draw() → MazeGroup.drawChildren() → 用 ScissorStack 裁剪 → 绘制所有 sprite
++```
++
++---
++
++## 12.7 楼层切换的完整流程
++
++以"踩到楼梯"为例：
++
++```
++玩家移动到楼梯所在 tile
++  ↓
++Team.walk() 调用 newSquare.onTeamEnter()
++  ↓
++Square.onTeamEnter() 转发给 actor.onTeamEnter()
++  ↓
++Stair.onTeamEnter():
++  1. 读取 this.target (一个 DungeonLocation，包含目标楼层名 + 坐标 + 朝向)
++  2. team.teleport(target)
++  ↓
++Team.teleport(DungeonLocation):
++  1. 调用 location.getSquare().onTeamLeave()   // 离开旧 tile
++  2. this.maze = Resources.getDungeon().getMaze(target.maze)  // 切楼层
++  3. this.location = new DungeonLocation(target)
++  4. this.square = maze.getSquare(target.coordinate)  // 缓存新 tile
++  5. 调用 newSquare.onTeamStand()
++  ↓
++下一帧 GameScreen.update() → mazeGroup.update()
++  → 用新的 team.getLocation() 重建 ViewField → 显示新楼层的视图
++```
++
++---
++
++## 12.8 渲染管线（每帧）
++
++```
++DarkmoorGame.render()                  // libGDX Game 主循环
++  ↓
++GameScreen.render(delta)               // 来自 GameScreenBase
++  ↓
++GameScreenBase.render(delta):
++  ├── update(delta, true, false)
++  │     └── GameScreen.update():
++  │            ├── team.getMaze() != null → mazeGroup.update()
++  │            │     └── 重建 ViewField，更新 128 个 Image sprite 的 Drawable
++  │            ├── navControlsGroup.update()
++  │            │     └── 根据 team.getDirection() 切换罗盘图
++  │            └── heroInterfaceGroup.update()
++  │                  └── 更新血条、装备图标
++  └── draw(delta)
++        └── stage.act(delta) + stage.draw()
++              └── 每个 Group 绘制其子 Actor
++                    └── MazeGroup.drawChildren() 用 ScissorStack 裁剪到第一人称视图区
++```
++
++---
++
++## 12.9 已知遗留问题
++
++| 问题 | 影响 | 备注 |
++|---|---|---|
++| `Maze.drawMiniMap()` 完全没实现 | 没有任何地图功能 | 只有颜色判断逻辑，`batch.fillRectangle` 是 TODO 注释 |
++| `AutoMap` 类是 73 行的 stub | 没有"按 M 看大地图"功能 | 继承 `ScreenAdapter`，`draw()` 只打印 "TODO…" |
++| `StretchViewport(1280, 1280)` | Stage 纵向被压缩到 720 | 应该是 `1280, 720`；目前所有 scene2d 坐标都按 1280×1280 设计 |
++| `DungeonLocation` 字段可变 | 没有线程安全保证 | `Offset()` 直接修改 `coordinate`，不是返回新对象 |
++| `Square.monsters` 是固定 4 槽数组 | 一个 tile 最多 4 个怪物 | 子位置约束 |
++| `MazeZone` 脚本钩子未完全接线 | 触发区可能不工作 | 需要在 `Maze.update()` 中调用，但目前 `Maze.update()` 只更新 `thrownItems` |
++
++---
++
++## 12.10 小地图集成指南
++
++### 12.10.1 为什么需要小地图
++
++当前游戏截图（见 `docs/screenshots/dungeon.png`）显示：玩家面对一条石砖走廊，但**完全不知道自己在楼层里的哪个位置**。这是地牢爬行类游戏的致命问题——没有空间感，玩家会迷路、卡关。
++
++### 12.10.2 推荐实现：`MinimapGroup`
++
++新建 `core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java`，继承 `GameScreenGroup`：
++
++```java
++public class MinimapGroup extends GameScreenGroup implements Disposable {
++    public static final int MINIMAP_WIDTH = 220;
++    public static final int MINIMAP_HEIGHT = 220;
++    public static final float MINIMAP_X = 8f;
++    public static final float MINIMAP_Y = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT
++                                        - MINIMAP_HEIGHT - 8f;
++
++    private Pixmap pixmap;
++    private Texture texture;
++    private Image image;
++
++    @Override
++    public void initialize() {
++        pixmap = new Pixmap(MINIMAP_WIDTH, MINIMAP_HEIGHT, Pixmap.Format.RGBA8888);
++        texture = new Texture(pixmap);
++        image = new Image(new TextureRegionDrawable(new TextureRegion(texture)));
++        image.setBounds(MINIMAP_X, MINIMAP_Y, MINIMAP_WIDTH, MINIMAP_HEIGHT);
++        addActor(image);
++    }
++
++    @Override
++    public void update() {
++        if (team == null || team.getMaze() == null) return;
++        Settings s = Settings.getLastLoadedInstance();
++        setVisible(s == null || s.isShowMinimap());
++        if (!isVisible()) return;
++        redraw();
++    }
++
++    private void redraw() {
++        Maze maze = team.getMaze();
++        int mazeW = (int) maze.getSize().x;
++        int mazeH = (int) maze.getSize().y;
++        float tilePx = Math.min(
++            (float)(MINIMAP_WIDTH - 8) / mazeW,
++            (float)(MINIMAP_HEIGHT - 8) / mazeH);
++        // ...详见 08-minimap-design.md 和源码
++    }
++}
++```
++
++### 12.10.3 在 `GameScreen` 注册
++
++```java
++// 在 initScreenObjects() 末尾添加：
++minimapGroup = new MinimapGroup();
++minimapGroup.team = GameScreen.team;
++minimapGroup.uiSkin = uiSkin;
++minimapGroup.initialize();
++stage.addActor(minimapGroup);
++
++// 在 update() 中添加（紧跟 mazeGroup.update() 之后）：
++if (team.getMaze() != null) {
++    minimapGroup.setVisible(interfaceType == TeamInterface.Main);
++    minimapGroup.update();
++}
++```
++
++### 12.10.4 颜色方案（沿用 `Maze.drawMiniMap` 的逻辑并扩展）
++
++| 元素 | 颜色 | RGBA |
++|---|---|---|
++| 墙 | 深灰 | (48, 48, 48, 255) |
++| 幻象墙 | 中灰 | (102, 102, 102, 255) |
++| 地面 | 浅灰 | (217, 217, 217, 255) |
++| 门 | 黄 | (255, 255, 85, 255) |
++| 楼梯 | 浅绿 | (146, 207, 138, 255) |
++| 陷阱 | 深蓝 | (44, 48, 138, 255) |
++| 传送器 | 紫 | (179, 77, 230, 255) |
++| 怪物 | 红 | (255, 85, 85, 255) |
++| 物品 | 橙 | (255, 165, 0, 255) |
++| 玩家 | 蓝 | (101, 105, 182, 255) |
++| 朝向箭头 | 白 | (255, 255, 255, 255) |
++
++### 12.10.5 在 Settings 加开关
++
++```java
++// Settings.java
++private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
++private boolean showMinimap;
++
++// 在 loadSettings() 中：
++settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
++
++public boolean isShowMinimap() { return showMinimap; }
++public void setShowMinimap(boolean v) { this.showMinimap = v; }
++```
++
++并在 `settings.properties` 加一行：
++
++```
++ShowMinimap=true
++```
++
++---
++
++## 12.11 未来扩展方向
++
++| 方向 | 实现思路 | 难度 |
++|---|---|---|
++| **战争迷雾**（只显示走过的 tile） | 在 `Square` 加 `boolean explored`，`onTeamEnter()` 时置 true；minimap 只画 explored tile | 中 |
++| **大地图模式**（按 M 全屏查看） | 实现 `AutoMap` stub，做成全屏 `ScreenAdapter`，按 M 切换 | 中 |
++| **小地图缩放** | 鼠标滚轮调整 `tilePx`，小地图区域只显示玩家周围 N×N | 中 |
++| **小地图旋转**（玩家朝向始终朝上） | 渲染时旋转 `Pixmap` 或用 `Image.setRotation()` | 难 |
++| **多楼层缩略图** | 旁边显示其他楼层的迷你缩略图，当前楼层高亮 | 中 |
++| **路径标记** | 玩家走过的路径用淡色线连接 | 易 |
++| **注释标记** | 玩家可在 tile 上加文字注释（"这里有宝箱"） | 中 |
++
++---
++
++## 12.12 相关文档
++
++- [08-minimap-design.md](../08-minimap-design.md) — 小地图模块的详细设计与实现
++- [06-engine-graphics.md](06-engine-graphics.md) — `MazeGroup` 等图形组的总览
++- [04-engine-core.md](04-engine-core.md) — `Maze`/`Square`/`Team` 等核心数据类
++- [05-engine-actor.md](05-engine-actor.md) — `Door`/`Stair`/`Pit` 等 tile 上的 Actor

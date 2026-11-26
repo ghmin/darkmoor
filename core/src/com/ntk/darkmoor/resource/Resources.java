@@ -29,7 +29,8 @@ public class Resources {
 	/** Optional bundled CJK font; when present it is used for ALL fonts so
 	 *  that Chinese (or any non-Latin) UI text renders correctly. See
 	 *  docs/v0.5/07-i18n-system.md for how to provide this file. */
-	private static final String CJK_FONT_TTF = "darkmoor-cjk.ttf";
+//	private static final String CJK_FONT_TTF = "darkmoor-cjk.ttf";
+	private static final String CJK_FONT_TTF = "NotoSansSC-Regular.ttf";
 
 	private static String resourcePath = "data/";
 	public static final String TEXTURE_SET_FILE = "TextureSet.xml";
