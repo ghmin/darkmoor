@@ -31,7 +31,7 @@ public class MainWindow extends BaseWindow {
 			}
 
 		});
-		// //getButtons().add(button);
+		getButtons().add(button);
 
 		button = new ScreenButton(LanguagesManager.getString("Camp", 2), new Rectangle(16, 74, 320, 28));
 		button.addListener(new EventListener() {

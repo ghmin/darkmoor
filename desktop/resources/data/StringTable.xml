@@ -342,6 +342,7 @@
 			<string id="15">HP as bar</string>
 			<string id="16">Language : %s</string>
 			<string id="17">Back</string>
+			<string id="18">Controls</string>
 		</language>
 		<language name="Francais">
 			<string id="1">Campement</string>
@@ -361,6 +362,7 @@
 			<string id="15">Points de vie en barre</string>
 			<string id="16">Langue : %s</string>
 			<string id="17">Retour</string>
+			<string id="18">Contrôles</string>
 		</language>
 		<language name="Chinese">
 			<string id="1">营地</string>
@@ -380,6 +382,76 @@
 			<string id="15">生命值显示为血条</string>
 			<string id="16">语言 : %s</string>
 			<string id="17">返回</string>
+			<string id="18">操控</string>
+		</language>
+	</stringtable>
+	<stringtable name="controls">
+		<default name="English" />
+		<language name="English">
+			<string id="1">Controls</string>
+			<string id="2">Move Forward</string>
+			<string id="3">Move Backward</string>
+			<string id="4">Strafe Left</string>
+			<string id="5">Strafe Right</string>
+			<string id="6">Turn Left</string>
+			<string id="7">Turn Right</string>
+			<string id="8">Camp</string>
+			<string id="9">Inventory</string>
+			<string id="10">Statistics</string>
+			<string id="11">Select Hero 1</string>
+			<string id="12">Select Hero 2</string>
+			<string id="13">Select Hero 3</string>
+			<string id="14">Select Hero 4</string>
+			<string id="15">Select Hero 5</string>
+			<string id="16">Select Hero 6</string>
+			<string id="17">Press any key to bind...</string>
+			<string id="18">Reset to Defaults</string>
+			<string id="19">Back</string>
+			<string id="20">Change</string>
+		</language>
+		<language name="Francais">
+			<string id="1">Contrôles</string>
+			<string id="2">Avancer</string>
+			<string id="3">Reculer</string>
+			<string id="4">Pas gauche</string>
+			<string id="5">Pas droite</string>
+			<string id="6">Tourner gauche</string>
+			<string id="7">Tourner droite</string>
+			<string id="8">Campement</string>
+			<string id="9">Inventaire</string>
+			<string id="10">Statistiques</string>
+			<string id="11">Héros 1</string>
+			<string id="12">Héros 2</string>
+			<string id="13">Héros 3</string>
+			<string id="14">Héros 4</string>
+			<string id="15">Héros 5</string>
+			<string id="16">Héros 6</string>
+			<string id="17">Appuyez sur une touche...</string>
+			<string id="18">Réinitialiser</string>
+			<string id="19">Retour</string>
+			<string id="20">Modifier</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">操控</string>
+			<string id="2">向前移动</string>
+			<string id="3">向后移动</string>
+			<string id="4">左侧移动</string>
+			<string id="5">右侧移动</string>
+			<string id="6">左转</string>
+			<string id="7">右转</string>
+			<string id="8">营地</string>
+			<string id="9">物品栏</string>
+			<string id="10">属性</string>
+			<string id="11">选择角色 1</string>
+			<string id="12">选择角色 2</string>
+			<string id="13">选择角色 3</string>
+			<string id="14">选择角色 4</string>
+			<string id="15">选择角色 5</string>
+			<string id="16">选择角色 6</string>
+			<string id="17">按下任意键以绑定...</string>
+			<string id="18">恢复默认</string>
+			<string id="19">返回</string>
+			<string id="20">修改</string>
 		</language>
 	</stringtable>
 </bank>

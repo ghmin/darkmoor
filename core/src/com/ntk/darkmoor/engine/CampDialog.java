@@ -1,29 +1,36 @@
 package com.ntk.darkmoor.engine;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 
 import com.badlogic.gdx.math.Rectangle;
 import com.ntk.darkmoor.GameScreen;
 import com.ntk.darkmoor.GameScreenBase;
 import com.ntk.darkmoor.engine.gui.BaseWindow;
-import com.ntk.darkmoor.engine.gui.ScreenButton;
 import com.ntk.darkmoor.engine.gui.campwindows.MainWindow;
 import com.ntk.darkmoor.stub.Mouse;
 import com.ntk.darkmoor.config.LanguagesManager;
 
+/**
+ * 营地对话框 — 玩家点击 CAMP 按钮或按 C 键时弹出。
+ *
+ * <p>管理一个 {@link ArrayDeque} 窗口栈：构造时压入 {@link MainWindow}，
+ * 子窗口可通过 {@link #addWindow(BaseWindow)} 入栈，{@link #exit()} 清空栈并关闭对话框。
+ *
+ * <p>v0.5 重构：原 {@code buttons} 字段和鼠标轮询逻辑已移到 {@link BaseWindow}，
+ * 由栈顶子窗口自己处理 ScreenButton 点击。
+ *
+ * <p>设计文档：{@code docs/v0.5/10-camp-system.md}
+ */
 public class CampDialog extends BaseWindow {
 
 	private GameScreenBase game;
 	private Rectangle rectangle;
-	private ArrayList<ScreenButton> buttons;
 	private ArrayDeque<BaseWindow> windows;
 
 	public CampDialog(GameScreenBase game, GameScreenBase parent) {
 		super(null, LanguagesManager.getString("titles", 1), parent);
 		this.game = game;
-		windows = new ArrayDeque<BaseWindow>(); 
-		buttons = new ArrayList<ScreenButton>();
+		windows = new ArrayDeque<BaseWindow>();
 		rectangle = new Rectangle(0, 0, 352, 288);
 		addWindow(new MainWindow(this, parent));
 		Mouse.setTile(0);
@@ -46,7 +53,6 @@ public class CampDialog extends BaseWindow {
 			return;
 
 		windows.push(window);
-
 	}
 
 	@Override
@@ -61,15 +67,8 @@ public class CampDialog extends BaseWindow {
 			else
 				windows.peek().update(delta);
 		}
+		// 注：鼠标轮询由 BaseWindow.update() 处理，栈顶子窗口自己轮询自己的 screenButtons
 	}
-	
-	//TODO: ntk: do we need draw method?
-//	@Override
-//	public void draw(SpriteBatch batch, float parentAlpha) {
-//		if (windows.size() > 0) {
-//			windows.peek().draw(batch, parentAlpha);
-//		}
-//	}
 
 	public Rectangle getRectangle() {
 		return rectangle;
@@ -77,14 +76,6 @@ public class CampDialog extends BaseWindow {
 
 	public void setRectangle(Rectangle rectangle) {
 		this.rectangle = rectangle;
-	}
-
-	public ArrayList<ScreenButton> getButtons() {
-		return buttons;
-	}
-
-	protected void setButtons(ArrayList<ScreenButton> buttons) {
-		this.buttons = buttons;
 	}
 
 	public ArrayDeque<BaseWindow> getWindows() {

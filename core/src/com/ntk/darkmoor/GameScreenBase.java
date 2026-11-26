@@ -3,6 +3,8 @@ package com.ntk.darkmoor;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -24,6 +26,10 @@ public abstract class GameScreenBase extends ScreenAdapter implements Disposable
 	private SpriteBatch batch;
 
 	protected Skin uiSkin;
+
+	/** 键盘输入处理器，由子类设置；为 null 时不启用键盘事件。
+	 */
+	protected InputProcessor keyboardProcessor;
 
 	private FPSLogger fpsLogger;
 
@@ -129,7 +135,13 @@ public abstract class GameScreenBase extends ScreenAdapter implements Disposable
 			}
 		}
 
-		Gdx.input.setInputProcessor(stage);
+		// 用 InputMultiplexer 让键盘 processor 先吃事件，剩下的给 stage 处理按钮点击
+		InputMultiplexer multiplexer = new InputMultiplexer();
+		if (keyboardProcessor != null) {
+			multiplexer.addProcessor(keyboardProcessor);
+		}
+		multiplexer.addProcessor(stage);
+		Gdx.input.setInputProcessor(multiplexer);
 	}
 
 	@Override

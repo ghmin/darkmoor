@@ -1,0 +1,4141 @@
+diff --git a/android/assets/data/StringTable.xml b/android/assets/data/StringTable.xml
+index 0ca5e40..638998c 100644
+--- a/android/assets/data/StringTable.xml
++++ b/android/assets/data/StringTable.xml
+@@ -342,6 +342,7 @@
+ 			<string id="15">HP as bar</string>
+ 			<string id="16">Language : %s</string>
+ 			<string id="17">Back</string>
++			<string id="18">Controls</string>
+ 		</language>
+ 		<language name="Francais">
+ 			<string id="1">Campement</string>
+@@ -361,6 +362,7 @@
+ 			<string id="15">Points de vie en barre</string>
+ 			<string id="16">Langue : %s</string>
+ 			<string id="17">Retour</string>
++			<string id="18">Contrôles</string>
+ 		</language>
+ 		<language name="Chinese">
+ 			<string id="1">营地</string>
+@@ -380,6 +382,76 @@
+ 			<string id="15">生命值显示为血条</string>
+ 			<string id="16">语言 : %s</string>
+ 			<string id="17">返回</string>
++			<string id="18">操控</string>
++		</language>
++	</stringtable>
++	<stringtable name="controls">
++		<default name="English" />
++		<language name="English">
++			<string id="1">Controls</string>
++			<string id="2">Move Forward</string>
++			<string id="3">Move Backward</string>
++			<string id="4">Strafe Left</string>
++			<string id="5">Strafe Right</string>
++			<string id="6">Turn Left</string>
++			<string id="7">Turn Right</string>
++			<string id="8">Camp</string>
++			<string id="9">Inventory</string>
++			<string id="10">Statistics</string>
++			<string id="11">Select Hero 1</string>
++			<string id="12">Select Hero 2</string>
++			<string id="13">Select Hero 3</string>
++			<string id="14">Select Hero 4</string>
++			<string id="15">Select Hero 5</string>
++			<string id="16">Select Hero 6</string>
++			<string id="17">Press any key to bind...</string>
++			<string id="18">Reset to Defaults</string>
++			<string id="19">Back</string>
++			<string id="20">Change</string>
++		</language>
++		<language name="Francais">
++			<string id="1">Contrôles</string>
++			<string id="2">Avancer</string>
++			<string id="3">Reculer</string>
++			<string id="4">Pas gauche</string>
++			<string id="5">Pas droite</string>
++			<string id="6">Tourner gauche</string>
++			<string id="7">Tourner droite</string>
++			<string id="8">Campement</string>
++			<string id="9">Inventaire</string>
++			<string id="10">Statistiques</string>
++			<string id="11">Héros 1</string>
++			<string id="12">Héros 2</string>
++			<string id="13">Héros 3</string>
++			<string id="14">Héros 4</string>
++			<string id="15">Héros 5</string>
++			<string id="16">Héros 6</string>
++			<string id="17">Appuyez sur une touche...</string>
++			<string id="18">Réinitialiser</string>
++			<string id="19">Retour</string>
++			<string id="20">Modifier</string>
++		</language>
++		<language name="Chinese">
++			<string id="1">操控</string>
++			<string id="2">向前移动</string>
++			<string id="3">向后移动</string>
++			<string id="4">左侧移动</string>
++			<string id="5">右侧移动</string>
++			<string id="6">左转</string>
++			<string id="7">右转</string>
++			<string id="8">营地</string>
++			<string id="9">物品栏</string>
++			<string id="10">属性</string>
++			<string id="11">选择角色 1</string>
++			<string id="12">选择角色 2</string>
++			<string id="13">选择角色 3</string>
++			<string id="14">选择角色 4</string>
++			<string id="15">选择角色 5</string>
++			<string id="16">选择角色 6</string>
++			<string id="17">按下任意键以绑定...</string>
++			<string id="18">恢复默认</string>
++			<string id="19">返回</string>
++			<string id="20">修改</string>
+ 		</language>
+ 	</stringtable>
+ </bank>
+diff --git a/android/assets/data/settings.properties b/android/assets/data/settings.properties
+index 73fab42..a4e7955 100644
+--- a/android/assets/data/settings.properties
++++ b/android/assets/data/settings.properties
+@@ -6,3 +6,26 @@ Effects=true
+ FullScreen=False
+ saveSlots=6
+ ShowMinimap=true
++ShowNavButtons=true
++# 按键绑定 — 值为 libGDX Input.Keys 常量值，逗号分隔表示一个动作绑多个键
++# 可在游戏内 选项 → 操控 中修改；此处的值是默认 QWERTY 布局
++KeyBindings.MoveForward=51,19
++KeyBindings.MoveBackward=47,22
++KeyBindings.StrafeLeft=29,21
++KeyBindings.StrafeRight=32,22
++KeyBindings.TurnLeft=45
++KeyBindings.TurnRight=33
++KeyBindings.Camp=35
++KeyBindings.Inventory=37
++KeyBindings.Statistics=44
++KeyBindings.SelectHero1=8
++KeyBindings.SelectHero2=9
++KeyBindings.SelectHero3=10
++KeyBindings.SelectHero4=11
++KeyBindings.SelectHero5=12
++KeyBindings.SelectHero6=13
++KeyBindings.MainMenu=111
++KeyBindings.QuickSave=63
++KeyBindings.QuickLoad=67
++KeyBindings.ToggleMinimap=41
++KeyBindings.ToggleNavButtons=42
+diff --git a/core/src/com/ntk/darkmoor/GameScreen.java b/core/src/com/ntk/darkmoor/GameScreen.java
+index d1e6341..997d20c 100644
+--- a/core/src/com/ntk/darkmoor/GameScreen.java
++++ b/core/src/com/ntk/darkmoor/GameScreen.java
+@@ -23,6 +23,10 @@ import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
+ import com.ntk.darkmoor.engine.graphics.InventoryGroup;
+ import com.ntk.darkmoor.engine.graphics.MazeGroup;
+ import com.ntk.darkmoor.engine.graphics.MinimapGroup;
++import com.ntk.darkmoor.config.KeyBindings;
++import com.ntk.darkmoor.engine.CampDialog;
++import com.ntk.darkmoor.engine.KeyboardInputProcessor;
++import com.badlogic.gdx.InputMultiplexer;
+ import com.ntk.darkmoor.engine.graphics.NavigationControlsGroup;
+ import com.ntk.darkmoor.engine.graphics.StatisticsGroup;
+ import com.ntk.darkmoor.resource.Resources;
+@@ -30,264 +34,309 @@ import com.ntk.darkmoor.resource.TextureSet;
+ 
+ public class GameScreen extends GameScreenBase {
+ 
+-	public enum TeamInterface {
+-		Main, Inventory, Statistic
+-	}
+-
+-	private static Team team;
+-
+-	private SpellBook spellBook;
+-	private TextureSet textureSet;
+-	private BitmapFont inventoryFont;
+-	private BitmapFont outlinedFont;
+-	private ScriptedDialog dialog;
+-
+-	private TeamInterface interfaceType;
+-
+-	// parts of the screen as scene2d actors
+-	private HeroInterfaceGroup heroInterfaceGroup;
+-	private InventoryGroup inventoryGroup;
+-	private MazeGroup mazeGroup;
+-	private StatisticsGroup statisticsGroup;
+-	private NavigationControlsGroup navControlsGroup;
+-	private MinimapGroup minimapGroup;
+-
+-	public GameScreen(Game game) {
+-		super(game);
+-	}
+-
+-	@Override
+-	public void loadContent() {
+-
+-		long startTime = new java.util.Date().getTime();
+-
+-		// Keyboard input scheme
+-		/*
+-		 * inputScheme = Resources.createAsset<InputScheme>(Game.InputSchemeName); if (inputScheme == null) {
+-		 * Log.error("ERROR !!! No InputSchema detected !!!"); inputScheme = new InputScheme();
+-		 * InputScheme["MoveForward"] = Keys.Z; InputScheme["MoveBackward"] = Keys.S; InputScheme["StrafeLeft"] =
+-		 * Keys.Q; InputScheme["StrafeRight"] = Keys.D; InputScheme["TurnLeft"] = Keys.A; InputScheme["TurnRight"] =
+-		 * Keys.E; InputScheme["Inventory"] = Keys.I; InputScheme["SelectHero1"] = Keys.D1; InputScheme["SelectHero2"] =
+-		 * Keys.D2; InputScheme["SelectHero3"] = Keys.D3; InputScheme["SelectHero4"] = Keys.D4;
+-		 * InputScheme["SelectHero5"] = Keys.D5; InputScheme["SelectHero6"] = Keys.D6; }
+-		 * Log.debug("InputScheme (%d ms)", new java.util.Date().getTime() - startTime);
+-		 */
+-
+-		// Interface tileset
+-		textureSet = Resources.createSharedTextureSetAsset("Interface", "Interface");
+-
+-		// Fonts
+-		inventoryFont = Resources.createSharedFontAsset("inventory");
+-		outlinedFont = Resources.createSharedFontAsset("outline");
+-
+-		// Misc init
+-		spellBook = new SpellBook();
+-		spellBook.loadContent();
+-		GameMessage.init();
+-
+-		super.loadContent();
+-
+-		Log.debug("[GameScreen] loadContent() - finished ! (%d ms)", new java.util.Date().getTime() - startTime);
+-	}
+-
+-	@Override
+-	protected Image setupBackground() {
+-		Image image = new Image(textureSet.getSprite(0));
+-		image.setBounds(0, 0, DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_WIDTH);
+-		return image;
+-	}
+-
+-	@Override
+-	public void unloadContent() {
+-		Log.debug("[team] : UnloadContent");
+-
+-		if (team != null)
+-			team.dispose();
+-		team = null;
+-
+-		if (spellBook != null)
+-			spellBook.dispose();
+-		spellBook = null;
+-
+-		GameMessage.dispose();
+-
+-		Resources.unlockSharedFontAsset(outlinedFont);
+-		Resources.unlockSharedFontAsset(inventoryFont);
+-		Resources.unlockSharedTextureSetAsset(textureSet);
+-		textureSet = null;
+-		inventoryFont = null;
+-		outlinedFont = null;
+-
+-		if (dialog != null)
+-			dialog.dispose();
+-		dialog = null;
+-
+-		// if (inputScheme != null)
+-		// inputScheme.dispose();
+-		// inputScheme = null;
+-	}
+-
+-	private void initScreenObjects() {
+-
+-		interfaceType = TeamInterface.Main;
+-
+-		mazeGroup = new MazeGroup();
+-		mazeGroup.team = GameScreen.team;
+-		mazeGroup.uiSkin = uiSkin;
+-		mazeGroup.initialize();
+-		mazeGroup.setBounds(0, 0, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH, DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT);
+-		mazeGroup.setCullingArea(new Rectangle(0, DisplayCoordinates.TOP_LEFT_Y, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH,
+-				DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT));
+-		mazeGroup.setZIndex(0);
+-		stage.addActor(mazeGroup);
+-
+-		heroInterfaceGroup = new HeroInterfaceGroup();
+-		heroInterfaceGroup.team = GameScreen.team;
+-		heroInterfaceGroup.uiSkin = uiSkin;
+-		heroInterfaceGroup.initialize();
+-		stage.addActor(heroInterfaceGroup);
+-
+-		inventoryGroup = new InventoryGroup();
+-		inventoryGroup.team = GameScreen.team;
+-		inventoryGroup.uiSkin = uiSkin;
+-		inventoryGroup.initialize();
+-		stage.addActor(inventoryGroup);
+-
+-		statisticsGroup = new StatisticsGroup();
+-		statisticsGroup.team = GameScreen.team;
+-		statisticsGroup.uiSkin = uiSkin;
+-		statisticsGroup.initialize();
+-		stage.addActor(statisticsGroup);
+-
+-		navControlsGroup = new NavigationControlsGroup();
+-		navControlsGroup.team = GameScreen.team;
+-		navControlsGroup.uiSkin = uiSkin;
+-		navControlsGroup.initialize();
+-		stage.addActor(navControlsGroup);
+-
+-		// Minimap overlay — 显示当前楼层的实时缩略图
+-		minimapGroup = new MinimapGroup();
+-		minimapGroup.team = GameScreen.team;
+-		minimapGroup.uiSkin = uiSkin;
+-		minimapGroup.initialize();
+-		stage.addActor(minimapGroup);
+-
+-	}
+-
+-	public boolean loadGameSlot(int slotid) {
+-		SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
+-		if (slot == null) {
+-			Log.debug("[GameScreen]LoadGameSlot() : Slot " + slotid + " empty !");
+-			return false;
+-		}
+-
+-		while (Resources.getDungeon() == null)
+-			try {
+-				Thread.sleep(500);
+-			} catch (InterruptedException e) {
+-			}
+-
+-		// Load team
+-		if (team != null)
+-			team.dispose();
+-		else
+-			team = new Team();
+-		team.load(slot.getTeam());
+-
+-		team.init();
+-
+-		newGame(team);
+-
+-		GameMessage.addMessage("Party loaded...", GameColors.Yellow);
+-		return true;
+-	}
+-
+-	public boolean saveGameSlot(int slotid) throws IOException {
+-		if (slotid < 0 || slotid >= Settings.getLastLoadedInstance().getSaveSlots())
+-			return false;
+-
+-		SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
+-		slot.setName("slot " + slotid);
+-		StringWriter tempStringWriter = new StringWriter();
+-		XmlWriter tempXmlWriter = new XmlWriter(tempStringWriter);
+-		slot.setTeam(team.save(tempXmlWriter));
+-
+-		// Some debug, if shiftkey down, no dungeon save
+-		if (!Gdx.input.isKeyPressed(Keys.SHIFT_RIGHT)) {
+-
+-			tempXmlWriter.flush();
+-			tempXmlWriter.close();
+-			tempXmlWriter = new XmlWriter(tempStringWriter);
+-			// dungeon.save(tempXmlWriter, 1);
+-			// slot.setDungeon(tempXmlWriter.);
+-		}
+-		// Save the game
+-		if (game.getSavedGame().save())
+-			GameMessage.addMessage("Game saved.");
+-		else
+-			GameMessage.addMessage("Game NOT saved !");
+-
+-		return true;
+-	}
+-
+-	public SpellBook getSpellBook() {
+-		return spellBook;
+-	}
+-
+-	public void setDialog(ScriptedDialog scriptedDialog) {
+-		if (dialog != null)
+-			dialog.dispose();
+-
+-		dialog = scriptedDialog;
+-	}
+-
+-	public ScriptedDialog getDialog() {
+-		return dialog;
+-	}
+-
+-	public void newGame(Team gsteam) {
+-		initScreenObjects();
+-	}
+-
+-	@Override
+-	public void update(float delta, boolean hasFocus, boolean isCovered) {
+-		super.update(delta, hasFocus, isCovered);
+-
+-		if (team.getMaze() != null) {
+-			mazeGroup.update();
+-			// 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
+-			minimapGroup.setVisible(interfaceType == TeamInterface.Main);
+-			minimapGroup.update();
+-		}
+-
+-		if (interfaceType == TeamInterface.Main) {
+-
+-			heroInterfaceGroup.setVisible(true);
+-			inventoryGroup.setVisible(false);
+-			statisticsGroup.setVisible(false);
+-			navControlsGroup.setVisible(true);
+-			heroInterfaceGroup.update();
+-
+-		} else if (interfaceType == TeamInterface.Inventory) {
+-			heroInterfaceGroup.setVisible(false);
+-			inventoryGroup.setVisible(true);
+-			statisticsGroup.setVisible(false);
+-			navControlsGroup.setVisible(false);
+-			inventoryGroup.update();
+-
+-		} else if (interfaceType == TeamInterface.Statistic) {
+-
+-			heroInterfaceGroup.setVisible(false);
+-			inventoryGroup.setVisible(false);
+-			statisticsGroup.setVisible(true);
+-			navControlsGroup.setVisible(false);
+-			statisticsGroup.update();
+-		}
+-
+-		navControlsGroup.update();
+-	}
+-
+-	public static Team getTeam() {
+-		return team;
+-	}
++        public enum TeamInterface {
++                Main, Inventory, Statistic
++        }
++
++        private static Team team;
++
++        private SpellBook spellBook;
++        private TextureSet textureSet;
++        private BitmapFont inventoryFont;
++        private BitmapFont outlinedFont;
++        private ScriptedDialog dialog;
++
++        private TeamInterface interfaceType;
++
++        // parts of the screen as scene2d actors
++        private HeroInterfaceGroup heroInterfaceGroup;
++        private InventoryGroup inventoryGroup;
++        private MazeGroup mazeGroup;
++        private StatisticsGroup statisticsGroup;
++        private NavigationControlsGroup navControlsGroup;
++        private MinimapGroup minimapGroup;
++
++        public GameScreen(Game game) {
++                super(game);
++        }
++
++        @Override
++        public void loadContent() {
++
++                long startTime = new java.util.Date().getTime();
++
++                // Keyboard input scheme
++                /*
++                 * inputScheme = Resources.createAsset<InputScheme>(Game.InputSchemeName); if (inputScheme == null) {
++                 * Log.error("ERROR !!! No InputSchema detected !!!"); inputScheme = new InputScheme();
++                 * InputScheme["MoveForward"] = Keys.Z; InputScheme["MoveBackward"] = Keys.S; InputScheme["StrafeLeft"] =
++                 * Keys.Q; InputScheme["StrafeRight"] = Keys.D; InputScheme["TurnLeft"] = Keys.A; InputScheme["TurnRight"] =
++                 * Keys.E; InputScheme["Inventory"] = Keys.I; InputScheme["SelectHero1"] = Keys.D1; InputScheme["SelectHero2"] =
++                 * Keys.D2; InputScheme["SelectHero3"] = Keys.D3; InputScheme["SelectHero4"] = Keys.D4;
++                 * InputScheme["SelectHero5"] = Keys.D5; InputScheme["SelectHero6"] = Keys.D6; }
++                 * Log.debug("InputScheme (%d ms)", new java.util.Date().getTime() - startTime);
++                 */
++
++                // Interface tileset
++                textureSet = Resources.createSharedTextureSetAsset("Interface", "Interface");
++
++                // Fonts
++                inventoryFont = Resources.createSharedFontAsset("inventory");
++                outlinedFont = Resources.createSharedFontAsset("outline");
++
++                // Misc init
++                spellBook = new SpellBook();
++                spellBook.loadContent();
++                GameMessage.init();
++
++                super.loadContent();
++
++                Log.debug("[GameScreen] loadContent() - finished ! (%d ms)", new java.util.Date().getTime() - startTime);
++        }
++
++        @Override
++        protected Image setupBackground() {
++                Image image = new Image(textureSet.getSprite(0));
++                image.setBounds(0, 0, DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_WIDTH);
++                return image;
++        }
++
++        @Override
++        public void unloadContent() {
++                Log.debug("[team] : UnloadContent");
++
++                if (team != null)
++                        team.dispose();
++                team = null;
++
++                if (spellBook != null)
++                        spellBook.dispose();
++                spellBook = null;
++
++                GameMessage.dispose();
++
++                Resources.unlockSharedFontAsset(outlinedFont);
++                Resources.unlockSharedFontAsset(inventoryFont);
++                Resources.unlockSharedTextureSetAsset(textureSet);
++                textureSet = null;
++                inventoryFont = null;
++                outlinedFont = null;
++
++                if (dialog != null)
++                        dialog.dispose();
++                dialog = null;
++
++                // if (inputScheme != null)
++                // inputScheme.dispose();
++                // inputScheme = null;
++        }
++
++        private void initScreenObjects() {
++
++                interfaceType = TeamInterface.Main;
++
++                mazeGroup = new MazeGroup();
++                mazeGroup.team = GameScreen.team;
++                mazeGroup.uiSkin = uiSkin;
++                mazeGroup.initialize();
++                mazeGroup.setBounds(0, 0, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH, DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT);
++                mazeGroup.setCullingArea(new Rectangle(0, DisplayCoordinates.TOP_LEFT_Y, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH,
++                                DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT));
++                mazeGroup.setZIndex(0);
++                stage.addActor(mazeGroup);
++
++                heroInterfaceGroup = new HeroInterfaceGroup();
++                heroInterfaceGroup.team = GameScreen.team;
++                heroInterfaceGroup.uiSkin = uiSkin;
++                heroInterfaceGroup.initialize();
++                stage.addActor(heroInterfaceGroup);
++
++                inventoryGroup = new InventoryGroup();
++                inventoryGroup.team = GameScreen.team;
++                inventoryGroup.uiSkin = uiSkin;
++                inventoryGroup.initialize();
++                stage.addActor(inventoryGroup);
++
++                statisticsGroup = new StatisticsGroup();
++                statisticsGroup.team = GameScreen.team;
++                statisticsGroup.uiSkin = uiSkin;
++                statisticsGroup.initialize();
++                stage.addActor(statisticsGroup);
++
++                navControlsGroup = new NavigationControlsGroup();
++                navControlsGroup.team = GameScreen.team;
++                navControlsGroup.uiSkin = uiSkin;
++                navControlsGroup.initialize();
++                // 给 CAMP 按钮设置点击监听 — 打开营地对话框
++                navControlsGroup.getCampButton().addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
++                        public boolean touchDown(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
++                                openCampDialog();
++                                return true;
++                        }
++                });
++                // 给 Settings 按钮设置点击监听 — v0.5 阶段也打开营地对话框（包含游戏选项）
++                navControlsGroup.getSettingsButton().addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
++                        public boolean touchDown(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
++                                openCampDialog();
++                                return true;
++                        }
++                });
++                stage.addActor(navControlsGroup);
++
++                // Minimap overlay — 显示当前楼层的实时缩略图
++                minimapGroup = new MinimapGroup();
++                minimapGroup.team = GameScreen.team;
++                minimapGroup.uiSkin = uiSkin;
++                minimapGroup.initialize();
++                stage.addActor(minimapGroup);
++
++                // 键盘输入处理器 — 注册到 InputMultiplexer（替换 setupStage() 中默认的 stage-only processor）
++                KeyBindings bindings = KeyBindings.loadFrom(Settings.getLastLoadedInstance().getProperties());
++                if (bindings == null) {
++                        bindings = KeyBindings.defaults();
++                }
++                keyboardProcessor = new KeyboardInputProcessor(GameScreen.team, bindings, this);
++                InputMultiplexer mux = new InputMultiplexer();
++                mux.addProcessor(keyboardProcessor);
++                mux.addProcessor(stage);
++                Gdx.input.setInputProcessor(mux);
++
++        }
++
++        public boolean loadGameSlot(int slotid) {
++                SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
++                if (slot == null) {
++                        Log.debug("[GameScreen]LoadGameSlot() : Slot " + slotid + " empty !");
++                        return false;
++                }
++
++                while (Resources.getDungeon() == null)
++                        try {
++                                Thread.sleep(500);
++                        } catch (InterruptedException e) {
++                        }
++
++                // Load team
++                if (team != null)
++                        team.dispose();
++                else
++                        team = new Team();
++                team.load(slot.getTeam());
++
++                team.init();
++
++                newGame(team);
++
++                GameMessage.addMessage("Party loaded...", GameColors.Yellow);
++                return true;
++        }
++
++        public boolean saveGameSlot(int slotid) throws IOException {
++                if (slotid < 0 || slotid >= Settings.getLastLoadedInstance().getSaveSlots())
++                        return false;
++
++                SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
++                slot.setName("slot " + slotid);
++                StringWriter tempStringWriter = new StringWriter();
++                XmlWriter tempXmlWriter = new XmlWriter(tempStringWriter);
++                slot.setTeam(team.save(tempXmlWriter));
++
++                // Some debug, if shiftkey down, no dungeon save
++                if (!Gdx.input.isKeyPressed(Keys.SHIFT_RIGHT)) {
++
++                        tempXmlWriter.flush();
++                        tempXmlWriter.close();
++                        tempXmlWriter = new XmlWriter(tempStringWriter);
++                        // dungeon.save(tempXmlWriter, 1);
++                        // slot.setDungeon(tempXmlWriter.);
++                }
++                // Save the game
++                if (game.getSavedGame().save())
++                        GameMessage.addMessage("Game saved.");
++                else
++                        GameMessage.addMessage("Game NOT saved !");
++
++                return true;
++        }
++
++        public SpellBook getSpellBook() {
++                return spellBook;
++        }
++
++        public void setDialog(ScriptedDialog scriptedDialog) {
++                if (dialog != null)
++                        dialog.dispose();
++
++                dialog = scriptedDialog;
++        }
++
++        public ScriptedDialog getDialog() {
++                return dialog;
++        }
++
++        public void newGame(Team gsteam) {
++                initScreenObjects();
++        }
++
++        /** 打开营地对话框（CAMP 按钮点击或按 C 键触发）。 */
++        public void openCampDialog() {
++                if (team == null || team.getMaze() == null) return;
++                CampDialog dialog = new CampDialog(this, this);
++                stage.addActor(dialog);
++        }
++
++        /** 打开游戏内菜单（按 ESC 触发）。v0.5 阶段先复用 OptionsWindow。 */
++        public void openInGameMenu() {
++                // 简化实现：在游戏中按 ESC 暂停 + 打开营地对话框作为菜单
++                if (team == null || team.getMaze() == null) return;
++                openCampDialog();
++        }
++
++        /** 切换主界面/物品栏/属性面板（键盘 I / P 触发）。 */
++        public void setInterfaceType(TeamInterface type) {
++                if (type == null) return;
++                this.interfaceType = type;
++        }
++
++        @Override
++        public void update(float delta, boolean hasFocus, boolean isCovered) {
++                super.update(delta, hasFocus, isCovered);
++
++                if (team.getMaze() != null) {
++                        mazeGroup.update();
++                        // 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
++                        minimapGroup.setVisible(interfaceType == TeamInterface.Main);
++                        minimapGroup.update();
++                }
++
++                if (interfaceType == TeamInterface.Main) {
++
++                        heroInterfaceGroup.setVisible(true);
++                        inventoryGroup.setVisible(false);
++                        statisticsGroup.setVisible(false);
++                        navControlsGroup.setVisible(true);
++                        heroInterfaceGroup.update();
++
++                } else if (interfaceType == TeamInterface.Inventory) {
++                        heroInterfaceGroup.setVisible(false);
++                        inventoryGroup.setVisible(true);
++                        statisticsGroup.setVisible(false);
++                        navControlsGroup.setVisible(false);
++                        inventoryGroup.update();
++
++                } else if (interfaceType == TeamInterface.Statistic) {
++
++                        heroInterfaceGroup.setVisible(false);
++                        inventoryGroup.setVisible(false);
++                        statisticsGroup.setVisible(true);
++                        navControlsGroup.setVisible(false);
++                        statisticsGroup.update();
++                }
++
++                navControlsGroup.update();
++        }
++
++        public static Team getTeam() {
++                return team;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/GameScreenBase.java b/core/src/com/ntk/darkmoor/GameScreenBase.java
+index 56d2e27..9cb95d7 100644
+--- a/core/src/com/ntk/darkmoor/GameScreenBase.java
++++ b/core/src/com/ntk/darkmoor/GameScreenBase.java
+@@ -3,6 +3,8 @@ package com.ntk.darkmoor;
+ import com.badlogic.gdx.Game;
+ import com.badlogic.gdx.Gdx;
+ import com.badlogic.gdx.ScreenAdapter;
++import com.badlogic.gdx.InputProcessor;
++import com.badlogic.gdx.InputMultiplexer;
+ import com.badlogic.gdx.graphics.FPSLogger;
+ import com.badlogic.gdx.graphics.g2d.BitmapFont;
+ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+@@ -25,6 +27,10 @@ public abstract class GameScreenBase extends ScreenAdapter implements Disposable
+ 
+ 	protected Skin uiSkin;
+ 
++	/** 键盘输入处理器，由子类设置；为 null 时不启用键盘事件。
++	 */
++	protected InputProcessor keyboardProcessor;
++
+ 	private FPSLogger fpsLogger;
+ 
+ 	public GameScreenBase(Game game) {
+@@ -129,7 +135,13 @@ public abstract class GameScreenBase extends ScreenAdapter implements Disposable
+ 			}
+ 		}
+ 
+-		Gdx.input.setInputProcessor(stage);
++		// 用 InputMultiplexer 让键盘 processor 先吃事件，剩下的给 stage 处理按钮点击
++		InputMultiplexer multiplexer = new InputMultiplexer();
++		if (keyboardProcessor != null) {
++			multiplexer.addProcessor(keyboardProcessor);
++		}
++		multiplexer.addProcessor(stage);
++		Gdx.input.setInputProcessor(multiplexer);
+ 	}
+ 
+ 	@Override
+diff --git a/core/src/com/ntk/darkmoor/KeyConfigWindow.java b/core/src/com/ntk/darkmoor/KeyConfigWindow.java
+new file mode 100644
+index 0000000..61b8eda
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/KeyConfigWindow.java
+@@ -0,0 +1,223 @@
++package com.ntk.darkmoor;
++
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.Input.Keys;
++import com.badlogic.gdx.scenes.scene2d.InputEvent;
++import com.badlogic.gdx.scenes.scene2d.InputListener;
++import com.badlogic.gdx.scenes.scene2d.Touchable;
++import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
++import com.badlogic.gdx.scenes.scene2d.ui.Skin;
++import com.badlogic.gdx.scenes.scene2d.ui.Table;
++import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.badlogic.gdx.scenes.scene2d.ui.Label;
++import com.ntk.darkmoor.config.KeyBindings;
++import com.ntk.darkmoor.config.KeyBindings.Action;
++import com.ntk.darkmoor.config.LanguagesManager;
++import com.ntk.darkmoor.config.Log;
++import com.ntk.darkmoor.config.Settings;
++import com.ntk.darkmoor.engine.CampDialog;
++import com.ntk.darkmoor.engine.gui.BaseWindow;
++
++/**
++ * 操控按键配置窗口 — 从 OptionsWindow 进入，让玩家查看和修改按键绑定。
++ *
++ * <p>布局：
++ * <pre>
++ *   ┌─────────── 操控 ───────────┐
++ *   │ [向前移动]    W / ↑   [修改]│
++ *   │ [向后移动]    S / ↓   [修改]│
++ *   │ ...                          │
++ *   │ [恢复默认]      [返回]       │
++ *   └──────────────────────────────┘
++ * </pre>
++ *
++ * <p>点"修改"后，该行进入捕获模式，下一个 keyDown 事件即绑定到该动作。
++ *
++ * <p>设计文档：{@code docs/v0.5/09-input-system.md}
++ */
++public class KeyConfigWindow extends BaseWindow {
++
++        private KeyBindings bindings;
++        private Action capturingFor = null;
++        private Label[] valueLabels;
++        private TextButton[] changeButtons;
++
++        public KeyConfigWindow(CampDialog camp, GameScreenBase parent) {
++                super(camp, LanguagesManager.getString("controls", 1), parent);
++                // 从 Settings 加载当前绑定（或默认）
++                bindings = KeyBindings.loadFrom(Settings.getLastLoadedInstance().getProperties());
++                if (bindings == null) {
++                        bindings = KeyBindings.defaults();
++                }
++                loadContent();
++        }
++
++        @Override
++        public void loadContent() {
++                Log.debug("[KeyConfigWindow] loadContent()");
++                super.loadContent();
++                setupWindow();
++                pack();
++        }
++
++        @Override
++        protected void setupButtons(Skin uiSkin) {
++                super.setupButtons(uiSkin);
++
++                // 动作清单（按 UI 分组顺序）
++                Action[] actions = {
++                        Action.MoveForward, Action.MoveBackward, Action.StrafeLeft, Action.StrafeRight,
++                        Action.TurnLeft, Action.TurnRight,
++                        Action.Camp, Action.Inventory, Action.Statistics,
++                        Action.SelectHero1, Action.SelectHero2, Action.SelectHero3,
++                        Action.SelectHero4, Action.SelectHero5, Action.SelectHero6,
++                        Action.MainMenu, Action.QuickSave, Action.QuickLoad,
++                        Action.ToggleMinimap, Action.ToggleNavButtons
++                };
++
++                valueLabels = new Label[actions.length];
++                changeButtons = new TextButton[actions.length];
++
++                // 用 Table 布局：动作名 | 当前按键 | 修改按钮
++                Table table = new Table(uiSkin);
++                table.defaults().pad(4).minHeight(40).minWidth(180);
++
++                for (int i = 0; i < actions.length; i++) {
++                        final Action action = actions[i];
++                        final int index = i;
++
++                        // 动作名（i18n，controls stringtable id = action.ordinal() + 2）
++                        Label nameLabel = new Label(actionLabel(action), uiSkin, "default");
++                        table.add(nameLabel).left().expandX();
++
++                        // 当前绑定的按键名
++                        valueLabels[i] = new Label(keysDisplay(action), uiSkin, "default");
++                        table.add(valueLabels[i]).center().expandX();
++
++                        // 修改按钮
++                        changeButtons[i] = new TextButton(
++                                        LanguagesManager.getString("controls", 20), uiSkin, "default");
++                        changeButtons[i].setTouchable(Touchable.enabled);
++                        changeButtons[i].addListener(new InputListener() {
++                                public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                        startCapture(action, index);
++                                        return true;
++                                }
++                        });
++                        table.add(changeButtons[i]).right();
++                        table.row();
++                }
++
++                // 底部按钮：恢复默认 / 返回
++                TextButton resetBtn = new TextButton(
++                                LanguagesManager.getString("controls", 18), uiSkin, "default");
++                resetBtn.setTouchable(Touchable.enabled);
++                resetBtn.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                bindings = KeyBindings.defaults();
++                                refreshAllLabels();
++                                return true;
++                        }
++                });
++
++                TextButton backBtn = new TextButton(
++                                LanguagesManager.getString("controls", 19), uiSkin, "default");
++                backBtn.setTouchable(Touchable.enabled);
++                backBtn.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                saveAndClose();
++                                return true;
++                        }
++                });
++
++                table.row();
++                table.add(resetBtn).colspan(1).center().padTop(20);
++                table.add();
++                table.add(backBtn).colspan(1).center().padTop(20);
++
++                // 把 table 放到 ScrollPane 里（动作多时支持滚动）
++                ScrollPane scroll = new ScrollPane(table, uiSkin);
++                scroll.setScrollingDisabled(true, false);
++                add(scroll).grow().pad(10);
++        }
++
++        private void setupWindow() {
++                setPosition(50, 50);
++                setWidth(Gdx.graphics.getWidth() - 100);
++                setHeight(Gdx.graphics.getHeight() - 100);
++                defaults().space(10);
++        }
++
++        /** 进入捕获模式：等玩家按下任意键，绑定到 action。 */
++        private void startCapture(Action action, int index) {
++                capturingFor = action;
++                valueLabels[index].setText(LanguagesManager.getString("controls", 17));
++
++                // 创建一次性 keyDown 监听器，捕获下一个按键
++                final InputListener captureListener = new InputListener() {
++                        public boolean keyDown(InputEvent event, int keycode) {
++                                if (capturingFor == null) return false;
++                                // ESC 取消捕获
++                                if (keycode == Keys.ESCAPE) {
++                                        capturingFor = null;
++                                        refreshAllLabels();
++                                        KeyConfigWindow.this.removeListener(this);
++                                        return true;
++                                }
++                                // 绑定该键到当前动作
++                                bindings.unbind(keycode); // 先从其他动作解绑
++                                bindings.bind(keycode, capturingFor);
++                                capturingFor = null;
++                                refreshAllLabels();
++                                KeyConfigWindow.this.removeListener(this);
++                                return true;
++                        }
++                };
++                addListener(captureListener);
++        }
++
++        /** 刷新所有动作的按键显示。 */
++        private void refreshAllLabels() {
++                Action[] all = Action.values();
++                for (int i = 0; i < all.length && i < valueLabels.length; i++) {
++                        if (valueLabels[i] != null) {
++                                valueLabels[i].setText(keysDisplay(all[i]));
++                        }
++                }
++        }
++
++        /** 返回某动作当前绑定的按键的可读名（多个键用 / 分隔）。 */
++        private String keysDisplay(Action action) {
++                java.util.List<Integer> keys = bindings.keysFor(action);
++                if (keys.isEmpty()) return "—";
++                StringBuilder sb = new StringBuilder();
++                for (int i = 0; i < keys.size(); i++) {
++                        if (i > 0) sb.append(" / ");
++                        sb.append(KeyBindings.keyName(keys.get(i)));
++                }
++                return sb.toString();
++        }
++
++        /** 返回动作的 i18n 显示名。 */
++        private String actionLabel(Action action) {
++                // controls stringtable 的 id 与 action 的对应关系：
++                // id=2 MoveForward, id=3 MoveBackward, ..., id=16 ToggleNavButtons
++                int id = action.ordinal() + 2;
++                try {
++                        return LanguagesManager.getString("controls", id);
++                } catch (Exception e) {
++                        return action.name();
++                }
++        }
++
++        /** 保存绑定到 Settings 并关闭窗口。 */
++        private void saveAndClose() {
++                bindings.saveTo(Settings.getLastLoadedInstance().getProperties());
++                try {
++                        Settings.save();
++                } catch (Exception e) {
++                        Log.error("[KeyConfigWindow] 保存设置失败: %s", e.getMessage());
++                }
++                closeAndRemoveFromParent(this);
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/OptionsWindow.java b/core/src/com/ntk/darkmoor/OptionsWindow.java
+index a47d768..5bb0bfa 100644
+--- a/core/src/com/ntk/darkmoor/OptionsWindow.java
++++ b/core/src/com/ntk/darkmoor/OptionsWindow.java
+@@ -15,134 +15,147 @@ import com.ntk.darkmoor.engine.gui.BaseWindow;
+ 
+ public class OptionsWindow extends BaseWindow {
+ 
+-	private LanguagesManager stringTable;
+-
+-	private CheckBox chkMusic, chkEffects, chkHpAsBar, chkFullScreen, chkLanguage;
+-
+-	public OptionsWindow(CampDialog camp, GameScreenBase parent) {
+-		super(camp, LanguagesManager.getString("titles", 3), parent);
+-		loadContent();
+-	}
+-
+-	@Override
+-	public void loadContent() {
+-		Log.debug("[OptionMenu] loadContent()");
+-
+-		super.loadContent();
+-		setupWindow();
+-		stringTable = LanguagesManager.getInstance(); // "main";
+-		pack();
+-
+-	}
+-
+-	@Override
+-	protected void setupButtons(Skin uiSkin) {
+-		super.setupButtons(uiSkin);
+-
+-		int widthUnit = DarkmoorGame.DISPLAY_WIDTH / 5;
+-		int heightUnit = DarkmoorGame.DISPLAY_HEIGHT / 6;
+-		buttons = new TextButton[6];
+-
+-		chkMusic = new CheckBox(LanguagesManager.getString("titles", 12), uiSkin, "transparent-font64");
+-		chkMusic.setChecked(Settings.getLastLoadedInstance().isMusic());
+-		chkMusic.addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				Settings.getLastLoadedInstance().setMusic(!Settings.getLastLoadedInstance().isMusic());
+-				if (Settings.getLastLoadedInstance().isMusic()) {
+-					parent.getGame().resumeMusic();
+-				} else {
+-					parent.getGame().pauseMusic();
+-				}
+-				return true;
+-			}
+-		});
+-
+-		chkEffects = new CheckBox(LanguagesManager.getString("titles", 13), uiSkin, "transparent-font64");
+-		chkEffects.setChecked(Settings.getLastLoadedInstance().isEffects());
+-		chkEffects.addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				Settings.getLastLoadedInstance().setEffects(!Settings.getLastLoadedInstance().isEffects());
+-				return true;
+-			}
+-		});
+-
+-		chkFullScreen = new CheckBox(LanguagesManager.getString("titles", 14), uiSkin, "transparent-font64");
+-		chkFullScreen.setChecked(Settings.getLastLoadedInstance().isFullScreen());
+-		chkFullScreen.addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				Settings.getLastLoadedInstance().setFullScreen(!Settings.getLastLoadedInstance().isFullScreen());
+-				return true;
+-			}
+-		});
+-
+-		chkHpAsBar = new CheckBox(LanguagesManager.getString("titles", 15), uiSkin, "transparent-font64");
+-		chkHpAsBar.setChecked(Settings.getLastLoadedInstance().isHPAsBar());
+-		chkHpAsBar.addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				Settings.getLastLoadedInstance().setHPAsBar(!Settings.getLastLoadedInstance().isHPAsBar());
+-				return true;
+-			}
+-		});
+-
+-		chkLanguage = new CheckBox(
+-				String.format(LanguagesManager.getString("titles", 16), Settings.getLastLoadedInstance().getLanguage()),
+-				uiSkin, "transparent-font64");
+-		chkLanguage.setChecked(true);
+-		chkLanguage.addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				// Cycle through ALL languages advertised by the string table
+-				// (English -> Francais -> Chinese -> English -> ...).
+-				String[] languages = stringTable.getAvailableLanguages();
+-				String current = Settings.getLastLoadedInstance().getLanguage();
+-				int index = 0;
+-				for (int i = 0; i < languages.length; i++) {
+-					if (languages[i].equalsIgnoreCase(current)) {
+-						index = i;
+-						break;
+-					}
+-				}
+-				String next = languages[(index + 1) % languages.length];
+-				Settings.getLastLoadedInstance().setLanguage(next);
+-				// Keep the manager in sync so LanguagesManager.getString(...) picks
+-				// up the new language immediately (not just after a restart).
+-				stringTable.setLanguage(next);
+-				chkLanguage.setText(String.format(LanguagesManager.getString("titles", 16), next));
+-				return true;
+-			}
+-		});
+-
+-		buttons[5] = new TextButton(LanguagesManager.getString("titles", 17), uiSkin, "transparent-font64");
+-		buttons[5].setBounds(widthUnit * 3, heightUnit << 1, widthUnit, heightUnit);
+-		buttons[5].setTouchable(Touchable.enabled);
+-		buttons[5].addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				closeAndRemoveFromParent(OptionsWindow.this);
+-
+-				return true;
+-			}
+-		});
+-
+-		row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-		add(chkMusic);
+-		add(chkEffects);
+-		row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-		add(chkFullScreen);
+-		add(chkHpAsBar);
+-		row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-		add(chkLanguage);
+-		add(buttons[5]);
+-		row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-	}
+-
+-	private void setupWindow() {
+-		// getButtonTable().add(new TextButton("X", uiSkin)).height(getPadTop());
+-		setPosition((Gdx.graphics.getWidth() >>2) - 75, (Gdx.graphics.getHeight()>>1) - 50);
+-		setWidth(Gdx.graphics.getWidth() >>1);
+-		setHeight(200);
+-		defaults().space(10);
+-		row().fill().expandX();
+-
+-		// addAction(sequence(fadeIn(5000)));
+-	}
++        private LanguagesManager stringTable;
++
++        private CheckBox chkMusic, chkEffects, chkHpAsBar, chkFullScreen, chkLanguage;
++
++        public OptionsWindow(CampDialog camp, GameScreenBase parent) {
++                super(camp, LanguagesManager.getString("titles", 3), parent);
++                loadContent();
++        }
++
++        @Override
++        public void loadContent() {
++                Log.debug("[OptionMenu] loadContent()");
++
++                super.loadContent();
++                setupWindow();
++                stringTable = LanguagesManager.getInstance(); // "main";
++                pack();
++
++        }
++
++        @Override
++        protected void setupButtons(Skin uiSkin) {
++                super.setupButtons(uiSkin);
++
++                int widthUnit = DarkmoorGame.DISPLAY_WIDTH / 5;
++                int heightUnit = DarkmoorGame.DISPLAY_HEIGHT / 6;
++                buttons = new TextButton[7];
++
++                chkMusic = new CheckBox(LanguagesManager.getString("titles", 12), uiSkin, "transparent-font64");
++                chkMusic.setChecked(Settings.getLastLoadedInstance().isMusic());
++                chkMusic.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                Settings.getLastLoadedInstance().setMusic(!Settings.getLastLoadedInstance().isMusic());
++                                if (Settings.getLastLoadedInstance().isMusic()) {
++                                        parent.getGame().resumeMusic();
++                                } else {
++                                        parent.getGame().pauseMusic();
++                                }
++                                return true;
++                        }
++                });
++
++                chkEffects = new CheckBox(LanguagesManager.getString("titles", 13), uiSkin, "transparent-font64");
++                chkEffects.setChecked(Settings.getLastLoadedInstance().isEffects());
++                chkEffects.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                Settings.getLastLoadedInstance().setEffects(!Settings.getLastLoadedInstance().isEffects());
++                                return true;
++                        }
++                });
++
++                chkFullScreen = new CheckBox(LanguagesManager.getString("titles", 14), uiSkin, "transparent-font64");
++                chkFullScreen.setChecked(Settings.getLastLoadedInstance().isFullScreen());
++                chkFullScreen.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                Settings.getLastLoadedInstance().setFullScreen(!Settings.getLastLoadedInstance().isFullScreen());
++                                return true;
++                        }
++                });
++
++                chkHpAsBar = new CheckBox(LanguagesManager.getString("titles", 15), uiSkin, "transparent-font64");
++                chkHpAsBar.setChecked(Settings.getLastLoadedInstance().isHPAsBar());
++                chkHpAsBar.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                Settings.getLastLoadedInstance().setHPAsBar(!Settings.getLastLoadedInstance().isHPAsBar());
++                                return true;
++                        }
++                });
++
++                chkLanguage = new CheckBox(
++                                String.format(LanguagesManager.getString("titles", 16), Settings.getLastLoadedInstance().getLanguage()),
++                                uiSkin, "transparent-font64");
++                chkLanguage.setChecked(true);
++                chkLanguage.addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                // Cycle through ALL languages advertised by the string table
++                                // (English -> Francais -> Chinese -> English -> ...).
++                                String[] languages = stringTable.getAvailableLanguages();
++                                String current = Settings.getLastLoadedInstance().getLanguage();
++                                int index = 0;
++                                for (int i = 0; i < languages.length; i++) {
++                                        if (languages[i].equalsIgnoreCase(current)) {
++                                                index = i;
++                                                break;
++                                        }
++                                }
++                                String next = languages[(index + 1) % languages.length];
++                                Settings.getLastLoadedInstance().setLanguage(next);
++                                // Keep the manager in sync so LanguagesManager.getString(...) picks
++                                // up the new language immediately (not just after a restart).
++                                stringTable.setLanguage(next);
++                                chkLanguage.setText(String.format(LanguagesManager.getString("titles", 16), next));
++                                return true;
++                        }
++                });
++
++                buttons[5] = new TextButton(LanguagesManager.getString("titles", 17), uiSkin, "transparent-font64");
++                buttons[5].setBounds(widthUnit * 3, heightUnit << 1, widthUnit, heightUnit);
++                buttons[5].setTouchable(Touchable.enabled);
++                buttons[5].addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                closeAndRemoveFromParent(OptionsWindow.this);
++
++                                return true;
++                        }
++                });
++
++                // v0.5 新增：操控按钮 — 打开按键配置窗口
++                buttons[6] = new TextButton(LanguagesManager.getString("titles", 18), uiSkin, "transparent-font64");
++                buttons[6].setBounds(0, 0, widthUnit, heightUnit);
++                buttons[6].setTouchable(Touchable.enabled);
++                buttons[6].addListener(new InputListener() {
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                parent.getStage().addActor(new KeyConfigWindow(null, parent));
++                                return true;
++                        }
++                });
++
++                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
++                add(chkMusic);
++                add(chkEffects);
++                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
++                add(chkFullScreen);
++                add(chkHpAsBar);
++                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
++                add(chkLanguage);
++                add(buttons[5]);
++                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
++                add(buttons[6]);
++                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
++        }
++
++        private void setupWindow() {
++                // getButtonTable().add(new TextButton("X", uiSkin)).height(getPadTop());
++                setPosition((Gdx.graphics.getWidth() >>2) - 75, (Gdx.graphics.getHeight()>>1) - 50);
++                setWidth(Gdx.graphics.getWidth() >>1);
++                setHeight(200);
++                defaults().space(10);
++                row().fill().expandX();
++
++                // addAction(sequence(fadeIn(5000)));
++        }
+ 
+ }
+diff --git a/core/src/com/ntk/darkmoor/config/KeyBindings.java b/core/src/com/ntk/darkmoor/config/KeyBindings.java
+new file mode 100644
+index 0000000..6c4aabb
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/config/KeyBindings.java
+@@ -0,0 +1,197 @@
++package com.ntk.darkmoor.config;
++
++import java.util.ArrayList;
++import java.util.EnumMap;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Properties;
++
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.Input.Keys;
++
++/**
++ * 按键绑定系统 — 把物理按键 (libGDX keycode) 映射到游戏动作 ({@link Action})。
++ *
++ * <p>支持一个动作绑定多个键（例如 {@code MoveForward} 同时绑 {@code W} 和 {@code UP}）。
++ *
++ * <p>持久化到 {@code settings.properties}，键名格式：
++ * <pre>
++ *   KeyBindings.MoveForward=51,19
++ *   KeyBindings.TurnLeft=45
++ * </pre>
++ * 值为逗号分隔的 keycode 列表（libGDX {@link Keys} 常量值）。
++ *
++ * <p>设计文档：{@code docs/v0.5/09-input-system.md}
++ *
++ * @see KeyboardInputProcessor
++ */
++public class KeyBindings {
++
++	/** 所有可绑定的游戏动作。 */
++	public enum Action {
++		MoveForward, MoveBackward, StrafeLeft, StrafeRight,
++		TurnLeft, TurnRight,
++		Camp, Inventory, Statistics,
++		SelectHero1, SelectHero2, SelectHero3, SelectHero4, SelectHero5, SelectHero6,
++		MainMenu, QuickSave, QuickLoad,
++		ToggleMinimap, ToggleNavButtons
++	}
++
++	/** properties 文件中的键名前缀。 */
++	private static final String PROP_PREFIX = "KeyBindings.";
++
++	private final Map<Integer, Action> keyToAction;
++	private final Map<Action, List<Integer>> actionToKeys;
++
++	public KeyBindings() {
++		keyToAction = new HashMap<Integer, Action>();
++		actionToKeys = new EnumMap<Action, List<Integer>>(Action.class);
++		for (Action a : Action.values()) {
++			actionToKeys.put(a, new ArrayList<Integer>(2));
++		}
++	}
++
++	/** 绑定一个键到某个动作。同动作可多键。 */
++	public void bind(int keycode, Action action) {
++		if (keycode < 0 || action == null) return;
++		// 若该键已绑到其他动作，先解绑
++		keyToAction.remove(keycode);
++		keyToAction.put(keycode, action);
++		List<Integer> keys = actionToKeys.get(action);
++		if (!keys.contains(keycode)) keys.add(keycode);
++	}
++
++	/** 解绑某键。 */
++	public void unbind(int keycode) {
++		Action a = keyToAction.remove(keycode);
++		if (a != null) actionToKeys.get(a).remove(Integer.valueOf(keycode));
++	}
++
++	/** 解绑某动作的所有键。 */
++	public void unbindAction(Action action) {
++		List<Integer> keys = actionToKeys.get(action);
++		if (keys == null) return;
++		for (Integer k : new ArrayList<Integer>(keys)) {
++			keyToAction.remove(k);
++		}
++		keys.clear();
++	}
++
++	/** keyDown 时调用，返回该键对应的动作；无绑定返回 null。 */
++	public Action lookup(int keycode) {
++		return keyToAction.get(keycode);
++	}
++
++	/** 取某动作当前绑定的所有键（用于 UI 显示）。 */
++	public List<Integer> keysFor(Action action) {
++		List<Integer> keys = actionToKeys.get(action);
++		return keys == null ? new ArrayList<Integer>() : new ArrayList<Integer>(keys);
++	}
++
++	/** 把 keycode 转成可读名（"W"、"UP"、"F5" 等）。 */
++	public static String keyName(int keycode) {
++		if (Gdx.input == null) return String.valueOf(keycode);
++		return Keys.toString(keycode);
++	}
++
++	/** 是否没有任何绑定。 */
++	public boolean isEmpty() {
++		return keyToAction.isEmpty();
++	}
++
++	/** 保存到 Properties 对象（不写入磁盘，由 Settings 统一持久化）。 */
++	public void saveTo(Properties props) {
++		if (props == null) return;
++		for (Action action : Action.values()) {
++			List<Integer> keys = actionToKeys.get(action);
++			String key = PROP_PREFIX + action.name();
++			if (keys == null || keys.isEmpty()) {
++				props.remove(key);
++			} else {
++				StringBuilder sb = new StringBuilder();
++				for (int i = 0; i < keys.size(); i++) {
++					if (i > 0) sb.append(",");
++					sb.append(keys.get(i));
++				}
++				props.setProperty(key, sb.toString());
++			}
++		}
++	}
++
++	/** 从 Properties 加载。若完全没有 KeyBindings.* 键，返回 null（调用方应 fallback 到 defaults()）。 */
++	public static KeyBindings loadFrom(Properties props) {
++		if (props == null) return null;
++		KeyBindings kb = new KeyBindings();
++		boolean any = false;
++		for (Action action : Action.values()) {
++			String key = PROP_PREFIX + action.name();
++			String value = props.getProperty(key);
++			if (value == null || value.isEmpty()) continue;
++			any = true;
++			for (String code : value.split(",")) {
++				try {
++					int keycode = Integer.parseInt(code.trim());
++					kb.bind(keycode, action);
++				} catch (NumberFormatException e) {
++					// skip malformed entry
++				}
++			}
++		}
++		return any ? kb : null;
++	}
++
++	/** 默认 QWERTY 布局。 */
++	public static KeyBindings defaults() {
++		KeyBindings kb = new KeyBindings();
++		kb.bind(Keys.W,     Action.MoveForward);
++		kb.bind(Keys.UP,    Action.MoveForward);
++		kb.bind(Keys.S,     Action.MoveBackward);
++		kb.bind(Keys.DOWN,  Action.MoveBackward);
++		kb.bind(Keys.A,     Action.StrafeLeft);
++		kb.bind(Keys.LEFT,  Action.StrafeLeft);
++		kb.bind(Keys.D,     Action.StrafeRight);
++		kb.bind(Keys.RIGHT, Action.StrafeRight);
++		kb.bind(Keys.Q,     Action.TurnLeft);
++		kb.bind(Keys.E,     Action.TurnRight);
++		kb.bind(Keys.C,     Action.Camp);
++		kb.bind(Keys.I,     Action.Inventory);
++		kb.bind(Keys.P,     Action.Statistics);
++		kb.bind(Keys.NUM_1, Action.SelectHero1);
++		kb.bind(Keys.NUM_2, Action.SelectHero2);
++		kb.bind(Keys.NUM_3, Action.SelectHero3);
++		kb.bind(Keys.NUM_4, Action.SelectHero4);
++		kb.bind(Keys.NUM_5, Action.SelectHero5);
++		kb.bind(Keys.NUM_6, Action.SelectHero6);
++		kb.bind(Keys.ESCAPE, Action.MainMenu);
++		kb.bind(Keys.F5,    Action.QuickSave);
++		kb.bind(Keys.F9,    Action.QuickLoad);
++		kb.bind(Keys.M,     Action.ToggleMinimap);
++		kb.bind(Keys.N,     Action.ToggleNavButtons);
++		return kb;
++	}
++
++	/** AZERTY 默认布局（供未来切换）。 */
++	public static KeyBindings azerty() {
++		KeyBindings kb = defaults();
++		// AZERTY: WASD → ZQSD
++		kb.unbindAction(Action.MoveForward);
++		kb.unbindAction(Action.StrafeLeft);
++		kb.unbindAction(Action.MoveBackward);
++		kb.unbindAction(Action.StrafeRight);
++		kb.unbindAction(Action.TurnLeft);
++		kb.unbindAction(Action.TurnRight);
++		kb.bind(Keys.Z, Action.MoveForward);
++		kb.bind(Keys.UP, Action.MoveForward);
++		kb.bind(Keys.Q, Action.StrafeLeft);
++		kb.bind(Keys.LEFT, Action.StrafeLeft);
++		kb.bind(Keys.S, Action.MoveBackward);
++		kb.bind(Keys.DOWN, Action.MoveBackward);
++		kb.bind(Keys.D, Action.StrafeRight);
++		kb.bind(Keys.RIGHT, Action.StrafeRight);
++		// AZERTY 的 A 键在 QWERTY 位置是 Q
++		kb.bind(Keys.A, Action.TurnLeft);
++		kb.bind(Keys.E, Action.TurnRight);
++		return kb;
++	}
++}
+diff --git a/core/src/com/ntk/darkmoor/config/Settings.java b/core/src/com/ntk/darkmoor/config/Settings.java
+index 124cdff..d5f065e 100644
+--- a/core/src/com/ntk/darkmoor/config/Settings.java
++++ b/core/src/com/ntk/darkmoor/config/Settings.java
+@@ -20,6 +20,7 @@ public class Settings {
+ 	private static final String SETTING_INPUTSCHEME = "inputscheme";
+ 	private static final String SETTING_SAVE_SLOTS = "saveSlots";
+ 	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
++	private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
+ 	
+ 	// last loaded instance. (almost) a singleton
+ 	private static Settings instance;
+@@ -33,6 +34,7 @@ public class Settings {
+ 	private boolean fullScreen;
+ 	private int saveSlots;
+ 	private boolean showMinimap;
++	private boolean showNavButtons;
+ 
+ 	// the properties that hold all settings
+ 	private Properties props;
+@@ -60,6 +62,7 @@ public class Settings {
+ 		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
+ 		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
+ 		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
++		settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, true));
+ 		
+ 		instance = settings;
+ 		
+@@ -197,6 +200,19 @@ public class Settings {
+ 		this.showMinimap = showMinimap;
+ 	}
+ 
++	public boolean isShowNavButtons() {
++		return showNavButtons;
++	}
++
++	public void setShowNavButtons(boolean showNavButtons) {
++		this.showNavButtons = showNavButtons;
++	}
++
++	/** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
++	public Properties getProperties() {
++		return props;
++	}
++
+ 	public static Settings getLastLoadedInstance() {
+ 		return instance;
+ 	}
+diff --git a/core/src/com/ntk/darkmoor/engine/CampDialog.java b/core/src/com/ntk/darkmoor/engine/CampDialog.java
+index 2fcb591..e69feed 100644
+--- a/core/src/com/ntk/darkmoor/engine/CampDialog.java
++++ b/core/src/com/ntk/darkmoor/engine/CampDialog.java
+@@ -1,29 +1,36 @@
+ package com.ntk.darkmoor.engine;
+ 
+ import java.util.ArrayDeque;
+-import java.util.ArrayList;
+ 
+ import com.badlogic.gdx.math.Rectangle;
+ import com.ntk.darkmoor.GameScreen;
+ import com.ntk.darkmoor.GameScreenBase;
+ import com.ntk.darkmoor.engine.gui.BaseWindow;
+-import com.ntk.darkmoor.engine.gui.ScreenButton;
+ import com.ntk.darkmoor.engine.gui.campwindows.MainWindow;
+ import com.ntk.darkmoor.stub.Mouse;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ 
++/**
++ * 营地对话框 — 玩家点击 CAMP 按钮或按 C 键时弹出。
++ *
++ * <p>管理一个 {@link ArrayDeque} 窗口栈：构造时压入 {@link MainWindow}，
++ * 子窗口可通过 {@link #addWindow(BaseWindow)} 入栈，{@link #exit()} 清空栈并关闭对话框。
++ *
++ * <p>v0.5 重构：原 {@code buttons} 字段和鼠标轮询逻辑已移到 {@link BaseWindow}，
++ * 由栈顶子窗口自己处理 ScreenButton 点击。
++ *
++ * <p>设计文档：{@code docs/v0.5/10-camp-system.md}
++ */
+ public class CampDialog extends BaseWindow {
+ 
+ 	private GameScreenBase game;
+ 	private Rectangle rectangle;
+-	private ArrayList<ScreenButton> buttons;
+ 	private ArrayDeque<BaseWindow> windows;
+ 
+ 	public CampDialog(GameScreenBase game, GameScreenBase parent) {
+ 		super(null, LanguagesManager.getString("titles", 1), parent);
+ 		this.game = game;
+-		windows = new ArrayDeque<BaseWindow>(); 
+-		buttons = new ArrayList<ScreenButton>();
++		windows = new ArrayDeque<BaseWindow>();
+ 		rectangle = new Rectangle(0, 0, 352, 288);
+ 		addWindow(new MainWindow(this, parent));
+ 		Mouse.setTile(0);
+@@ -46,7 +53,6 @@ public class CampDialog extends BaseWindow {
+ 			return;
+ 
+ 		windows.push(window);
+-
+ 	}
+ 
+ 	@Override
+@@ -61,15 +67,8 @@ public class CampDialog extends BaseWindow {
+ 			else
+ 				windows.peek().update(delta);
+ 		}
++		// 注：鼠标轮询由 BaseWindow.update() 处理，栈顶子窗口自己轮询自己的 screenButtons
+ 	}
+-	
+-	//TODO: ntk: do we need draw method?
+-//	@Override
+-//	public void draw(SpriteBatch batch, float parentAlpha) {
+-//		if (windows.size() > 0) {
+-//			windows.peek().draw(batch, parentAlpha);
+-//		}
+-//	}
+ 
+ 	public Rectangle getRectangle() {
+ 		return rectangle;
+@@ -79,14 +78,6 @@ public class CampDialog extends BaseWindow {
+ 		this.rectangle = rectangle;
+ 	}
+ 
+-	public ArrayList<ScreenButton> getButtons() {
+-		return buttons;
+-	}
+-
+-	protected void setButtons(ArrayList<ScreenButton> buttons) {
+-		this.buttons = buttons;
+-	}
+-
+ 	public ArrayDeque<BaseWindow> getWindows() {
+ 		return windows;
+ 	}
+diff --git a/core/src/com/ntk/darkmoor/engine/KeyboardInputProcessor.java b/core/src/com/ntk/darkmoor/engine/KeyboardInputProcessor.java
+new file mode 100644
+index 0000000..47a6946
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/KeyboardInputProcessor.java
+@@ -0,0 +1,171 @@
++package com.ntk.darkmoor.engine;
++
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.Input.Buttons;
++import com.badlogic.gdx.InputProcessor;
++import com.badlogic.gdx.math.Vector2;
++import com.ntk.darkmoor.GameScreen;
++import com.ntk.darkmoor.config.KeyBindings;
++import com.ntk.darkmoor.config.KeyBindings.Action;
++import com.ntk.darkmoor.config.Settings;
++import com.ntk.darkmoor.engine.Compass.CompassRotation;
++
++/**
++ * 键盘输入处理器 — 把按键事件翻译成游戏动作。
++ *
++ * <p>通过 {@link InputMultiplexer} 注册在 stage 之前，使键盘事件优先被消费。
++ * 鼠标事件（touchDown/moved/scrolled）一律返回 false，让 scene2d stage 处理。
++ *
++ * <p>设计文档：{@code docs/v0.5/09-input-system.md}
++ *
++ * @see KeyBindings
++ * @see GameScreenBase#setupStage()
++ */
++public class KeyboardInputProcessor implements InputProcessor {
++
++        private final Team team;
++        private final KeyBindings bindings;
++        private final GameScreen gameScreen;
++
++        /** 上次触发时间戳（毫秒），用于防止 keyDown 高频重复触发。 */
++        private final java.util.EnumMap<Action, Long> lastTrigger;
++        private static final long MIN_INTERVAL_MS = 180;
++
++        public KeyboardInputProcessor(Team team, KeyBindings bindings, GameScreen gameScreen) {
++                this.team = team;
++                this.bindings = bindings;
++                this.gameScreen = gameScreen;
++                this.lastTrigger = new java.util.EnumMap<Action, Long>(Action.class);
++        }
++
++        @Override
++        public boolean keyDown(int keycode) {
++                if (bindings == null || team == null) return false;
++                Action action = bindings.lookup(keycode);
++                if (action == null) return false;
++
++                // 节流：同一动作在 MIN_INTERVAL_MS 内不重复触发
++                long now = System.currentTimeMillis();
++                Long last = lastTrigger.get(action);
++                if (last != null && now - last < MIN_INTERVAL_MS) {
++                        return true; // 消费事件但不执行
++                }
++                lastTrigger.put(action, now);
++
++                return dispatch(action);
++        }
++
++        @Override
++        public boolean keyUp(int keycode) {
++                // 不处理；移动是"按一次走一格"模式
++                return false;
++        }
++
++        @Override
++        public boolean keyTyped(char ch) {
++                return false;
++        }
++
++        @Override
++        public boolean touchDown(int screenX, int screenY, int pointer, int button) {
++                return false; // 让 stage 处理
++        }
++
++        @Override
++        public boolean touchUp(int screenX, int screenY, int pointer, int button) {
++                return false;
++        }
++
++        @Override
++        public boolean touchDragged(int screenX, int screenY, int pointer) {
++                return false;
++        }
++
++        @Override
++        public boolean mouseMoved(int screenX, int screenY) {
++                return false;
++        }
++
++        @Override
++        public boolean scrolled(float amountX, float amountY) {
++                return false;
++        }
++
++        /** libGDX 1.14+ 新增方法，处理触摸取消（如系统弹窗打断）。 */
++        @Override
++        public boolean touchCancelled(int screenX, int screenY, int pointer, int button) {
++                return false;
++        }
++
++        /** 实际派发动作。 */
++        private boolean dispatch(Action action) {
++                switch (action) {
++                        case MoveForward:
++                                team.walk(0, -1);
++                                return true;
++                        case MoveBackward:
++                                team.walk(0, 1);
++                                return true;
++                        case StrafeLeft:
++                                team.walk(-1, 0);
++                                return true;
++                        case StrafeRight:
++                                team.walk(1, 0);
++                                return true;
++                        case TurnLeft:
++                                team.getLocation().setDirection(
++                                        Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate270));
++                                return true;
++                        case TurnRight:
++                                team.getLocation().setDirection(
++                                        Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate90));
++                                return true;
++                        case Camp:
++                                if (gameScreen != null) gameScreen.openCampDialog();
++                                return true;
++                        case Inventory:
++                                if (gameScreen != null) gameScreen.setInterfaceType(GameScreen.TeamInterface.Inventory);
++                                return true;
++                        case Statistics:
++                                if (gameScreen != null) gameScreen.setInterfaceType(GameScreen.TeamInterface.Statistic);
++                                return true;
++                        case SelectHero1: return selectHero(0);
++                        case SelectHero2: return selectHero(1);
++                        case SelectHero3: return selectHero(2);
++                        case SelectHero4: return selectHero(3);
++                        case SelectHero5: return selectHero(4);
++                        case SelectHero6: return selectHero(5);
++                        case MainMenu:
++                                if (gameScreen != null) gameScreen.openInGameMenu();
++                                return true;
++                        case QuickSave:
++                                if (gameScreen != null) {
++                                        try { gameScreen.saveGameSlot(0); } catch (Exception e) { /* ignore */ }
++                                }
++                                return true;
++                        case QuickLoad:
++                                if (gameScreen != null) gameScreen.loadGameSlot(0);
++                                return true;
++                        case ToggleMinimap: {
++                                Settings s = Settings.getLastLoadedInstance();
++                                if (s != null) s.setShowMinimap(!s.isShowMinimap());
++                                return true;
++                        }
++                        case ToggleNavButtons: {
++                                Settings s = Settings.getLastLoadedInstance();
++                                if (s != null) s.setShowNavButtons(!s.isShowNavButtons());
++                                return true;
++                        }
++                        default:
++                                return false;
++                }
++        }
++
++        private boolean selectHero(int index) {
++                if (team == null || team.getHeroes() == null) return false;
++                Hero[] heroes = team.getHeroes();
++                if (index < 0 || index >= heroes.length || heroes[index] == null) return false;
++                team.setSelectedHero(heroes[index]);
++                return true;
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+index f436b30..f5b4da8 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+@@ -45,257 +45,257 @@ import com.ntk.darkmoor.engine.actor.Teleporter;
+  */
+ public class MinimapGroup extends GameScreenGroup implements Disposable {
+ 
+-	/** minimap 显示区域宽度（像素） */
+-	public static final int MINIMAP_WIDTH = 220;
+-	/** minimap 显示区域高度（像素） */
+-	public static final int MINIMAP_HEIGHT = 220;
+-	/** minimap 左下角 X（stage 坐标） */
+-	public static final float MINIMAP_X = 8f;
+-	/** minimap 左下角 Y（stage 坐标）— 紧贴第一人称视图顶部 */
+-	public static final float MINIMAP_Y = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - MINIMAP_HEIGHT - 8f;
+-
+-	/** minimap 内边距（避免地图贴边） */
+-	private static final int PADDING = 4;
+-
+-	// 颜色方案 — 与 docs/v0.5/08-minimap-design.md §8.5 一致
+-	private static final Color COLOR_BG = new Color(0f, 0f, 0f, 0.65f);
+-	private static final Color COLOR_BORDER = Color.LIGHT_GRAY;
+-	private static final Color COLOR_WALL = new Color(0.19f, 0.19f, 0.19f, 1f);
+-	private static final Color COLOR_ILLUSION = new Color(0.4f, 0.4f, 0.4f, 1f);
+-	private static final Color COLOR_GROUND = new Color(0.85f, 0.85f, 0.85f, 1f);
+-	private static final Color COLOR_DOOR = new Color(1f, 1f, 0.33f, 1f);
+-	private static final Color COLOR_STAIR = new Color(0.57f, 0.81f, 0.54f, 1f);
+-	private static final Color COLOR_PIT = new Color(0.17f, 0.19f, 0.54f, 1f);
+-	private static final Color COLOR_TELEPORTER = new Color(0.7f, 0.3f, 0.9f, 1f);
+-	private static final Color COLOR_MONSTER = new Color(1f, 0.33f, 0.33f, 1f);
+-	private static final Color COLOR_ITEM = new Color(1f, 0.65f, 0f, 1f);
+-	private static final Color COLOR_TEAM = new Color(0.4f, 0.41f, 0.71f, 1f);
+-	private static final Color COLOR_ARROW = Color.WHITE;
+-
+-	public Team team;
+-
+-	private Pixmap pixmap;
+-	private Texture texture;
+-	private Image image;
+-
+-	@Override
+-	public void initialize() {
+-		pixmap = new Pixmap(MINIMAP_WIDTH, MINIMAP_HEIGHT, Pixmap.Format.RGBA8888);
+-		texture = new Texture(pixmap);
+-		texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+-
+-		image = new Image(new TextureRegionDrawable(new TextureRegion(texture)));
+-		image.setBounds(MINIMAP_X, MINIMAP_Y, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+-		addActor(image);
+-	}
+-
+-	@Override
+-	public void update() {
+-		if (team == null || team.getMaze() == null)
+-			return;
+-
+-		// 根据 Settings 决定可见性
+-		Settings settings = Settings.getLastLoadedInstance();
+-		setVisible(settings == null || settings.isShowMinimap());
+-		if (!isVisible())
+-			return;
+-
+-		redraw();
+-	}
+-
+-	/**
+-	 * 重绘整个 minimap。每帧调用。
+-	 *
+-	 * <p>步骤：
+-	 * <ol>
+-	 *   <li>清空 pixmap（半透明黑色背景 + 边框）</li>
+-	 *   <li>计算 tile 像素大小（保持长宽比，使地图居中填满）</li>
+-	 *   <li>遍历所有 tile，按优先级绘制颜色方块</li>
+-	 *   <li>绘制玩家位置（蓝方块 + 白色朝向箭头）</li>
+-	 *   <li>把 pixmap 上传到 texture</li>
+-	 * </ol>
+-	 */
+-	private void redraw() {
+-		Maze maze = team.getMaze();
+-		if (maze == null || maze.getSize() == null)
+-			return;
+-
+-		int mazeW = (int) maze.getSize().x;
+-		int mazeH = (int) maze.getSize().y;
+-		if (mazeW <= 0 || mazeH <= 0)
+-			return;
+-
+-		// 计算 tile 像素大小（保持长宽比，地图居中）
+-		float tilePxF = Math.min(
+-				(float) (MINIMAP_WIDTH - 2 * PADDING) / mazeW,
+-				(float) (MINIMAP_HEIGHT - 2 * PADDING) / mazeH);
+-		if (tilePxF < 1f)
+-			tilePxF = 1f;
+-
+-		int tilePx = (int) Math.floor(tilePxF);
+-		if (tilePx < 1)
+-			tilePx = 1;
+-
+-		int drawW = tilePx * mazeW;
+-		int drawH = tilePx * mazeH;
+-		int offsetX = (MINIMAP_WIDTH - drawW) / 2;
+-		int offsetY = (MINIMAP_HEIGHT - drawH) / 2;
+-
+-		// 1. 清空 + 背景
+-		pixmap.setColor(COLOR_BG);
+-		pixmap.fill();
+-
+-		// 边框
+-		pixmap.setColor(COLOR_BORDER);
+-		pixmap.drawRectangle(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+-
+-		// 2. 遍历所有 tile
+-		DungeonLocation loc = team.getLocation();
+-		Vector2 coord = (loc != null) ? loc.getCoordinates() : null;
+-		String currentMazeName = maze.getName();
+-
+-		Vector2 probe = new Vector2();
+-		for (int y = 0; y < mazeH; y++) {
+-			for (int x = 0; x < mazeW; x++) {
+-				probe.set(x, y);
+-				Square sq = maze.getSquare(probe);
+-				if (sq == null)
+-					continue;
+-
+-				Color color = tileColor(sq);
+-				int px = offsetX + x * tilePx;
+-				int py = offsetY + y * tilePx;
+-				pixmap.setColor(color);
+-				pixmap.fillRectangle(px, py, tilePx, tilePx);
+-			}
+-		}
+-
+-		// 3. 绘制玩家位置 + 朝向箭头
+-		if (loc != null && coord != null && currentMazeName != null
+-				&& currentMazeName.equals(loc.getMaze())) {
+-			int tx = (int) coord.x;
+-			int ty = (int) coord.y;
+-			if (tx >= 0 && tx < mazeW && ty >= 0 && ty < mazeH) {
+-				int px = offsetX + tx * tilePx;
+-				int py = offsetY + ty * tilePx;
+-
+-				// 玩家方块（蓝色，比 tile 大 1px 边缘）
+-				pixmap.setColor(COLOR_TEAM);
+-				pixmap.fillRectangle(px, py, tilePx, tilePx);
+-
+-				// 朝向箭头
+-				CardinalPoint dir = loc.getDirection();
+-				if (dir != null) {
+-					drawDirectionArrow(px, py, tilePx, dir);
+-				}
+-			}
+-		}
+-
+-		// 4. 上传到 GPU
+-		texture.draw(pixmap, 0, 0);
+-	}
+-
+-	/**
+-	 * 决定单个 tile 的颜色。优先级（从低到高）：
+-	 * <pre>
+-	 *   Wall/Illusion/Ground → Item → Door/Stair/Pit/Teleporter → Monster
+-	 * </pre>
+-	 * 玩家位置在 redraw() 末尾单独画，不进入此方法。
+-	 */
+-	private Color tileColor(Square sq) {
+-		// 基础颜色
+-		Color color;
+-		SquareType type = sq.getType();
+-		if (type == SquareType.Wall) {
+-			color = COLOR_WALL;
+-		} else if (type == SquareType.Illusion) {
+-			color = COLOR_ILLUSION;
+-		} else {
+-			color = COLOR_GROUND;
+-		}
+-
+-		// 物品（覆盖地面）
+-		if (sq.getItemCount() > 0) {
+-			color = COLOR_ITEM;
+-		}
+-
+-		// Actor（覆盖物品；按类型选择颜色）
+-		Object actor = sq.getActor();
+-		if (actor instanceof Door) {
+-			color = COLOR_DOOR;
+-		} else if (actor instanceof Stair) {
+-			color = COLOR_STAIR;
+-		} else if (actor instanceof Pit) {
+-			color = COLOR_PIT;
+-		} else if (actor instanceof Teleporter) {
+-			color = COLOR_TELEPORTER;
+-		}
+-
+-		// 怪物（最高优先级，覆盖一切 — 威胁优先）
+-		if (sq.getMonsterCount() > 0) {
+-			color = COLOR_MONSTER;
+-		}
+-
+-		return color;
+-	}
+-
+-	/**
+-	 * 在玩家方块上画一个白色三角形箭头指示朝向。
+-	 *
+-	 * <p>注意 Pixmap 坐标系 Y 向下：
+-	 * <ul>
+-	 *   <li>North（迷宫 -Y）→ 箭头朝 pixmap 上方</li>
+-	 *   <li>South（迷宫 +Y）→ 箭头朝 pixmap 下方</li>
+-	 *   <li>East（迷宫 +X）→ 箭头朝 pixmap 右方</li>
+-	 *   <li>West（迷宫 -X）→ 箭头朝 pixmap 左方</li>
+-	 * </ul>
+-	 */
+-	private void drawDirectionArrow(int px, int py, int tilePx, CardinalPoint dir) {
+-		int cx = px + tilePx / 2;
+-		int cy = py + tilePx / 2;
+-		int armLen = Math.max(tilePx + 2, 4);
+-		int half = Math.max(tilePx / 2, 1);
+-
+-		pixmap.setColor(COLOR_ARROW);
+-		switch (dir) {
+-			case North:
+-				// 顶点在玩家方块上方
+-				pixmap.fillTriangle(
+-						cx, cy - armLen,
+-						cx - half, cy,
+-						cx + half, cy);
+-				break;
+-			case South:
+-				pixmap.fillTriangle(
+-						cx, cy + armLen,
+-						cx - half, cy,
+-						cx + half, cy);
+-				break;
+-			case East:
+-				pixmap.fillTriangle(
+-						cx + armLen, cy,
+-						cx, cy - half,
+-						cx, cy + half);
+-				break;
+-			case West:
+-				pixmap.fillTriangle(
+-						cx - armLen, cy,
+-						cx, cy - half,
+-						cx, cy + half);
+-				break;
+-		}
+-	}
+-
+-	@Override
+-	public void dispose() {
+-		if (texture != null) {
+-			texture.dispose();
+-			texture = null;
+-		}
+-		if (pixmap != null) {
+-			pixmap.dispose();
+-			pixmap = null;
+-		}
+-		image = null;
+-	}
++        /** minimap 显示区域宽度（像素） */
++        public static final int MINIMAP_WIDTH = 260;
++        /** minimap 显示区域高度（像素） */
++        public static final int MINIMAP_HEIGHT = 260;
++        /** minimap 左下角 X（stage 坐标）— 放在原 nav 按钮区域，避开主视角 */
++        public static final float MINIMAP_X = 18f;
++        /** minimap 左下角 Y（stage 坐标）— 紧贴底部消息栏上方 */
++        public static final float MINIMAP_Y = 8f;
++
++        /** minimap 内边距（避免地图贴边） */
++        private static final int PADDING = 4;
++
++        // 颜色方案 — 与 docs/v0.5/08-minimap-design.md §8.5 一致
++        private static final Color COLOR_BG = new Color(0f, 0f, 0f, 0.65f);
++        private static final Color COLOR_BORDER = Color.LIGHT_GRAY;
++        private static final Color COLOR_WALL = new Color(0.19f, 0.19f, 0.19f, 1f);
++        private static final Color COLOR_ILLUSION = new Color(0.4f, 0.4f, 0.4f, 1f);
++        private static final Color COLOR_GROUND = new Color(0.85f, 0.85f, 0.85f, 1f);
++        private static final Color COLOR_DOOR = new Color(1f, 1f, 0.33f, 1f);
++        private static final Color COLOR_STAIR = new Color(0.57f, 0.81f, 0.54f, 1f);
++        private static final Color COLOR_PIT = new Color(0.17f, 0.19f, 0.54f, 1f);
++        private static final Color COLOR_TELEPORTER = new Color(0.7f, 0.3f, 0.9f, 1f);
++        private static final Color COLOR_MONSTER = new Color(1f, 0.33f, 0.33f, 1f);
++        private static final Color COLOR_ITEM = new Color(1f, 0.65f, 0f, 1f);
++        private static final Color COLOR_TEAM = new Color(0.4f, 0.41f, 0.71f, 1f);
++        private static final Color COLOR_ARROW = Color.WHITE;
++
++        public Team team;
++
++        private Pixmap pixmap;
++        private Texture texture;
++        private Image image;
++
++        @Override
++        public void initialize() {
++                pixmap = new Pixmap(MINIMAP_WIDTH, MINIMAP_HEIGHT, Pixmap.Format.RGBA8888);
++                texture = new Texture(pixmap);
++                texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
++
++                image = new Image(new TextureRegionDrawable(new TextureRegion(texture)));
++                image.setBounds(MINIMAP_X, MINIMAP_Y, MINIMAP_WIDTH, MINIMAP_HEIGHT);
++                addActor(image);
++        }
++
++        @Override
++        public void update() {
++                if (team == null || team.getMaze() == null)
++                        return;
++
++                // 根据 Settings 决定可见性
++                Settings settings = Settings.getLastLoadedInstance();
++                setVisible(settings == null || settings.isShowMinimap());
++                if (!isVisible())
++                        return;
++
++                redraw();
++        }
++
++        /**
++         * 重绘整个 minimap。每帧调用。
++         *
++         * <p>步骤：
++         * <ol>
++         *   <li>清空 pixmap（半透明黑色背景 + 边框）</li>
++         *   <li>计算 tile 像素大小（保持长宽比，使地图居中填满）</li>
++         *   <li>遍历所有 tile，按优先级绘制颜色方块</li>
++         *   <li>绘制玩家位置（蓝方块 + 白色朝向箭头）</li>
++         *   <li>把 pixmap 上传到 texture</li>
++         * </ol>
++         */
++        private void redraw() {
++                Maze maze = team.getMaze();
++                if (maze == null || maze.getSize() == null)
++                        return;
++
++                int mazeW = (int) maze.getSize().x;
++                int mazeH = (int) maze.getSize().y;
++                if (mazeW <= 0 || mazeH <= 0)
++                        return;
++
++                // 计算 tile 像素大小（保持长宽比，地图居中）
++                float tilePxF = Math.min(
++                                (float) (MINIMAP_WIDTH - 2 * PADDING) / mazeW,
++                                (float) (MINIMAP_HEIGHT - 2 * PADDING) / mazeH);
++                if (tilePxF < 1f)
++                        tilePxF = 1f;
++
++                int tilePx = (int) Math.floor(tilePxF);
++                if (tilePx < 1)
++                        tilePx = 1;
++
++                int drawW = tilePx * mazeW;
++                int drawH = tilePx * mazeH;
++                int offsetX = (MINIMAP_WIDTH - drawW) / 2;
++                int offsetY = (MINIMAP_HEIGHT - drawH) / 2;
++
++                // 1. 清空 + 背景
++                pixmap.setColor(COLOR_BG);
++                pixmap.fill();
++
++                // 边框
++                pixmap.setColor(COLOR_BORDER);
++                pixmap.drawRectangle(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
++
++                // 2. 遍历所有 tile
++                DungeonLocation loc = team.getLocation();
++                Vector2 coord = (loc != null) ? loc.getCoordinates() : null;
++                String currentMazeName = maze.getName();
++
++                Vector2 probe = new Vector2();
++                for (int y = 0; y < mazeH; y++) {
++                        for (int x = 0; x < mazeW; x++) {
++                                probe.set(x, y);
++                                Square sq = maze.getSquare(probe);
++                                if (sq == null)
++                                        continue;
++
++                                Color color = tileColor(sq);
++                                int px = offsetX + x * tilePx;
++                                int py = offsetY + y * tilePx;
++                                pixmap.setColor(color);
++                                pixmap.fillRectangle(px, py, tilePx, tilePx);
++                        }
++                }
++
++                // 3. 绘制玩家位置 + 朝向箭头
++                if (loc != null && coord != null && currentMazeName != null
++                                && currentMazeName.equals(loc.getMaze())) {
++                        int tx = (int) coord.x;
++                        int ty = (int) coord.y;
++                        if (tx >= 0 && tx < mazeW && ty >= 0 && ty < mazeH) {
++                                int px = offsetX + tx * tilePx;
++                                int py = offsetY + ty * tilePx;
++
++                                // 玩家方块（蓝色，比 tile 大 1px 边缘）
++                                pixmap.setColor(COLOR_TEAM);
++                                pixmap.fillRectangle(px, py, tilePx, tilePx);
++
++                                // 朝向箭头
++                                CardinalPoint dir = loc.getDirection();
++                                if (dir != null) {
++                                        drawDirectionArrow(px, py, tilePx, dir);
++                                }
++                        }
++                }
++
++                // 4. 上传到 GPU
++                texture.draw(pixmap, 0, 0);
++        }
++
++        /**
++         * 决定单个 tile 的颜色。优先级（从低到高）：
++         * <pre>
++         *   Wall/Illusion/Ground → Item → Door/Stair/Pit/Teleporter → Monster
++         * </pre>
++         * 玩家位置在 redraw() 末尾单独画，不进入此方法。
++         */
++        private Color tileColor(Square sq) {
++                // 基础颜色
++                Color color;
++                SquareType type = sq.getType();
++                if (type == SquareType.Wall) {
++                        color = COLOR_WALL;
++                } else if (type == SquareType.Illusion) {
++                        color = COLOR_ILLUSION;
++                } else {
++                        color = COLOR_GROUND;
++                }
++
++                // 物品（覆盖地面）
++                if (sq.getItemCount() > 0) {
++                        color = COLOR_ITEM;
++                }
++
++                // Actor（覆盖物品；按类型选择颜色）
++                Object actor = sq.getActor();
++                if (actor instanceof Door) {
++                        color = COLOR_DOOR;
++                } else if (actor instanceof Stair) {
++                        color = COLOR_STAIR;
++                } else if (actor instanceof Pit) {
++                        color = COLOR_PIT;
++                } else if (actor instanceof Teleporter) {
++                        color = COLOR_TELEPORTER;
++                }
++
++                // 怪物（最高优先级，覆盖一切 — 威胁优先）
++                if (sq.getMonsterCount() > 0) {
++                        color = COLOR_MONSTER;
++                }
++
++                return color;
++        }
++
++        /**
++         * 在玩家方块上画一个白色三角形箭头指示朝向。
++         *
++         * <p>注意 Pixmap 坐标系 Y 向下：
++         * <ul>
++         *   <li>North（迷宫 -Y）→ 箭头朝 pixmap 上方</li>
++         *   <li>South（迷宫 +Y）→ 箭头朝 pixmap 下方</li>
++         *   <li>East（迷宫 +X）→ 箭头朝 pixmap 右方</li>
++         *   <li>West（迷宫 -X）→ 箭头朝 pixmap 左方</li>
++         * </ul>
++         */
++        private void drawDirectionArrow(int px, int py, int tilePx, CardinalPoint dir) {
++                int cx = px + tilePx / 2;
++                int cy = py + tilePx / 2;
++                int armLen = Math.max(tilePx + 2, 4);
++                int half = Math.max(tilePx / 2, 1);
++
++                pixmap.setColor(COLOR_ARROW);
++                switch (dir) {
++                        case North:
++                                // 顶点在玩家方块上方
++                                pixmap.fillTriangle(
++                                                cx, cy - armLen,
++                                                cx - half, cy,
++                                                cx + half, cy);
++                                break;
++                        case South:
++                                pixmap.fillTriangle(
++                                                cx, cy + armLen,
++                                                cx - half, cy,
++                                                cx + half, cy);
++                                break;
++                        case East:
++                                pixmap.fillTriangle(
++                                                cx + armLen, cy,
++                                                cx, cy - half,
++                                                cx, cy + half);
++                                break;
++                        case West:
++                                pixmap.fillTriangle(
++                                                cx - armLen, cy,
++                                                cx, cy - half,
++                                                cx, cy + half);
++                                break;
++                }
++        }
++
++        @Override
++        public void dispose() {
++                if (texture != null) {
++                        texture.dispose();
++                        texture = null;
++                }
++                if (pixmap != null) {
++                        pixmap.dispose();
++                        pixmap = null;
++                }
++                image = null;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+index 30ae59d..0a71346 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+@@ -2,8 +2,12 @@ package com.ntk.darkmoor.engine.graphics;
+ 
+ import com.badlogic.gdx.scenes.scene2d.InputEvent;
+ import com.badlogic.gdx.scenes.scene2d.InputListener;
++import com.badlogic.gdx.scenes.scene2d.Touchable;
+ import com.badlogic.gdx.scenes.scene2d.ui.Image;
+ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
++import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.ntk.darkmoor.config.LanguagesManager;
++import com.ntk.darkmoor.config.Settings;
+ import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
+ import com.badlogic.gdx.utils.Disposable;
+ import com.ntk.darkmoor.engine.Compass;
+@@ -14,196 +18,240 @@ import com.ntk.darkmoor.resource.GraphicAssets;
+ 
+ public class NavigationControlsGroup extends GameScreenGroup implements Disposable {
+ 
+-	private static final int BUTTON_HEIGHT = 112;
+-	private static final int BUTTON_WIDTH = 79;
+-	private static final int NAVIGATION_AREA_TOP = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - 418;
+-	private static final int NAVIGATION_AREA_LEFT = 18;
+-
+-	private static final int COMPASS_TOP_DIRECTION_X = 457;
+-	private static final int COMPASS_TOP_DIRECTION_Y = 330;
+-	private static final int COMPASS_TOP_DIRECTION_WIDTH = 82;
+-	private static final int COMPASS_TOP_DIRECTION_HEIGHT = 115;
+-
+-	private static final int COMPASS_LEFT_DIRECTION_X = 309;
+-	private static final int COMPASS_LEFT_DIRECTION_Y = 206;
+-	private static final int COMPASS_LEFT_DIRECTION_WIDTH = 85;
+-	private static final int COMPASS_LEFT_DIRECTION_HEIGHT = 64;
+-
+-	private static final int COMPASS_RIGHT_DIRECTION_X = 588;
+-	private static final int COMPASS_RIGHT_DIRECTION_Y = 210;
+-	private static final int COMPASS_RIGHT_DIRECTION_WIDTH = 85;
+-	private static final int COMPASS_RIGHT_DIRECTION_HEIGHT = 60;
+-
+-	/**
+-	 * The sprites for the directions (N,S,W,E) start at a specific position in the TextureSet.xml. In the default
+-	 * resources for EOB2 it's simply 5 and there's no reason not to have it as a constant. However in new game content,
+-	 * in case this engine is used for a new RPG game, this can change. The only convention is that suppose 5 is the "N"
+-	 * sprite that appears as the forward direction (top of the compass), then 6 and 7 have to be its minimized
+-	 * counterparts that appear on the left side and on the right side of the compass respectively
+-	 */
+-	private static final int DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML = 5;
+-
+-	public Team team;
+-	public Skin uiSkin;
+-
+-	// Scene2d Actors
+-
+-	/** navigation buttons */
+-	private Image turnLeft, forward, turnRight, left, back, right;
+-
+-	/** direction compass images */
+-	private Image directionTop, directionLeft, directionRight;
+-
+-	@Override
+-	public void initialize() {
+-		initializeNavigation();
+-
+-		initializeCompass();
+-	}
+-
+-	private void initializeCompass() {
+-		directionTop = new Image();
+-		directionTop.setBounds(COMPASS_TOP_DIRECTION_X, COMPASS_TOP_DIRECTION_Y, COMPASS_TOP_DIRECTION_WIDTH,
+-				COMPASS_TOP_DIRECTION_HEIGHT);
+-		directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite())));
+-		addActor(directionTop);
+-
+-		directionLeft = new Image();
+-		directionLeft.setBounds(COMPASS_LEFT_DIRECTION_X, COMPASS_LEFT_DIRECTION_Y, COMPASS_LEFT_DIRECTION_WIDTH,
+-				COMPASS_LEFT_DIRECTION_HEIGHT);
+-		directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite() + 1)));
+-		addActor(directionLeft);
+-
+-		directionRight = new Image();
+-		directionRight.setBounds(COMPASS_RIGHT_DIRECTION_X, COMPASS_RIGHT_DIRECTION_Y, COMPASS_RIGHT_DIRECTION_WIDTH,
+-				COMPASS_RIGHT_DIRECTION_HEIGHT);
+-		directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite() + 2)));
+-		addActor(directionRight);
+-	}
+-
+-	private void initializeNavigation() {
+-		turnLeft = new Image();
+-		turnLeft.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+-		// strafeLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("heads").getSprite(2)));
+-		turnLeft.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.getLocation().setDirection(
+-						Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate270));
+-				return true;
+-			}
+-
+-		});
+-		addActor(turnLeft);
+-
+-		forward = new Image();
+-		forward.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+-		forward.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.walk(0, -1);
+-				return true;
+-			}
+-
+-		});
+-		addActor(forward);
+-
+-		turnRight = new Image();
+-		turnRight.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+-		turnRight.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.getLocation().setDirection(
+-						Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate90));
+-				return true;
+-			}
+-
+-		});
+-		addActor(turnRight);
+-
+-		left = new Image();
+-		left.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT);
+-		left.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.walk(-1, 0);
+-				return true;
+-			}
+-
+-		});
+-		addActor(left);
+-
+-		back = new Image();
+-		back.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
+-				BUTTON_HEIGHT);
+-		back.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.walk(0, 1);
+-				return true;
+-			}
+-
+-		});
+-		addActor(back);
+-
+-		right = new Image();
+-		right.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
+-				BUTTON_HEIGHT);
+-		right.addListener(new InputListener() {
+-
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				team.walk(1, 0);
+-				return true;
+-			}
+-
+-		});
+-		addActor(right);
+-	}
+-
+-	@Override
+-	public void update() {
+-		updateCompass();
+-	}
+-
+-	/**
+-	 * updates the compass images
+-	 * 
+-	 */
+-	private void updateCompass() {
+-		// TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
+-
+-		directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite())));
+-
+-		directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite() + 1))); // +1: read comments of
+-																// DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+-
+-		directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+-				.getSprite(resolveTopDirectionSprite() + 2))); // +2: read comments of
+-																// DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+-
+-	}
+-
+-	private int resolveTopDirectionSprite() {
+-		switch (team.getLocation().getDirection()) {
+-		case North: // sprites: 5,6,7 in interface.png (see TextureSet.xml, line 1751)
+-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
+-		case South:
+-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 3;
+-		case West:
+-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 6;
+-		case East:
+-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 9;
+-		default:
+-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
+-		}
+-	}
+-
+-	@Override
+-	public void dispose() {
+-	}
++        private static final int BUTTON_HEIGHT = 112;
++        private static final int BUTTON_WIDTH = 79;
++        private static final int NAVIGATION_AREA_TOP = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - 418;
++        private static final int NAVIGATION_AREA_LEFT = 18;
++
++        private static final int COMPASS_TOP_DIRECTION_X = 457;
++        private static final int COMPASS_TOP_DIRECTION_Y = 330;
++        private static final int COMPASS_TOP_DIRECTION_WIDTH = 82;
++        private static final int COMPASS_TOP_DIRECTION_HEIGHT = 115;
++
++        private static final int COMPASS_LEFT_DIRECTION_X = 309;
++        private static final int COMPASS_LEFT_DIRECTION_Y = 206;
++        private static final int COMPASS_LEFT_DIRECTION_WIDTH = 85;
++        private static final int COMPASS_LEFT_DIRECTION_HEIGHT = 64;
++
++        private static final int COMPASS_RIGHT_DIRECTION_X = 588;
++        private static final int COMPASS_RIGHT_DIRECTION_Y = 210;
++        private static final int COMPASS_RIGHT_DIRECTION_WIDTH = 85;
++        private static final int COMPASS_RIGHT_DIRECTION_HEIGHT = 60;
++
++        /**
++         * The sprites for the directions (N,S,W,E) start at a specific position in the TextureSet.xml. In the default
++         * resources for EOB2 it's simply 5 and there's no reason not to have it as a constant. However in new game content,
++         * in case this engine is used for a new RPG game, this can change. The only convention is that suppose 5 is the "N"
++         * sprite that appears as the forward direction (top of the compass), then 6 and 7 have to be its minimized
++         * counterparts that appear on the left side and on the right side of the compass respectively
++         */
++        private static final int DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML = 5;
++
++        public Team team;
++        public Skin uiSkin;
++
++        // Scene2d Actors
++
++        /** navigation buttons */
++        private Image turnLeft, forward, turnRight, left, back, right;
++
++        /** direction compass images */
++        private Image directionTop, directionLeft, directionRight;
++
++        /** CAMP 文本按钮（替代背景图里的 CAMP 像素，走 i18n）。 */
++        private TextButton campButton;
++        /** 游戏内设置按钮（点击弹出菜单）。 */
++        private TextButton settingsButton;
++
++        @Override
++        public void initialize() {
++                initializeNavigation();
++
++                initializeCompass();
++
++                initializeActionButtons();
++        }
++
++        private void initializeCompass() {
++                directionTop = new Image();
++                directionTop.setBounds(COMPASS_TOP_DIRECTION_X, COMPASS_TOP_DIRECTION_Y, COMPASS_TOP_DIRECTION_WIDTH,
++                                COMPASS_TOP_DIRECTION_HEIGHT);
++                directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite())));
++                addActor(directionTop);
++
++                directionLeft = new Image();
++                directionLeft.setBounds(COMPASS_LEFT_DIRECTION_X, COMPASS_LEFT_DIRECTION_Y, COMPASS_LEFT_DIRECTION_WIDTH,
++                                COMPASS_LEFT_DIRECTION_HEIGHT);
++                directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite() + 1)));
++                addActor(directionLeft);
++
++                directionRight = new Image();
++                directionRight.setBounds(COMPASS_RIGHT_DIRECTION_X, COMPASS_RIGHT_DIRECTION_Y, COMPASS_RIGHT_DIRECTION_WIDTH,
++                                COMPASS_RIGHT_DIRECTION_HEIGHT);
++                directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite() + 2)));
++                addActor(directionRight);
++        }
++
++        /** 创建 CAMP 和 Settings 文本按钮（i18n 文本，可点击）。
++         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置，
++         * 因为点击需要调用 GameScreen.openCampDialog() 等方法。 */
++        private void initializeActionButtons() {
++                campButton = new TextButton(
++                                LanguagesManager.getString("titles", 1), uiSkin, "transparent-font64");
++                campButton.setBounds(540, 360, 140, 50);
++                campButton.setTouchable(Touchable.enabled);
++                addActor(campButton);
++
++                settingsButton = new TextButton(
++                                LanguagesManager.getString("titles", 3), uiSkin, "transparent-font64");
++                settingsButton.setBounds(690, 360, 140, 50);
++                settingsButton.setTouchable(Touchable.enabled);
++                addActor(settingsButton);
++        }
++
++        /** 供 GameScreen 设置 CAMP 按钮的点击监听器。 */
++        public TextButton getCampButton() {
++                return campButton;
++        }
++
++        /** 供 GameScreen 设置 Settings 按钮的点击监听器。 */
++        public TextButton getSettingsButton() {
++                return settingsButton;
++        }
++
++        private void initializeNavigation() {
++                turnLeft = new Image();
++                turnLeft.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
++                // strafeLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("heads").getSprite(2)));
++                turnLeft.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.getLocation().setDirection(
++                                                Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate270));
++                                return true;
++                        }
++
++                });
++                addActor(turnLeft);
++
++                forward = new Image();
++                forward.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
++                forward.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.walk(0, -1);
++                                return true;
++                        }
++
++                });
++                addActor(forward);
++
++                turnRight = new Image();
++                turnRight.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
++                turnRight.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.getLocation().setDirection(
++                                                Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate90));
++                                return true;
++                        }
++
++                });
++                addActor(turnRight);
++
++                left = new Image();
++                left.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT);
++                left.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.walk(-1, 0);
++                                return true;
++                        }
++
++                });
++                addActor(left);
++
++                back = new Image();
++                back.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
++                                BUTTON_HEIGHT);
++                back.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.walk(0, 1);
++                                return true;
++                        }
++
++                });
++                addActor(back);
++
++                right = new Image();
++                right.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
++                                BUTTON_HEIGHT);
++                right.addListener(new InputListener() {
++
++                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                                team.walk(1, 0);
++                                return true;
++                        }
++
++                });
++                addActor(right);
++        }
++
++        @Override
++        public void update() {
++                updateCompass();
++
++                // 根据 Settings 切换方向按钮可见性（CAMP 和 Settings 按钮始终可见）
++                Settings settings = Settings.getLastLoadedInstance();
++                boolean showNav = (settings == null) ? true : settings.isShowNavButtons();
++                if (turnLeft != null) turnLeft.setVisible(showNav);
++                if (forward != null) forward.setVisible(showNav);
++                if (turnRight != null) turnRight.setVisible(showNav);
++                if (left != null) left.setVisible(showNav);
++                if (back != null) back.setVisible(showNav);
++                if (right != null) right.setVisible(showNav);
++        }
++
++        /**
++         * updates the compass images
++         * 
++         */
++        private void updateCompass() {
++                // TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
++
++                directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite())));
++
++                directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite() + 1))); // +1: read comments of
++                                                                                                                                // DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
++
++                directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
++                                .getSprite(resolveTopDirectionSprite() + 2))); // +2: read comments of
++                                                                                                                                // DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
++
++        }
++
++        private int resolveTopDirectionSprite() {
++                switch (team.getLocation().getDirection()) {
++                case North: // sprites: 5,6,7 in interface.png (see TextureSet.xml, line 1751)
++                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
++                case South:
++                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 3;
++                case West:
++                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 6;
++                case East:
++                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 9;
++                default:
++                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
++                }
++        }
++
++        @Override
++        public void dispose() {
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/BaseWindow.java b/core/src/com/ntk/darkmoor/engine/gui/BaseWindow.java
+index 44a3949..d5436f5 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/BaseWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/BaseWindow.java
+@@ -1,5 +1,7 @@
+ package com.ntk.darkmoor.engine.gui;
+ 
++import java.util.ArrayList;
++
+ import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
+ import com.badlogic.gdx.scenes.scene2d.ui.Image;
+ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+@@ -10,94 +12,138 @@ import com.ntk.darkmoor.engine.CampDialog;
+ 
+ public class BaseWindow extends Dialog implements Disposable {
+ 
+-	private CampDialog camp;
+-	private boolean closing;
+-	private MessageBox messageBox;
+-	protected TextButton[] buttons;
+-
+-	protected GameScreenBase parent;
+-
+-	public BaseWindow(CampDialog camp, String title, GameScreenBase parentScreen) {
+-		super(title, parentScreen.getSkin());
+-		this.camp = camp;
+-		closing = false;
+-		this.parent = parentScreen;
+-	}
+-
+-	public void close() {
+-		closing = true;
+-	}
+-
+-	public void update(float delta) {
+-		if (messageBox != null && !messageBox.isClosing())
+-			messageBox = null;
+-
+-		if (messageBox != null)
+-			messageBox.update(delta);
+-		else
+-			updateButtons(delta, buttons);
+-	}
+-
+-	protected void setupButtons(Skin uiSkin) {
+-
+-	}
+-
+-	private void updateButtons(float delta, TextButton[] buttons2) {
+-		// update message box
+-		if (messageBox != null) {
+-			messageBox.update(delta);
+-
+-			return;
+-		}
+-	}
+-	
+-
+-	protected void closeAndRemoveFromParent(BaseWindow window) {
+-		window.close();
+-		parent.getStage().getRoot().removeActor(window);
+-	}
+-
+-	public CampDialog getCamp() {
+-		return camp;
+-	}
+-
+-	public void loadContent() {
+-		setupButtons(parent.getSkin());
+-	}
+-
+-	protected Image setupBackground() {
+-		return null;
+-	}
+-
+-	public void unloadContent() {
+-		buttons = null;
+-	}
+-
+-
+-	protected void setCamp(CampDialog camp) {
+-		this.camp = camp;
+-	}
+-
+-	public boolean isClosing() {
+-		return closing;
+-	}
+-
+-	public void setClosing(boolean closing) {
+-		this.closing = closing;
+-	}
+-
+-	public MessageBox getMessageBox() {
+-		return messageBox;
+-	}
+-
+-	protected void setMessageBox(MessageBox messageBox) {
+-		this.messageBox = messageBox;
+-	}
+-
+-	@Override
+-	public void dispose() {
+-		unloadContent();
+-		
+-	}
++        private CampDialog camp;
++        private boolean closing;
++        private MessageBox messageBox;
++        protected TextButton[] buttons;
++
++        /** v0.5 新增：本窗口自己的 ScreenButton 列表。
++         * 子类（MainWindow 等）用 screenButtons.add(button) 注册按钮，
++         * BaseWindow.update(delta) 会轮询鼠标点击并调用 onSelectEntry()。 */
++        protected ArrayList<ScreenButton> screenButtons;
++
++        protected GameScreenBase parent;
++
++        public BaseWindow(CampDialog camp, String title, GameScreenBase parentScreen) {
++                super(title, parentScreen.getSkin());
++                this.camp = camp;
++                closing = false;
++                this.parent = parentScreen;
++                this.screenButtons = new ArrayList<ScreenButton>();
++        }
++
++        public void close() {
++                closing = true;
++        }
++
++        public void update(float delta) {
++                if (messageBox != null && !messageBox.isClosing())
++                        messageBox = null;
++
++                if (messageBox != null)
++                        messageBox.update(delta);
++                else
++                        updateButtons(delta, buttons);
++
++                // v0.5 新增：轮询鼠标点击，让 ScreenButton 响应（模仿 MessageBox 的做法）
++                pollScreenButtonClick();
++        }
++
++        /** 检测鼠标左键点击是否命中某个 ScreenButton，命中则触发 onSelectEntry()。
++         * 用边沿检测避免按住时连续触发。 */
++        private boolean lastMousePressed = false;
++        private void pollScreenButtonClick() {
++                if (screenButtons == null || screenButtons.isEmpty()) return;
++                if (getStage() == null) return;
++
++                boolean pressed = com.badlogic.gdx.Gdx.input.isButtonPressed(com.badlogic.gdx.Input.Buttons.LEFT);
++                // 边沿检测：只在"刚按下"这一帧触发
++                if (pressed && !lastMousePressed) {
++                        com.badlogic.gdx.math.Vector2 mouse = new com.badlogic.gdx.math.Vector2(
++                                        com.badlogic.gdx.Gdx.input.getX(), com.badlogic.gdx.Gdx.input.getY());
++                        getStage().screenToStageCoordinates(mouse);
++                        // stage 坐标 → 本窗口本地坐标
++                        com.badlogic.gdx.math.Vector2 local = screenToLocalCoordinates(mouse);
++                        for (ScreenButton btn : screenButtons) {
++                                if (btn != null && btn.isVisible() && btn.getRectangle() != null
++                                                && btn.getRectangle().contains(local.x, local.y)) {
++                                        btn.onSelectEntry();
++                                        break;
++                                }
++                        }
++                }
++                lastMousePressed = pressed;
++        }
++
++        protected void setupButtons(Skin uiSkin) {
++
++        }
++
++        private void updateButtons(float delta, TextButton[] buttons2) {
++                // update message box
++                if (messageBox != null) {
++                        messageBox.update(delta);
++
++                        return;
++                }
++        }
++        
++
++        protected void closeAndRemoveFromParent(BaseWindow window) {
++                window.close();
++                parent.getStage().getRoot().removeActor(window);
++        }
++
++        public CampDialog getCamp() {
++                return camp;
++        }
++
++        /** v0.5 新增：返回本窗口的 ScreenButton 列表，子类用 getButtons().add(button) 注册。
++         * BaseWindow.update(delta) 会轮询鼠标点击此列表中的按钮。 */
++        public ArrayList<ScreenButton> getButtons() {
++                if (screenButtons == null) {
++                        screenButtons = new ArrayList<ScreenButton>();
++                }
++                return screenButtons;
++        }
++
++        public void loadContent() {
++                setupButtons(parent.getSkin());
++        }
++
++        protected Image setupBackground() {
++                return null;
++        }
++
++        public void unloadContent() {
++                buttons = null;
++        }
++
++
++        protected void setCamp(CampDialog camp) {
++                this.camp = camp;
++        }
++
++        public boolean isClosing() {
++                return closing;
++        }
++
++        public void setClosing(boolean closing) {
++                this.closing = closing;
++        }
++
++        public MessageBox getMessageBox() {
++                return messageBox;
++        }
++
++        protected void setMessageBox(MessageBox messageBox) {
++                this.messageBox = messageBox;
++        }
++
++        @Override
++        public void dispose() {
++                unloadContent();
++                
++        }
+ 
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/ScreenButton.java b/core/src/com/ntk/darkmoor/engine/gui/ScreenButton.java
+index b4d94d2..d57eede 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/ScreenButton.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/ScreenButton.java
+@@ -8,92 +8,94 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button;
+ 
+ public class ScreenButton extends Button {
+ 
+-	private EventListener selectedListener;
+-	private String text;
+-	private Rectangle rectangle;
+-	private boolean visible;
+-	private Color textColor;
+-	private boolean reactOnMouseOver;
+-	private Object tag;
+-
+-	public ScreenButton(String text, Rectangle rectangle) {
+-		this.text = text;
+-		this.rectangle = rectangle;
+-		this.visible = true;
+-		this.textColor = Color.WHITE;
+-		this.reactOnMouseOver = true;
+-	}
+-
+-	public void onSelectEntry() {
+-//		if (getListeners().size > 0) {
+-//			for (EventListener listener: getListeners()) {
+-//				Event e = new Event();
+-//				e.setTarget(this);
+-//				listener.handle(e);
+-//			}
+-//		}
+-		if (selectedListener != null) {
+-			Event e = new Event();
+-			e.setTarget(this);
+-			selectedListener.handle(e);
+-		}
+-	}
+-
+-
+-	// ntk: careful here! we provide only one selected Listener!
+-	public EventListener getSelectedListener() {
+-		return selectedListener;
+-	}
+-
+-	public void setSelectedListener(EventListener selectedListener) {
+-		this.selectedListener = selectedListener;
+-	}
+-
+-	public String getText() {
+-		return text;
+-	}
+-
+-	public void setText(String text) {
+-		this.text = text;
+-	}
+-
+-	public Rectangle getRectangle() {
+-		return rectangle;
+-	}
+-
+-	public void setRectangle(Rectangle rectangle) {
+-		this.rectangle = rectangle;
+-	}
+-
+-	public boolean isVisible() {
+-		return visible;
+-	}
+-
+-	public void setVisible(boolean visible) {
+-		this.visible = visible;
+-	}
+-
+-	public Color getTextColor() {
+-		return textColor;
+-	}
+-
+-	public void setTextColor(Color textColor) {
+-		this.textColor = textColor;
+-	}
+-
+-	public boolean isReactOnMouseOver() {
+-		return reactOnMouseOver;
+-	}
+-
+-	public void setReactOnMouseOver(boolean reactOnMouseOver) {
+-		this.reactOnMouseOver = reactOnMouseOver;
+-	}
+-
+-	public Object getTag() {
+-		return tag;
+-	}
+-
+-	public void setTag(Object tag) {
+-		this.tag = tag;
+-	}
++        private EventListener selectedListener;
++        private String text;
++        private Rectangle rectangle;
++        private boolean visible;
++        private Color textColor;
++        private boolean reactOnMouseOver;
++        private Object tag;
++
++        public ScreenButton(String text, Rectangle rectangle) {
++                this.text = text;
++                this.rectangle = rectangle;
++                this.visible = true;
++                this.textColor = Color.WHITE;
++                this.reactOnMouseOver = true;
++        }
++
++        public void onSelectEntry() {
++                // v0.5 修复：同时调用通过 addListener 注册的 listener（MainWindow 等用此方式）
++                if (getListeners().size > 0) {
++                        com.badlogic.gdx.scenes.scene2d.Event e = new com.badlogic.gdx.scenes.scene2d.Event();
++                        e.setTarget(this);
++                        for (EventListener listener : getListeners()) {
++                                listener.handle(e);
++                        }
++                }
++                // 兼容旧 setSelectedListener 路径
++                if (selectedListener != null) {
++                        Event e = new Event();
++                        e.setTarget(this);
++                        selectedListener.handle(e);
++                }
++        }
++
++
++        // ntk: careful here! we provide only one selected Listener!
++        public EventListener getSelectedListener() {
++                return selectedListener;
++        }
++
++        public void setSelectedListener(EventListener selectedListener) {
++                this.selectedListener = selectedListener;
++        }
++
++        public String getText() {
++                return text;
++        }
++
++        public void setText(String text) {
++                this.text = text;
++        }
++
++        public Rectangle getRectangle() {
++                return rectangle;
++        }
++
++        public void setRectangle(Rectangle rectangle) {
++                this.rectangle = rectangle;
++        }
++
++        public boolean isVisible() {
++                return visible;
++        }
++
++        public void setVisible(boolean visible) {
++                this.visible = visible;
++        }
++
++        public Color getTextColor() {
++                return textColor;
++        }
++
++        public void setTextColor(Color textColor) {
++                this.textColor = textColor;
++        }
++
++        public boolean isReactOnMouseOver() {
++                return reactOnMouseOver;
++        }
++
++        public void setReactOnMouseOver(boolean reactOnMouseOver) {
++                this.reactOnMouseOver = reactOnMouseOver;
++        }
++
++        public Object getTag() {
++                return tag;
++        }
++
++        public void setTag(Object tag) {
++                this.tag = tag;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/campwindows/MainWindow.java b/core/src/com/ntk/darkmoor/engine/gui/campwindows/MainWindow.java
+index c8a5d6b..e4a8df4 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/campwindows/MainWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/campwindows/MainWindow.java
+@@ -31,7 +31,7 @@ public class MainWindow extends BaseWindow {
+ 			}
+ 
+ 		});
+-		// //getButtons().add(button);
++		getButtons().add(button);
+ 
+ 		button = new ScreenButton(LanguagesManager.getString("Camp", 2), new Rectangle(16, 74, 320, 28));
+ 		button.addListener(new EventListener() {
+diff --git a/desktop/resources/data/StringTable.xml b/desktop/resources/data/StringTable.xml
+index 0ca5e40..638998c 100644
+--- a/desktop/resources/data/StringTable.xml
++++ b/desktop/resources/data/StringTable.xml
+@@ -342,6 +342,7 @@
+ 			<string id="15">HP as bar</string>
+ 			<string id="16">Language : %s</string>
+ 			<string id="17">Back</string>
++			<string id="18">Controls</string>
+ 		</language>
+ 		<language name="Francais">
+ 			<string id="1">Campement</string>
+@@ -361,6 +362,7 @@
+ 			<string id="15">Points de vie en barre</string>
+ 			<string id="16">Langue : %s</string>
+ 			<string id="17">Retour</string>
++			<string id="18">Contrôles</string>
+ 		</language>
+ 		<language name="Chinese">
+ 			<string id="1">营地</string>
+@@ -380,6 +382,76 @@
+ 			<string id="15">生命值显示为血条</string>
+ 			<string id="16">语言 : %s</string>
+ 			<string id="17">返回</string>
++			<string id="18">操控</string>
++		</language>
++	</stringtable>
++	<stringtable name="controls">
++		<default name="English" />
++		<language name="English">
++			<string id="1">Controls</string>
++			<string id="2">Move Forward</string>
++			<string id="3">Move Backward</string>
++			<string id="4">Strafe Left</string>
++			<string id="5">Strafe Right</string>
++			<string id="6">Turn Left</string>
++			<string id="7">Turn Right</string>
++			<string id="8">Camp</string>
++			<string id="9">Inventory</string>
++			<string id="10">Statistics</string>
++			<string id="11">Select Hero 1</string>
++			<string id="12">Select Hero 2</string>
++			<string id="13">Select Hero 3</string>
++			<string id="14">Select Hero 4</string>
++			<string id="15">Select Hero 5</string>
++			<string id="16">Select Hero 6</string>
++			<string id="17">Press any key to bind...</string>
++			<string id="18">Reset to Defaults</string>
++			<string id="19">Back</string>
++			<string id="20">Change</string>
++		</language>
++		<language name="Francais">
++			<string id="1">Contrôles</string>
++			<string id="2">Avancer</string>
++			<string id="3">Reculer</string>
++			<string id="4">Pas gauche</string>
++			<string id="5">Pas droite</string>
++			<string id="6">Tourner gauche</string>
++			<string id="7">Tourner droite</string>
++			<string id="8">Campement</string>
++			<string id="9">Inventaire</string>
++			<string id="10">Statistiques</string>
++			<string id="11">Héros 1</string>
++			<string id="12">Héros 2</string>
++			<string id="13">Héros 3</string>
++			<string id="14">Héros 4</string>
++			<string id="15">Héros 5</string>
++			<string id="16">Héros 6</string>
++			<string id="17">Appuyez sur une touche...</string>
++			<string id="18">Réinitialiser</string>
++			<string id="19">Retour</string>
++			<string id="20">Modifier</string>
++		</language>
++		<language name="Chinese">
++			<string id="1">操控</string>
++			<string id="2">向前移动</string>
++			<string id="3">向后移动</string>
++			<string id="4">左侧移动</string>
++			<string id="5">右侧移动</string>
++			<string id="6">左转</string>
++			<string id="7">右转</string>
++			<string id="8">营地</string>
++			<string id="9">物品栏</string>
++			<string id="10">属性</string>
++			<string id="11">选择角色 1</string>
++			<string id="12">选择角色 2</string>
++			<string id="13">选择角色 3</string>
++			<string id="14">选择角色 4</string>
++			<string id="15">选择角色 5</string>
++			<string id="16">选择角色 6</string>
++			<string id="17">按下任意键以绑定...</string>
++			<string id="18">恢复默认</string>
++			<string id="19">返回</string>
++			<string id="20">修改</string>
+ 		</language>
+ 	</stringtable>
+ </bank>
+diff --git a/desktop/resources/data/settings.properties b/desktop/resources/data/settings.properties
+index 73fab42..a4e7955 100644
+--- a/desktop/resources/data/settings.properties
++++ b/desktop/resources/data/settings.properties
+@@ -6,3 +6,26 @@ Effects=true
+ FullScreen=False
+ saveSlots=6
+ ShowMinimap=true
++ShowNavButtons=true
++# 按键绑定 — 值为 libGDX Input.Keys 常量值，逗号分隔表示一个动作绑多个键
++# 可在游戏内 选项 → 操控 中修改；此处的值是默认 QWERTY 布局
++KeyBindings.MoveForward=51,19
++KeyBindings.MoveBackward=47,22
++KeyBindings.StrafeLeft=29,21
++KeyBindings.StrafeRight=32,22
++KeyBindings.TurnLeft=45
++KeyBindings.TurnRight=33
++KeyBindings.Camp=35
++KeyBindings.Inventory=37
++KeyBindings.Statistics=44
++KeyBindings.SelectHero1=8
++KeyBindings.SelectHero2=9
++KeyBindings.SelectHero3=10
++KeyBindings.SelectHero4=11
++KeyBindings.SelectHero5=12
++KeyBindings.SelectHero6=13
++KeyBindings.MainMenu=111
++KeyBindings.QuickSave=63
++KeyBindings.QuickLoad=67
++KeyBindings.ToggleMinimap=41
++KeyBindings.ToggleNavButtons=42
+diff --git a/docs/v0.5/09-input-system.md b/docs/v0.5/09-input-system.md
+new file mode 100644
+index 0000000..b21b82e
+--- /dev/null
++++ b/docs/v0.5/09-input-system.md
+@@ -0,0 +1,493 @@
++# 09. 输入与操控系统模块（Input & Control System）
++
++> **覆盖**：键盘 / 鼠标输入处理、按键绑定、UI 按钮事件、操控配置
++> **关键类**：`GameScreenBase`、`NavigationControlsGroup`、`KeyboardInputProcessor`（新）、`KeyBindings`（新）、`KeyConfigWindow`（新）、`Settings`、`InputType`、`InputScheme.xml`（数据文件，未使用）
++> **适合谁看**：想理解"按下按键发生了什么"、"怎么改键位"、"怎么加新按键功能"的人
++
++---
++
++## 9.1 历史与现状（v0.5 之前）
++
++darkmoor 项目的输入系统**长期处于残缺状态**：
++
++| 设施 | v0.5 之前的状态 |
++|---|---|
++| 鼠标点击 scene2d 按钮 | ✅ 工作正常（`MainMenu`、`OptionsWindow`、`NavigationControlsGroup`、`HeroInterfaceGroup`） |
++| 鼠标点击 `ScreenButton`（camp 子窗口） | ❌ 不工作（`ScreenButton` 不是 scene2d actor，需手动 `onSelectEntry()` 调用） |
++| 键盘事件处理 | ❌ **完全没有**（无 `InputProcessor`、无 `keyDown/keyUp`） |
++| 键盘轮询（`Gdx.input.isKeyPressed`） | ⚠️ 仅 `IntroScreen`（ESC/SPACE/LEFT）和 `CharGen`（ESC）用 |
++| 按键配置文件 | ⚠️ 有 `InputScheme.xml`（完整 QWERTY/AZERTY 绑定），**但无 Java 解析器** |
++| `Settings.inputScheme` 字段 | ❌ 死代码（加载了但 `getInputScheme()` 只被测试调用） |
++| 按键配置 UI | ❌ 没有 |
++
++**结论**：v0.5 之前玩家**只能用鼠标点击屏幕上的方向按钮**移动，无法用键盘玩。这是地牢爬行游戏的核心可用性缺陷。
++
++---
++
++## 9.2 v0.5 输入系统架构
++
++### 9.2.1 总体设计
++
++```
++                        ┌─────────────────────────────────┐
++                        │  Gdx.input (libGDX 输入源)       │
++                        └─────────────────────────────────┘
++                                       │
++                                       ▼
++                        ┌─────────────────────────────────┐
++                        │  InputMultiplexer                │
++                        │  (GameScreenBase.setupStage)     │
++                        └─────────────────────────────────┘
++                                       │
++                  ┌────────────────────┼────────────────────┐
++                  │                    │                    │
++                  ▼                    ▼                    ▼
++    ┌─────────────────────┐  ┌──────────────────┐  ┌──────────────────┐
++    │ KeyboardInputProc.  │  │ Stage (scene2d)  │  │ (其他 Processor) │
++    │ - keyDown → 动作    │  │ - 按钮点击       │  │ (未来扩展)       │
++    │ - 查 KeyBindings    │  │ - ScreenButton   │  │                  │
++    └─────────────────────┘  └──────────────────┘  └──────────────────┘
++              │
++              ▼
++    ┌─────────────────────┐
++    │   KeyBindings       │
++    │   - action → keycode│
++    │   - 默认值 (QWERTY) │
++    │   - 从 Settings 加载│
++    └─────────────────────┘
++              │
++              ▼
++    ┌─────────────────────┐
++    │   Team              │
++    │   - walk(front,strafe)│
++    │   - setDirection()  │
++    └─────────────────────┘
++```
++
++### 9.2.2 关键设计决策
++
++| 决策 | 选择 | 理由 |
++|---|---|---|
++| 输入处理模式 | **事件驱动**（`InputProcessor.keyDown`） | 而非轮询（`isKeyPressed`）— 响应及时，不浪费 CPU |
++| 多输入源 | **`InputMultiplexer`** | 键盘和 scene2d 按钮都能接收事件 |
++| 按键存储 | **`Settings` + `settings.properties`** | 与现有 settings 体系一致；可持久化 |
++| 默认布局 | **QWERTY + 方向键** | 兼顾桌面用户习惯；可切换 AZERTY |
++| 转向键 | **Q/E（L1/R1 风格）** | 用户要求；与主流 CRPG 一致 |
++| 移动键 | **方向键 + WASD** | 双套并存，玩家可选 |
++
++### 9.2.3 默认按键绑定（QWERTY）
++
++| 动作 | 默认键 | 说明 |
++|---|---|---|
++| `MoveForward` | `W` 或 `↑` | 向前移动一格 |
++| `MoveBackward` | `S` 或 `↓` | 向后退一格 |
++| `StrafeLeft` | `A` 或 `←` | 向左侧移 |
++| `StrafeRight` | `D` 或 `→` | 向右侧移 |
++| `TurnLeft` | `Q` | 左转 90°（L1 风格） |
++| `TurnRight` | `E` | 右转 90°（R1 风格） |
++| `Camp` | `C` | 打开营地对话框 |
++| `Inventory` | `I` | 切换到物品栏视图 |
++| `Statistics` | `P` | 切换到属性视图（P for Profile） |
++| `SelectHero1`~`6` | `1`~`6` | 选中第 N 个角色 |
++| `MainMenu` | `ESC` | 打开游戏内设置菜单 |
++| `QuickSave` | `F5` | 快速保存到当前槽位 |
++| `QuickLoad` | `F9` | 快速读取当前槽位 |
++| `ToggleMinimap` | `M` | 切换小地图显示 |
++| `ToggleNavButtons` | `N` | 切换方向按钮显示 |
++
++> **设计要点**：同一个动作可以绑定**多个键**（如 `MoveForward` 同时绑 `W` 和 `↑`），`KeyBindings` 内部用 `Map<Integer, String>`（keycode → action）查询，O(1) 复杂度。
++
++---
++
++## 9.3 类与文件清单
++
++### 9.3.1 新增类（v0.5）
++
++#### `core/src/com/ntk/darkmoor/config/KeyBindings.java`
++
++```java
++public class KeyBindings {
++    public enum Action {
++        MoveForward, MoveBackward, StrafeLeft, StrafeRight,
++        TurnLeft, TurnRight, Camp, Inventory, Statistics,
++        SelectHero1, SelectHero2, SelectHero3, SelectHero4, SelectHero5, SelectHero6,
++        MainMenu, QuickSave, QuickLoad, ToggleMinimap, ToggleNavButtons
++    }
++
++    private Map<Integer, Action> keyToAction;     // keycode → action
++    private Map<Action, List<Integer>> actionToKeys; // action → keycodes（反向查询用）
++
++    public static KeyBindings defaults();           // QWERTY 默认
++    public static KeyBindings azerty();             // AZERTY 默认
++
++    public void bind(int keycode, Action action);   // 加绑定（一个 action 可多键）
++    public void unbind(int keycode);                // 解绑某键
++    public void unbindAction(Action action);        // 解绑某动作所有键
++    public Action lookup(int keycode);              // keyDown 时调用
++    public List<Integer> keysFor(Action action);    // UI 显示用
++    public String keyName(int keycode);             // 把 keycode 转成可读名（"W"、"↑"）
++    public void saveTo(Properties props);           // 持久化
++    public static KeyBindings loadFrom(Properties props); // 从 settings.properties 加载
++}
++```
++
++#### `core/src/com/ntk/darkmoor/engine/KeyboardInputProcessor.java`
++
++```java
++public class KeyboardInputProcessor implements InputProcessor {
++    private final Team team;
++    private final KeyBindings bindings;
++    private final GameScreen gameScreen;
++
++    public KeyboardInputProcessor(Team team, KeyBindings bindings, GameScreen gameScreen);
++
++    @Override public boolean keyDown(int keycode);  // 主入口：查 bindings → 执行动作
++    @Override public boolean keyUp(int keycode);    // 通常 no-op
++    @Override public boolean keyTyped(char ch);     // no-op
++    // touchDown/moved/scrolled 都返回 false（让 Stage 处理）
++}
++```
++
++`keyDown` 的工作流：
++
++```
++keycode → bindings.lookup(keycode) → switch(action):
++  MoveForward → team.walk(0, -1)
++  MoveBackward → team.walk(0, 1)
++  StrafeLeft → team.walk(-1, 0)
++  StrafeRight → team.walk(1, 0)
++  TurnLeft → team.getLocation().setDirection(Compass.rotate(dir, Rotate270))
++  TurnRight → team.getLocation().setDirection(Compass.rotate(dir, Rotate90))
++  Camp → gameScreen.openCampDialog()
++  Inventory → gameScreen.setInterfaceType(Inventory)
++  Statistics → gameScreen.setInterfaceType(Statistic)
++  SelectHeroN → gameScreen.selectHero(N)
++  MainMenu → gameScreen.openInGameMenu()
++  QuickSave → gameScreen.saveGameSlot(currentSlot)
++  QuickLoad → gameScreen.loadGameSlot(currentSlot)
++  ToggleMinimap → Settings.setShowMinimap(!showMinimap)
++  ToggleNavButtons → Settings.setShowNavButtons(!showNavButtons)
++```
++
++#### `core/src/com/ntk/darkmoor/KeyConfigWindow.java`
++
++继承 `BaseWindow`，UI 让玩家重新绑定按键：
++
++```
++┌──────────────── 操控设置 ────────────────┐
++│                                          │
++│  [向前移动]        W / ↑      [修改]     │
++│  [向后移动]        S / ↓      [修改]     │
++│  [左侧移动]        A / ←      [修改]     │
++│  [右侧移动]        D / →      [修改]     │
++│  [左转]            Q          [修改]     │
++│  [右转]            E          [修改]     │
++│  [营地]            C          [修改]     │
++│  ...                                     │
++│                                          │
++│       [恢复默认]      [返回]             │
++└──────────────────────────────────────────┘
++```
++
++点"修改"后，窗口进入"按下任意键捕获"模式，下一个 `keyDown` 即绑定到该动作。
++
++### 9.3.2 修改的现有类
++
++#### `GameScreenBase.java`
++
++```java
++// 新增字段
++protected InputProcessor keyboardProcessor;
++
++// setupStage() 修改
++protected void setupStage() {
++    stage = new Stage(new StretchViewport(...));
++    // ... 添加 background 和 buttons ...
++
++    InputMultiplexer mux = new InputMultiplexer();
++    if (keyboardProcessor != null) {
++        mux.addProcessor(keyboardProcessor);  // 键盘先吃
++    }
++    mux.addProcessor(stage);                   // Stage 后吃（按钮点击）
++    Gdx.input.setInputProcessor(mux);
++}
++```
++
++#### `GameScreen.java`
++
++```java
++// 在 initScreenObjects() 末尾，注册完所有 group 之后：
++KeyBindings bindings = KeyBindings.loadFrom(/* Settings.getProperties() */);
++if (bindings == null) bindings = KeyBindings.defaults();
++keyboardProcessor = new KeyboardInputProcessor(team, bindings, this);
++// 因为 setupStage() 已经在父类构造时跑过，需要重新设置 input processor
++InputMultiplexer mux = new InputMultiplexer();
++mux.addProcessor(keyboardProcessor);
++mux.addProcessor(stage);
++Gdx.input.setInputProcessor(mux);
++```
++
++#### `Settings.java`
++
++新增字段：
++
++```java
++private boolean showNavButtons = true;   // 是否显示方向按钮（默认 true，老玩家无感）
++// showMinimap 已在 v0.5 minimap 补丁中添加
++```
++
++新增 settings.properties 键：
++
++```
++ShowNavButtons=true
++# 按键绑定（每行一个动作，值为 keycode 列表，逗号分隔）
++KeyBindings.MoveForward=51,19      # W, UP
++KeyBindings.MoveBackward=47,22     # S, DOWN
++KeyBindings.StrafeLeft=29,21       # A, LEFT
++KeyBindings.StrafeRight=32,22      # D, RIGHT
++KeyBindings.TurnLeft=45            # Q
++KeyBindings.TurnRight=33           # E
++# ... 其他动作
++```
++
++#### `NavigationControlsGroup.java`
++
++- 加 `setVisible(Settings.isShowNavButtons())` 在 `update()` 中
++- **新增 CAMP TextButton**（替代背景图里的 CAMP 像素）：使用 `LanguagesManager.getString("titles", 1)` 作为文本
++- **新增 Settings TextButton**：点击后弹出游戏内菜单
++
++#### `OptionsWindow.java`
++
++- 加第 7 个按钮"操控"（`titles` id=18）→ 弹出 `KeyConfigWindow`
++
++#### `StringTable.xml`
++
++新增 `controls` stringtable：
++
++```xml
++<stringtable name="controls">
++    <default name="English" />
++    <language name="English">
++        <string id="1">Controls</string>
++        <string id="2">Move Forward</string>
++        <string id="3">Move Backward</string>
++        <string id="4">Strafe Left</string>
++        <string id="5">Strafe Right</string>
++        <string id="6">Turn Left</string>
++        <string id="7">Turn Right</string>
++        <string id="8">Camp</string>
++        <string id="9">Inventory</string>
++        <string id="10">Statistics</string>
++        <string id="11">Select Hero %d</string>
++        <string id="12">Main Menu</string>
++        <string id="13">Quick Save</string>
++        <string id="14">Quick Load</string>
++        <string id="15">Toggle Minimap</string>
++        <string id="16">Toggle Nav Buttons</string>
++        <string id="17">Press any key to bind...</string>
++        <string id="18">Reset to Defaults</string>
++        <string id="19">Back</string>
++        <string id="20">Change</string>
++    </language>
++    <language name="Francais">
++        <!-- ... 法语 ... -->
++    </language>
++    <language name="Chinese">
++        <string id="1">操控</string>
++        <string id="2">向前移动</string>
++        <string id="3">向后移动</string>
++        <string id="4">左侧移动</string>
++        <string id="5">右侧移动</string>
++        <string id="6">左转</string>
++        <string id="7">右转</string>
++        <string id="8">营地</string>
++        <string id="9">物品栏</string>
++        <string id="10">属性</string>
++        <string id="11">选择角色 %d</string>
++        <string id="12">主菜单</string>
++        <string id="13">快速保存</string>
++        <string id="14">快速读取</string>
++        <string id="15">切换小地图</string>
++        <string id="16">切换方向按钮</string>
++        <string id="17">按下任意键以绑定...</string>
++        <string id="18">恢复默认</string>
++        <string id="19">返回</string>
++        <string id="20">修改</string>
++    </language>
++</stringtable>
++```
++
++并在 `titles` stringtable 加 id=18：
++
++```xml
++<string id="18">Controls</string>           <!-- English -->
++<string id="18">Contrôles</string>          <!-- Francais -->
++<string id="18">操控</string>                <!-- Chinese -->
++```
++
++---
++
++## 9.4 输入事件流（详细）
++
++### 9.4.1 玩家按 W 键向前移动
++
++```
++1. libGDX 检测到 W 按下 → 调用 InputMultiplexer.keyDown(51)  // Keys.W = 51
++2. multiplexer 第一个 processor 是 KeyboardInputProcessor
++   → keyDown(51)
++   → bindings.lookup(51) → Action.MoveForward
++   → switch: case MoveForward → team.walk(0, -1)
++3. team.walk(0, -1) 内部：
++   a. 检查 canMove()（冷却 + 战斗状态）
++   b. 计算 destCoord = location.coordinate + direction 偏移
++   c. maze.getSquare(destCoord) → 撞墙检查
++   d. 通过 → location.coordinate.add(offset)
++   e. 触发 onTeamLeave / onTeamEnter
++4. 下一帧 GameScreen.update() → mazeGroup.update() → 重画视图
++5. KeyboardInputProcessor.keyDown 返回 true → 事件被消费
++   → multiplexer 不会传给 stage → 不会误触发按钮点击
++```
++
++### 9.4.2 玩家点击屏幕上的"前进"按钮
++
++```
++1. libGDX 检测到鼠标按下 → 调用 InputMultiplexer.touchDown(x, y, pointer, button)
++2. multiplexer 第一个 processor 是 KeyboardInputProcessor
++   → touchDown 返回 false（不消费）
++3. multiplexer 把事件传给 stage
++4. scene2d 命中测试 → forward Image 的 InputListener
++   → touchDown → team.walk(0, -1)
++5. 同样的 team.walk 调用，效果一致
++```
++
++### 9.4.3 玩家按 ESC 打开主菜单
++
++```
++1. libGDX 检测到 ESC → keyDown(111)  // Keys.ESCAPE = 111
++2. KeyboardInputProcessor.keyDown(111)
++   → bindings.lookup(111) → Action.MainMenu
++   → gameScreen.openInGameMenu()
++3. openInGameMenu():
++   - 创建 InGameMenuWindow（新 BaseWindow 子类）
++   - stage.addActor(menuWindow)
++   - menuWindow 包含"继续游戏 / 操控 / 选项 / 保存 / 读取 / 退出到主菜单"按钮
++4. 返回 true → 事件消费
++```
++
++---
++
++## 9.5 按键配置的持久化
++
++### 9.5.1 存储
++
++按键绑定保存在 `settings.properties`，每个动作一行：
++
++```properties
++# KeyBindings: action = comma-separated keycodes
++# Keycodes are libGDX Input.Keys constants (see https://libgdx.com/wiki/input/input)
++KeyBindings.MoveForward=51,19
++KeyBindings.MoveBackward=47,22
++KeyBindings.StrafeLeft=29,21
++KeyBindings.StrafeRight=32,22
++KeyBindings.TurnLeft=45
++KeyBindings.TurnRight=33
++KeyBindings.Camp=35
++KeyBindings.Inventory=37
++KeyBindings.Statistics=44
++KeyBindings.SelectHero1=8
++KeyBindings.SelectHero2=9
++KeyBindings.SelectHero3=10
++KeyBindings.SelectHero4=11
++KeyBindings.SelectHero5=12
++KeyBindings.SelectHero6=13
++KeyBindings.MainMenu=111
++KeyBindings.QuickSave=63    # F5
++KeyBindings.QuickLoad=67    # F9
++KeyBindings.ToggleMinimap=41 # M
++KeyBindings.ToggleNavButtons=42 # N
++```
++
++### 9.5.2 加载
++
++```java
++public static KeyBindings loadFrom(Properties props) {
++    KeyBindings kb = new KeyBindings();
++    for (Action action : Action.values()) {
++        String key = "KeyBindings." + action.name();
++        String value = props.getProperty(key);
++        if (value == null || value.isEmpty()) continue;
++        for (String code : value.split(",")) {
++            try {
++                int keycode = Integer.parseInt(code.trim());
++                kb.bind(keycode, action);
++            } catch (NumberFormatException e) { /* skip */ }
++        }
++    }
++    // 如果完全空，返回 defaults
++    if (kb.isEmpty()) return defaults();
++    return kb;
++}
++```
++
++### 9.5.3 保存
++
++```java
++public void saveTo(Properties props) {
++    for (Action action : Action.values()) {
++        List<Integer> keys = actionToKeys.get(action);
++        if (keys == null || keys.isEmpty()) {
++            props.remove("KeyBindings." + action.name());
++        } else {
++            StringBuilder sb = new StringBuilder();
++            for (int i = 0; i < keys.size(); i++) {
++                if (i > 0) sb.append(",");
++                sb.append(keys.get(i));
++            }
++            props.setProperty("KeyBindings." + action.name(), sb.toString());
++        }
++    }
++}
++```
++
++---
++
++## 9.6 已知遗留问题与未来扩展
++
++| 问题 | 影响 | 解决思路 |
++|---|---|---|
++| `InputScheme.xml` 仍未被使用 | 文件存在但无 Java 解析器 | 本补丁用 `settings.properties` 替代，未来可写 `InputScheme.java` 解析 XML |
++| `ScreenButton` 不响应点击 | 营地子窗口按钮不可点 | 需把 `ScreenButton` 改为继承 `TextButton` 或在 `BaseWindow.update()` 加轮询 |
++| 键盘重复触发 | 长按 W 会持续触发 `keyDown` | libGDX 默认每帧检查，可在 `keyDown` 加 `lastTriggerTime` 节流（如 200ms） |
++| 手柄支持 | 无 | libGDX 有 `Controllers` API，未来可加 |
++| 鼠标拖拽 | 无 | 物品拖拽需自定义 `DragListener` |
++| 输入方案切换 UI | `KeyConfigWindow` 只能逐键改 | 可加"切换到 AZERTY 默认"按钮（已有 `KeyBindings.azerty()`） |
++
++---
++
++## 9.7 测试清单
++
++| 测试项 | 期望结果 |
++|---|---|
++| 进入游戏后按 W | 队伍向前移动一格 |
++| 按 ↑ | 同上（双键绑定） |
++| 按 Q | 队伍左转 90° |
++| 按 E | 队伍右转 90° |
++| 按 C | 打开营地对话框 |
++| 按 ESC | 打开游戏内菜单 |
++| 按 M | 小地图切换显示/隐藏 |
++| 按 N | 方向按钮切换显示/隐藏 |
++| 在 OptionsWindow 点"操控" | 弹出 KeyConfigWindow |
++| 在 KeyConfigWindow 点某动作的"修改" | 显示"按下任意键..."提示 |
++| 按下任意键 | 该动作绑定到此键，UI 更新 |
++| 点"恢复默认" | 所有绑定回到 QWERTY 默认 |
++| 退出游戏重启 | 自定义绑定保留 |
++| 同时按 W 和 D | 队伍向前移动（不侧移）— 因为 `walk()` 是顺序执行的 |
++| 鼠标点击方向按钮 | 仍然可用（multiplexer 同时支持） |
++
++---
++
++## 9.8 相关文档
++
++- [10-camp-system.md](10-camp-system.md) — CAMP 按钮与营地对话框系统
++- [modules/06-engine-graphics.md](modules/06-engine-graphics.md) — `NavigationControlsGroup` 等图形组
++- [modules/02-config.md](modules/02-config.md) — `Settings` / `InputType` 配置类
+diff --git a/docs/v0.5/10-camp-system.md b/docs/v0.5/10-camp-system.md
+new file mode 100644
+index 0000000..79facbf
+--- /dev/null
++++ b/docs/v0.5/10-camp-system.md
+@@ -0,0 +1,305 @@
++# 10. CAMP / 营地系统模块
++
++> **覆盖**：CAMP 按钮、`CampDialog`、营地子窗口栈
++> **关键类**：`CampDialog`、`BaseWindow`、`ScreenButton`、`MainWindow`、`RestPartyWindow`、`SpellWindow`、`SaveGameWindow`、`LoadGameWindow`、`GameOptionsWindow`、`PreferencesWindow`、`DropNPCWindow`、`ScribeScrollsWindow`
++> **适合谁看**：想理解"点 CAMP 应该发生什么"、"为什么 CAMP 现在没反应"、"怎么修 CAMP"的人
++
++---
++
++## 10.1 CAMP 按钮的三个问题（v0.5 之前）
++
++### 问题 1：CAMP 是图片，不是文本按钮
++
++**现状**：CAMP 这四个字母是**直接画在 `Interface.png` 背景图的 sprite 0 上**的像素，由 `GameScreen.setupBackground()` 返回的 `Image` 显示。这个 `Image` 没有 `InputListener`，所以点击 CAMP 区域不会触发任何事件。
++
++**证据**：
++- `GameScreen.setupBackground()`（line 92–96）返回 `new Image(textureSet.getSprite(0))`
++- `DisplayCoordinates.campButton = new Rectangle(578, 354, 62, 42)` 定义了点击区域
++- `DisplayCoordinates.getCampButton()` **从未被任何代码调用**（grep 验证）
++- `InterfaceCoordinates.java` 中**没有** campButton 字段
++
++**i18n 影响**：因为 CAMP 是图片像素，无论玩家选 English / Francais / Chinese，屏幕上永远显示"CAMP"四个英文字母。这违反了项目的多语言规则。
++
++### 问题 2：CAMP 点击无反应
++
++**现状**：即使玩家精确点击 (578, 354) 区域，也没有任何事件触发。
++
++**根本原因链**：
++1. **没有点击目标**：CAMP 区域是背景像素，没有 scene2d actor 占据 `Rectangle(578, 354, 62, 42)`
++2. **`CampDialog` 从未被实例化**：`grep "new CampDialog"` 在生产代码中**零命中**，只有 `docs/v0.5/modules/08-engine-campwindows.md` 提到过
++3. **即使实例化也打不开子窗口**：`MainWindow` 等 9 个营地子窗口创建了 `ScreenButton` 但**从未调用 `getButtons().add(button)`**（所有相关行都是注释 `// getButtons().add(button);`），且 `ScreenButton` 不是 scene2d actor，不会自动响应点击
++
++### 问题 3：营地子窗口的按钮系统损坏
++
++**`ScreenButton` 设计**：自定义 `Button` 子类，持有 `Rectangle` 和 `EventListener`，需要外部代码**手动调用** `onSelectEntry()` 来触发 listener。
++
++**实际使用**：
++- `MessageBox.update()` 通过 `Gdx.input.isButtonPressed(Buttons.LEFT)` 轮询 + `Rectangle.contains()` 命中测试来调用 `onSelectEntry()` — 这一个能用
++- `MainWindow` 等 9 个营地子窗口**没有类似的轮询代码**，所以即使按钮存在也永远不触发
++
++---
++
++## 10.2 CAMP 系统的设计意图（从代码与文档推断）
++
++### 10.2.1 应有的流程
++
++```
++玩家点击 CAMP 按钮
++  ↓
++GameScreen 检测到点击
++  ↓
++new CampDialog(gameScreen, gameScreen)   ← 从未实例化
++  ↓
++stage.addActor(campDialog)
++  ↓
++CampDialog 构造函数：
++  - 标题 = LanguagesManager.getString("titles", 1)  // "营地"
++  - 创建 windows 栈
++  - addWindow(new MainWindow(this, parent))
++  ↓
++CampDialog.update(delta) 每帧调用：
++  - 检查栈顶窗口是否 closing → 弹出
++  - 栈空 → exit()
++  - 否则 → windows.peek().update(delta)
++  ↓
++MainWindow 构造函数：
++  - 标题 = LanguagesManager.getString("titles", 2)  // "营地 :"
++  - 创建 7 个 ScreenButton（Rest/Memorize/Pray/Scribe/Prefs/Options/Exit）
++  - 每个按钮 addEventListener(...) 绑定 handler
++  - 注释掉了 getButtons().add(button) ← 这里坏了
++  ↓
++玩家点击某个按钮（应该的流程）：
++  - ScreenButton.onSelectEntry() 被调用  ← 从未发生
++  - EventListener.handle(event) 触发
++  - handler 调用 getCamp().addWindow(new XxxWindow(...))
++  ↓
++新窗口入栈，覆盖 MainWindow
++  ↓
++玩家点 Exit → setClosing(true) → 下一帧被弹出 → 回到 MainWindow
++  ↓
++玩家再点 Exit → CampDialog.exit() → closeAndRemoveFromParent(this)
++```
++
++### 10.2.2 营地子窗口清单
++
++| 类 | 标题 (titles id) | 功能 | 当前状态 |
++|---|---|---|---|
++| `MainWindow` | 2 ("营地 :") | 主菜单，列出 7 个选项 | ❌ 按钮未注册 |
++| `RestPartyWindow` | 4 ("小队休息 :") | 休息恢复 HP/法术位 | ❌ 按钮未注册 |
++| `SpellWindow` | (动态) | 选择法师/牧师记忆法术 | ❌ 按钮未注册 |
++| `ScribeScrollsWindow` | 5 ("抄写卷轴 :") | 法师抄写卷轴 | ❌ 按钮未注册 |
++| `PreferencesWindow` | 6 ("偏好设置 :") | 游戏偏好（HPAsBar 等） | ❌ 按钮未注册 |
++| `GameOptionsWindow` | 10 ("游戏选项 :") | 游戏选项（保存/读取/退出） | ❌ 按钮未注册 |
++| `SaveGameWindow` | 8 ("保存游戏") | 保存到槽位 | ❌ 按钮未注册 |
++| `LoadGameWindow` | 7 ("读取游戏") | 从槽位读取 | ❌ 按钮未注册（但 MainMenu 用它能工作，因为那里的代码不同） |
++| `DropNPCWindow` | 9 ("移除角色") | 移除小队中的 NPC | ❌ 按钮未注册 |
++
++### 10.2.3 StringTable 中的 Camp 相关字符串
++
++**`titles` stringtable**：
++- id=1: "Camp" / "Campement" / "营地" — `CampDialog` 标题
++- id=2: "Camp :" / "Campement :" / "营地 :" — `MainWindow` 标题
++- id=4: "Rest Party :" / "..." / "小队休息 :" — `RestPartyWindow` 标题
++- id=5: "Scribe Scrolls :" / "..." / "抄写卷轴 :" — `ScribeScrollsWindow` 标题
++- id=6: "Preferences :" / "..." / "偏好设置 :" — `PreferencesWindow` 标题
++- id=7: "Load Game" / "..." / "读取游戏" — `LoadGameWindow` 标题
++- id=8: "Save Game" / "..." / "保存游戏" — `SaveGameWindow` 标题
++- id=9: "Drop Character" / "..." / "移除角色" — `DropNPCWindow` 标题
++- id=10: "Game Options :" / "..." / "游戏选项 :" — `GameOptionsWindow` 标题
++- id=11: "Quit Game" / "..." / "退出游戏" — 退出按钮文本
++
++**`Camp` stringtable**（7 个选项）：
++- id=1: "Rest party" / "..." / "小队休息"
++- id=2: "Memorize Spells" / "..." / "记忆法术"
++- id=3: "Pray for Spells" / "..." / "祈求法术"
++- id=4: "Scribe Scrolls" / "..." / "抄写卷轴"
++- id=5: "Preferences" / "..." / "偏好设置"
++- id=6: "Game Options" / "..." / "游戏选项"
++- (无 id=7 — Exit 用 `campui` id=1)
++
++**`campui` stringtable**（15 个 UI 字符串）：
++- id=1: "Exit" / "..." / "退出"
++- id=2: "Cancel" / "..." / "取消"
++- id=3: "Yes" / "..." / "是"
++- id=4: "No" / "..." / "否"
++- id=5: "Clear" / "..." / "清除"
++- id=6: "Empty slot %d" / "..." / "空槽位 %d"
++- id=7: "Hours rested : %d" / "..." / "已休息小时数 : %d"
++- id=8: "%d of %d remaining." / "..." / "剩余 %d / %d"
++- id=9: "Spells Available :" / "..." / "可用法术 :"
++- id=10–15: 音乐/音效/血条 ON/OFF 等
++
++---
++
++## 10.3 v0.5 修复方案
++
++### 10.3.1 修复 1：CAMP 改为文本按钮
++
++在 `NavigationControlsGroup.initialize()` 中**新增**一个 `TextButton`：
++
++```java
++private TextButton campButton;
++
++// initialize() 中：
++campButton = new TextButton(
++    LanguagesManager.getString("titles", 1),  // "营地"
++    uiSkin,
++    "transparent-font64"
++);
++campButton.setBounds(578, 354, 120, 50);  // 原 campButton 区域稍大
++campButton.addListener(new InputListener() {
++    public boolean touchDown(InputEvent e, float x, float y, int p, int b) {
++        openCampDialog();
++        return true;
++    }
++});
++addActor(campButton);
++```
++
++这样：
++- ✅ CAMP 是真正的文本按钮，可点击
++- ✅ 文本走 i18n，中文显示"营地"
++- ✅ 点击触发 `openCampDialog()`
++
++### 10.3.2 修复 2：实例化并打开 CampDialog
++
++`openCampDialog()` 实现：
++
++```java
++private void openCampDialog() {
++    if (team == null || team.getMaze() == null) return;
++    GameScreenBase parent = ...;  // 需要拿到 GameScreen 实例
++    CampDialog dialog = new CampDialog(parent, parent);
++    parent.getStage().addActor(dialog);
++}
++```
++
++注意 `NavigationControlsGroup` 目前没有 `parent` 字段，需要：
++- **方案 A**：在 `GameScreenGroup` 加 `public GameScreenBase parent;` 字段
++- **方案 B**：`NavigationControlsGroup` 通过 `GameScreen.getTeam()` 反查（但 `GameScreen` 单例不暴露 `getStage()`）
++- **方案 C**：把 CAMP 按钮的创建移到 `GameScreen.initScreenObjects()` 里，直接用 `this` 作为 parent
++
++推荐**方案 C** — 最简单，不破坏现有架构。
++
++### 10.3.3 修复 3：让营地子窗口按钮可点（部分）
++
++**完整修复**需要把 9 个营地子窗口的 `ScreenButton` 全部换成 scene2d `TextButton`。工作量大。
++
++**v0.5 阶段的最小修复**：在 `BaseWindow.update(delta)` 加鼠标轮询，模仿 `MessageBox.update()`：
++
++```java
++// BaseWindow.java
++public void update(float delta) {
++    // ... 现有 messageBox 处理 ...
++
++    // 让 ScreenButton 响应点击（如果子类注册了的话）
++    if (Gdx.input.isButtonPressed(Buttons.LEFT)) {
++        Vector2 mouse = new Vector2(Gdx.input.getX(), Gdx.input.getY());
++        // 注意：要把屏幕坐标转 stage 坐标
++        parent.getStage().screenToStageCoordinates(mouse);
++        for (ScreenButton btn : screenButtons) {
++            if (btn.getRectangle().contains(mouse)) {
++                btn.onSelectEntry();
++                break;
++            }
++        }
++    }
++}
++```
++
++但 `MainWindow` 等子类**注释掉了 `getButtons().add(button)`**，所以即使 `BaseWindow` 加了轮询，按钮列表也是空的。
++
++**v0.5 决策**：
++1. ✅ **取消注释** `MainWindow` 中的 `getButtons().add(button)` 行（7 处）
++2. ✅ 在 `BaseWindow` 加 `protected ArrayList<ScreenButton> screenButtons` 字段
++3. ✅ `MainWindow` 等子类把 `ScreenButton` 加到这个列表（替换原来的 `getButtons().add(button)`）
++4. ✅ `BaseWindow.update(delta)` 加鼠标轮询调用 `onSelectEntry()`
++
++但完整测试 9 个子窗口需要时间。**v0.5 只修复 MainWindow 的按钮注册 + BaseWindow 轮询**，其他子窗口留待 v0.6。
++
++### 10.3.4 修复 4：键盘 C 键也能打开营地
++
++`KeyboardInputProcessor` 中 `Action.Camp` → `gameScreen.openCampDialog()`。
++
++需要在 `GameScreen` 加一个 `openCampDialog()` 方法供 keyboard 和 CAMP 按钮共用：
++
++```java
++// GameScreen.java
++public void openCampDialog() {
++    if (team == null || team.getMaze() == null) return;
++    CampDialog dialog = new CampDialog(this, this);
++    stage.addActor(dialog);
++}
++```
++
++---
++
++## 10.4 修复后的 CAMP 流程
++
++```
++玩家点击 CAMP 文本按钮  (或按 C 键)
++  ↓
++NavigationControlsGroup 的 InputListener 触发  (或 KeyboardInputProcessor)
++  ↓
++gameScreen.openCampDialog()
++  ↓
++new CampDialog(this, this)
++  ↓
++CampDialog 构造：
++  - 标题 = "营地"（i18n）
++  - windows 栈压入 new MainWindow(this, this)
++  ↓
++stage.addActor(campDialog)
++  ↓
++Dialog 显示，标题栏"营地"可见
++  ↓
++（v0.5: MainWindow 的 ScreenButton 已注册到 BaseWindow.screenButtons）
++（v0.5: BaseWindow.update 轮询鼠标 → 点击按钮 → onSelectEntry → handler）
++  ↓
++点击"小队休息" → MainWindow.restPartySelected() → getCamp().addWindow(new RestPartyWindow(...))
++  ↓
++RestPartyWindow 入栈，覆盖 MainWindow
++  ↓
++... (RestPartyWindow 的功能取决于其内部实现)
++  ↓
++点击"退出" → setClosing(true) → 下一帧弹出 → 回到 MainWindow
++  ↓
++点击"退出" → setClosing(true) → 下一帧弹出 → 栈空 → CampDialog.exit() → 关闭
++```
++
++---
++
++## 10.5 已知遗留问题
++
++| 问题 | 影响 | 解决思路 |
++|---|---|---|
++| `ScreenButton` 不是 scene2d actor | 不能用 scene2d 命中测试，需手动轮询 | 重构为 `TextButton` 子类 |
++| `MainWindow` 等 9 个子窗口的按钮注册全注释掉 | 即使打开 CampDialog 也只能看到空窗口 | 取消注释 + 加 BaseWindow 轮询 |
++| `CampDialog.draw()` 被注释 | 子窗口可能不显示 | 测试 BaseWindow（继承 Dialog）的默认 draw 是否够用 |
++| `CampDialog` 的 `game` 字段类型是 `GameScreenBase` 而非 `GameScreen` | 限制了 API | 改为 `GameScreen` |
++| `DisplayCoordinates.campButton` 仍存在但无用 | 死代码 | 删除或重新利用 |
++| Interface.png 仍有 CAMP 像素 | 文本按钮会和背景图重叠 | 可裁剪 Interface.png 或用半透明背景遮挡 |
++
++---
++
++## 10.6 测试清单
++
++| 测试项 | 期望结果 |
++|---|---|
++| 进入游戏后看屏幕底部 | 显示"营地"文本按钮（中文时） |
++| 切换语言到 English | 按钮文本变为"Camp" |
++| 切换语言到 Francais | 按钮文本变为"Campement" |
++| 点击"营地"按钮 | 弹出 CampDialog，标题"营地" |
++| 按 C 键 | 同上 |
++| CampDialog 显示后点"小队休息" | RestPartyWindow 入栈显示 |
++| 点 RestPartyWindow 的"退出" | 回到 MainWindow |
++| 点 MainWindow 的"退出" | CampDialog 关闭 |
++| 按 ESC | 关闭 CampDialog（如果打开） |
++
++---
++
++## 10.7 相关文档
++
++- [09-input-system.md](09-input-system.md) — 键盘输入系统（C 键打开营地）
++- [modules/07-engine-gui.md](modules/07-engine-gui.md) — `BaseWindow` / `ScreenButton` / `GUI` 等通用 GUI 类
++- [modules/08-engine-campwindows.md](modules/08-engine-campwindows.md) — 9 个营地子窗口的详细清单
+diff --git a/docs/v0.5/README.md b/docs/v0.5/README.md
+index 18e313f..89b9cc5 100644
+--- a/docs/v0.5/README.md
++++ b/docs/v0.5/README.md
+@@ -17,6 +17,9 @@
+ | [05-libgdx-crash-course.md](05-libgdx-crash-course.md) | libGDX 入门速览（给 Java 新手） | 没用过 libGDX 的人 |
+ | [06-roadmap.md](06-roadmap.md) | 已完成 / 未完成 / 下一步建议 | 决定接下来做什么的人 |
+ | [07-i18n-system.md](07-i18n-system.md) | 多语言系统详解 + 中文化改造记录 | 改翻译 / 加新语言的人 |
++| [08-minimap-design.md](08-minimap-design.md) | 小地图模块设计与实现 | 想加地图功能的人 |
++| [09-input-system.md](09-input-system.md) | 键盘输入与操控系统（按键绑定 / 配置 UI） | 想改按键 / 加键盘操控的人 |
++| [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
+ 
+ ### 子模块详细文档（位于 `modules/` 目录）
+ 
+@@ -33,6 +36,7 @@
+ | [modules/09-engine-script.md](modules/09-engine-script.md) | `com.ntk.darkmoor.engine.script` (+ `actions` + `gui`) | `ScriptBase`、`ActionBase`、20+ 个 action |
+ | [modules/10-engine-monsterstate.md](modules/10-engine-monsterstate.md) | `com.ntk.darkmoor.engine.monsterstate` | `MonsterState`、`Attack`、`Hurt`、`Idle` |
+ | [modules/11-exception-stub-util.md](modules/11-exception-stub-util.md) | `exception` + `stub` + `util` | `BaseException`、`Display`、`Mouse`、`RandomEnum` |
++| [modules/12-maze-system.md](modules/12-maze-system.md) | 地图系统（`Dungeon` / `Maze` / `Square` / `DungeonLocation` / `Team` 位置） | 想加地图 / 小地图 / 自动化地图的人 |
+ 
+ ## 阅读建议
+ 

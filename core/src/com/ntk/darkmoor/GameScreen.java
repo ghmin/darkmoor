@@ -23,6 +23,10 @@ import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
 import com.ntk.darkmoor.engine.graphics.InventoryGroup;
 import com.ntk.darkmoor.engine.graphics.MazeGroup;
 import com.ntk.darkmoor.engine.graphics.MinimapGroup;
+import com.ntk.darkmoor.config.KeyBindings;
+import com.ntk.darkmoor.engine.CampDialog;
+import com.ntk.darkmoor.engine.KeyboardInputProcessor;
+import com.badlogic.gdx.InputMultiplexer;
 import com.ntk.darkmoor.engine.graphics.NavigationControlsGroup;
 import com.ntk.darkmoor.engine.graphics.StatisticsGroup;
 import com.ntk.darkmoor.resource.Resources;
@@ -30,264 +34,309 @@ import com.ntk.darkmoor.resource.TextureSet;
 
 public class GameScreen extends GameScreenBase {
 
-	public enum TeamInterface {
-		Main, Inventory, Statistic
-	}
+        public enum TeamInterface {
+                Main, Inventory, Statistic
+        }
 
-	private static Team team;
+        private static Team team;
 
-	private SpellBook spellBook;
-	private TextureSet textureSet;
-	private BitmapFont inventoryFont;
-	private BitmapFont outlinedFont;
-	private ScriptedDialog dialog;
+        private SpellBook spellBook;
+        private TextureSet textureSet;
+        private BitmapFont inventoryFont;
+        private BitmapFont outlinedFont;
+        private ScriptedDialog dialog;
 
-	private TeamInterface interfaceType;
+        private TeamInterface interfaceType;
 
-	// parts of the screen as scene2d actors
-	private HeroInterfaceGroup heroInterfaceGroup;
-	private InventoryGroup inventoryGroup;
-	private MazeGroup mazeGroup;
-	private StatisticsGroup statisticsGroup;
-	private NavigationControlsGroup navControlsGroup;
-	private MinimapGroup minimapGroup;
+        // parts of the screen as scene2d actors
+        private HeroInterfaceGroup heroInterfaceGroup;
+        private InventoryGroup inventoryGroup;
+        private MazeGroup mazeGroup;
+        private StatisticsGroup statisticsGroup;
+        private NavigationControlsGroup navControlsGroup;
+        private MinimapGroup minimapGroup;
 
-	public GameScreen(Game game) {
-		super(game);
-	}
+        public GameScreen(Game game) {
+                super(game);
+        }
 
-	@Override
-	public void loadContent() {
+        @Override
+        public void loadContent() {
 
-		long startTime = new java.util.Date().getTime();
+                long startTime = new java.util.Date().getTime();
 
-		// Keyboard input scheme
-		/*
-		 * inputScheme = Resources.createAsset<InputScheme>(Game.InputSchemeName); if (inputScheme == null) {
-		 * Log.error("ERROR !!! No InputSchema detected !!!"); inputScheme = new InputScheme();
-		 * InputScheme["MoveForward"] = Keys.Z; InputScheme["MoveBackward"] = Keys.S; InputScheme["StrafeLeft"] =
-		 * Keys.Q; InputScheme["StrafeRight"] = Keys.D; InputScheme["TurnLeft"] = Keys.A; InputScheme["TurnRight"] =
-		 * Keys.E; InputScheme["Inventory"] = Keys.I; InputScheme["SelectHero1"] = Keys.D1; InputScheme["SelectHero2"] =
-		 * Keys.D2; InputScheme["SelectHero3"] = Keys.D3; InputScheme["SelectHero4"] = Keys.D4;
-		 * InputScheme["SelectHero5"] = Keys.D5; InputScheme["SelectHero6"] = Keys.D6; }
-		 * Log.debug("InputScheme (%d ms)", new java.util.Date().getTime() - startTime);
-		 */
+                // Keyboard input scheme
+                /*
+                 * inputScheme = Resources.createAsset<InputScheme>(Game.InputSchemeName); if (inputScheme == null) {
+                 * Log.error("ERROR !!! No InputSchema detected !!!"); inputScheme = new InputScheme();
+                 * InputScheme["MoveForward"] = Keys.Z; InputScheme["MoveBackward"] = Keys.S; InputScheme["StrafeLeft"] =
+                 * Keys.Q; InputScheme["StrafeRight"] = Keys.D; InputScheme["TurnLeft"] = Keys.A; InputScheme["TurnRight"] =
+                 * Keys.E; InputScheme["Inventory"] = Keys.I; InputScheme["SelectHero1"] = Keys.D1; InputScheme["SelectHero2"] =
+                 * Keys.D2; InputScheme["SelectHero3"] = Keys.D3; InputScheme["SelectHero4"] = Keys.D4;
+                 * InputScheme["SelectHero5"] = Keys.D5; InputScheme["SelectHero6"] = Keys.D6; }
+                 * Log.debug("InputScheme (%d ms)", new java.util.Date().getTime() - startTime);
+                 */
 
-		// Interface tileset
-		textureSet = Resources.createSharedTextureSetAsset("Interface", "Interface");
+                // Interface tileset
+                textureSet = Resources.createSharedTextureSetAsset("Interface", "Interface");
 
-		// Fonts
-		inventoryFont = Resources.createSharedFontAsset("inventory");
-		outlinedFont = Resources.createSharedFontAsset("outline");
+                // Fonts
+                inventoryFont = Resources.createSharedFontAsset("inventory");
+                outlinedFont = Resources.createSharedFontAsset("outline");
 
-		// Misc init
-		spellBook = new SpellBook();
-		spellBook.loadContent();
-		GameMessage.init();
+                // Misc init
+                spellBook = new SpellBook();
+                spellBook.loadContent();
+                GameMessage.init();
 
-		super.loadContent();
+                super.loadContent();
 
-		Log.debug("[GameScreen] loadContent() - finished ! (%d ms)", new java.util.Date().getTime() - startTime);
-	}
+                Log.debug("[GameScreen] loadContent() - finished ! (%d ms)", new java.util.Date().getTime() - startTime);
+        }
 
-	@Override
-	protected Image setupBackground() {
-		Image image = new Image(textureSet.getSprite(0));
-		image.setBounds(0, 0, DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_WIDTH);
-		return image;
-	}
+        @Override
+        protected Image setupBackground() {
+                Image image = new Image(textureSet.getSprite(0));
+                image.setBounds(0, 0, DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_WIDTH);
+                return image;
+        }
 
-	@Override
-	public void unloadContent() {
-		Log.debug("[team] : UnloadContent");
+        @Override
+        public void unloadContent() {
+                Log.debug("[team] : UnloadContent");
 
-		if (team != null)
-			team.dispose();
-		team = null;
+                if (team != null)
+                        team.dispose();
+                team = null;
 
-		if (spellBook != null)
-			spellBook.dispose();
-		spellBook = null;
+                if (spellBook != null)
+                        spellBook.dispose();
+                spellBook = null;
 
-		GameMessage.dispose();
+                GameMessage.dispose();
 
-		Resources.unlockSharedFontAsset(outlinedFont);
-		Resources.unlockSharedFontAsset(inventoryFont);
-		Resources.unlockSharedTextureSetAsset(textureSet);
-		textureSet = null;
-		inventoryFont = null;
-		outlinedFont = null;
+                Resources.unlockSharedFontAsset(outlinedFont);
+                Resources.unlockSharedFontAsset(inventoryFont);
+                Resources.unlockSharedTextureSetAsset(textureSet);
+                textureSet = null;
+                inventoryFont = null;
+                outlinedFont = null;
 
-		if (dialog != null)
-			dialog.dispose();
-		dialog = null;
+                if (dialog != null)
+                        dialog.dispose();
+                dialog = null;
 
-		// if (inputScheme != null)
-		// inputScheme.dispose();
-		// inputScheme = null;
-	}
+                // if (inputScheme != null)
+                // inputScheme.dispose();
+                // inputScheme = null;
+        }
 
-	private void initScreenObjects() {
+        private void initScreenObjects() {
 
-		interfaceType = TeamInterface.Main;
+                interfaceType = TeamInterface.Main;
 
-		mazeGroup = new MazeGroup();
-		mazeGroup.team = GameScreen.team;
-		mazeGroup.uiSkin = uiSkin;
-		mazeGroup.initialize();
-		mazeGroup.setBounds(0, 0, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH, DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT);
-		mazeGroup.setCullingArea(new Rectangle(0, DisplayCoordinates.TOP_LEFT_Y, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH,
-				DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT));
-		mazeGroup.setZIndex(0);
-		stage.addActor(mazeGroup);
+                mazeGroup = new MazeGroup();
+                mazeGroup.team = GameScreen.team;
+                mazeGroup.uiSkin = uiSkin;
+                mazeGroup.initialize();
+                mazeGroup.setBounds(0, 0, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH, DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT);
+                mazeGroup.setCullingArea(new Rectangle(0, DisplayCoordinates.TOP_LEFT_Y, DisplayCoordinates.PLAYABLE_WINDOW_WIDTH,
+                                DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT));
+                mazeGroup.setZIndex(0);
+                stage.addActor(mazeGroup);
 
-		heroInterfaceGroup = new HeroInterfaceGroup();
-		heroInterfaceGroup.team = GameScreen.team;
-		heroInterfaceGroup.uiSkin = uiSkin;
-		heroInterfaceGroup.initialize();
-		stage.addActor(heroInterfaceGroup);
+                heroInterfaceGroup = new HeroInterfaceGroup();
+                heroInterfaceGroup.team = GameScreen.team;
+                heroInterfaceGroup.uiSkin = uiSkin;
+                heroInterfaceGroup.initialize();
+                stage.addActor(heroInterfaceGroup);
 
-		inventoryGroup = new InventoryGroup();
-		inventoryGroup.team = GameScreen.team;
-		inventoryGroup.uiSkin = uiSkin;
-		inventoryGroup.initialize();
-		stage.addActor(inventoryGroup);
+                inventoryGroup = new InventoryGroup();
+                inventoryGroup.team = GameScreen.team;
+                inventoryGroup.uiSkin = uiSkin;
+                inventoryGroup.initialize();
+                stage.addActor(inventoryGroup);
 
-		statisticsGroup = new StatisticsGroup();
-		statisticsGroup.team = GameScreen.team;
-		statisticsGroup.uiSkin = uiSkin;
-		statisticsGroup.initialize();
-		stage.addActor(statisticsGroup);
+                statisticsGroup = new StatisticsGroup();
+                statisticsGroup.team = GameScreen.team;
+                statisticsGroup.uiSkin = uiSkin;
+                statisticsGroup.initialize();
+                stage.addActor(statisticsGroup);
 
-		navControlsGroup = new NavigationControlsGroup();
-		navControlsGroup.team = GameScreen.team;
-		navControlsGroup.uiSkin = uiSkin;
-		navControlsGroup.initialize();
-		stage.addActor(navControlsGroup);
+                navControlsGroup = new NavigationControlsGroup();
+                navControlsGroup.team = GameScreen.team;
+                navControlsGroup.uiSkin = uiSkin;
+                navControlsGroup.initialize();
+                // 给 CAMP 按钮设置点击监听 — 打开营地对话框
+                navControlsGroup.getCampButton().addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
+                        public boolean touchDown(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
+                                openCampDialog();
+                                return true;
+                        }
+                });
+                // 给 Settings 按钮设置点击监听 — v0.5 阶段也打开营地对话框（包含游戏选项）
+                navControlsGroup.getSettingsButton().addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
+                        public boolean touchDown(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
+                                openCampDialog();
+                                return true;
+                        }
+                });
+                stage.addActor(navControlsGroup);
 
-		// Minimap overlay — 显示当前楼层的实时缩略图
-		minimapGroup = new MinimapGroup();
-		minimapGroup.team = GameScreen.team;
-		minimapGroup.uiSkin = uiSkin;
-		minimapGroup.initialize();
-		stage.addActor(minimapGroup);
+                // Minimap overlay — 显示当前楼层的实时缩略图
+                minimapGroup = new MinimapGroup();
+                minimapGroup.team = GameScreen.team;
+                minimapGroup.uiSkin = uiSkin;
+                minimapGroup.initialize();
+                stage.addActor(minimapGroup);
 
-	}
+                // 键盘输入处理器 — 注册到 InputMultiplexer（替换 setupStage() 中默认的 stage-only processor）
+                KeyBindings bindings = KeyBindings.loadFrom(Settings.getLastLoadedInstance().getProperties());
+                if (bindings == null) {
+                        bindings = KeyBindings.defaults();
+                }
+                keyboardProcessor = new KeyboardInputProcessor(GameScreen.team, bindings, this);
+                InputMultiplexer mux = new InputMultiplexer();
+                mux.addProcessor(keyboardProcessor);
+                mux.addProcessor(stage);
+                Gdx.input.setInputProcessor(mux);
 
-	public boolean loadGameSlot(int slotid) {
-		SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
-		if (slot == null) {
-			Log.debug("[GameScreen]LoadGameSlot() : Slot " + slotid + " empty !");
-			return false;
-		}
+        }
 
-		while (Resources.getDungeon() == null)
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-			}
+        public boolean loadGameSlot(int slotid) {
+                SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
+                if (slot == null) {
+                        Log.debug("[GameScreen]LoadGameSlot() : Slot " + slotid + " empty !");
+                        return false;
+                }
 
-		// Load team
-		if (team != null)
-			team.dispose();
-		else
-			team = new Team();
-		team.load(slot.getTeam());
+                while (Resources.getDungeon() == null)
+                        try {
+                                Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                        }
 
-		team.init();
+                // Load team
+                if (team != null)
+                        team.dispose();
+                else
+                        team = new Team();
+                team.load(slot.getTeam());
 
-		newGame(team);
+                team.init();
 
-		GameMessage.addMessage("Party loaded...", GameColors.Yellow);
-		return true;
-	}
+                newGame(team);
 
-	public boolean saveGameSlot(int slotid) throws IOException {
-		if (slotid < 0 || slotid >= Settings.getLastLoadedInstance().getSaveSlots())
-			return false;
+                GameMessage.addMessage("Party loaded...", GameColors.Yellow);
+                return true;
+        }
 
-		SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
-		slot.setName("slot " + slotid);
-		StringWriter tempStringWriter = new StringWriter();
-		XmlWriter tempXmlWriter = new XmlWriter(tempStringWriter);
-		slot.setTeam(team.save(tempXmlWriter));
+        public boolean saveGameSlot(int slotid) throws IOException {
+                if (slotid < 0 || slotid >= Settings.getLastLoadedInstance().getSaveSlots())
+                        return false;
 
-		// Some debug, if shiftkey down, no dungeon save
-		if (!Gdx.input.isKeyPressed(Keys.SHIFT_RIGHT)) {
+                SaveGameSlot slot = game.getSavedGame().getSlot(slotid);
+                slot.setName("slot " + slotid);
+                StringWriter tempStringWriter = new StringWriter();
+                XmlWriter tempXmlWriter = new XmlWriter(tempStringWriter);
+                slot.setTeam(team.save(tempXmlWriter));
 
-			tempXmlWriter.flush();
-			tempXmlWriter.close();
-			tempXmlWriter = new XmlWriter(tempStringWriter);
-			// dungeon.save(tempXmlWriter, 1);
-			// slot.setDungeon(tempXmlWriter.);
-		}
-		// Save the game
-		if (game.getSavedGame().save())
-			GameMessage.addMessage("Game saved.");
-		else
-			GameMessage.addMessage("Game NOT saved !");
+                // Some debug, if shiftkey down, no dungeon save
+                if (!Gdx.input.isKeyPressed(Keys.SHIFT_RIGHT)) {
 
-		return true;
-	}
+                        tempXmlWriter.flush();
+                        tempXmlWriter.close();
+                        tempXmlWriter = new XmlWriter(tempStringWriter);
+                        // dungeon.save(tempXmlWriter, 1);
+                        // slot.setDungeon(tempXmlWriter.);
+                }
+                // Save the game
+                if (game.getSavedGame().save())
+                        GameMessage.addMessage("Game saved.");
+                else
+                        GameMessage.addMessage("Game NOT saved !");
 
-	public SpellBook getSpellBook() {
-		return spellBook;
-	}
+                return true;
+        }
 
-	public void setDialog(ScriptedDialog scriptedDialog) {
-		if (dialog != null)
-			dialog.dispose();
+        public SpellBook getSpellBook() {
+                return spellBook;
+        }
 
-		dialog = scriptedDialog;
-	}
+        public void setDialog(ScriptedDialog scriptedDialog) {
+                if (dialog != null)
+                        dialog.dispose();
 
-	public ScriptedDialog getDialog() {
-		return dialog;
-	}
+                dialog = scriptedDialog;
+        }
 
-	public void newGame(Team gsteam) {
-		initScreenObjects();
-	}
+        public ScriptedDialog getDialog() {
+                return dialog;
+        }
 
-	@Override
-	public void update(float delta, boolean hasFocus, boolean isCovered) {
-		super.update(delta, hasFocus, isCovered);
+        public void newGame(Team gsteam) {
+                initScreenObjects();
+        }
 
-		if (team.getMaze() != null) {
-			mazeGroup.update();
-			// 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
-			minimapGroup.setVisible(interfaceType == TeamInterface.Main);
-			minimapGroup.update();
-		}
+        /** 打开营地对话框（CAMP 按钮点击或按 C 键触发）。 */
+        public void openCampDialog() {
+                if (team == null || team.getMaze() == null) return;
+                CampDialog dialog = new CampDialog(this, this);
+                stage.addActor(dialog);
+        }
 
-		if (interfaceType == TeamInterface.Main) {
+        /** 打开游戏内菜单（按 ESC 触发）。v0.5 阶段先复用 OptionsWindow。 */
+        public void openInGameMenu() {
+                // 简化实现：在游戏中按 ESC 暂停 + 打开营地对话框作为菜单
+                if (team == null || team.getMaze() == null) return;
+                openCampDialog();
+        }
 
-			heroInterfaceGroup.setVisible(true);
-			inventoryGroup.setVisible(false);
-			statisticsGroup.setVisible(false);
-			navControlsGroup.setVisible(true);
-			heroInterfaceGroup.update();
+        /** 切换主界面/物品栏/属性面板（键盘 I / P 触发）。 */
+        public void setInterfaceType(TeamInterface type) {
+                if (type == null) return;
+                this.interfaceType = type;
+        }
 
-		} else if (interfaceType == TeamInterface.Inventory) {
-			heroInterfaceGroup.setVisible(false);
-			inventoryGroup.setVisible(true);
-			statisticsGroup.setVisible(false);
-			navControlsGroup.setVisible(false);
-			inventoryGroup.update();
+        @Override
+        public void update(float delta, boolean hasFocus, boolean isCovered) {
+                super.update(delta, hasFocus, isCovered);
 
-		} else if (interfaceType == TeamInterface.Statistic) {
+                if (team.getMaze() != null) {
+                        mazeGroup.update();
+                        // 小地图仅在 Main 接口显示，避免遮挡 Inventory/Statistic 视图
+                        minimapGroup.setVisible(interfaceType == TeamInterface.Main);
+                        minimapGroup.update();
+                }
 
-			heroInterfaceGroup.setVisible(false);
-			inventoryGroup.setVisible(false);
-			statisticsGroup.setVisible(true);
-			navControlsGroup.setVisible(false);
-			statisticsGroup.update();
-		}
+                if (interfaceType == TeamInterface.Main) {
 
-		navControlsGroup.update();
-	}
+                        heroInterfaceGroup.setVisible(true);
+                        inventoryGroup.setVisible(false);
+                        statisticsGroup.setVisible(false);
+                        navControlsGroup.setVisible(true);
+                        heroInterfaceGroup.update();
 
-	public static Team getTeam() {
-		return team;
-	}
+                } else if (interfaceType == TeamInterface.Inventory) {
+                        heroInterfaceGroup.setVisible(false);
+                        inventoryGroup.setVisible(true);
+                        statisticsGroup.setVisible(false);
+                        navControlsGroup.setVisible(false);
+                        inventoryGroup.update();
+
+                } else if (interfaceType == TeamInterface.Statistic) {
+
+                        heroInterfaceGroup.setVisible(false);
+                        inventoryGroup.setVisible(false);
+                        statisticsGroup.setVisible(true);
+                        navControlsGroup.setVisible(false);
+                        statisticsGroup.update();
+                }
+
+                navControlsGroup.update();
+        }
+
+        public static Team getTeam() {
+                return team;
+        }
 }

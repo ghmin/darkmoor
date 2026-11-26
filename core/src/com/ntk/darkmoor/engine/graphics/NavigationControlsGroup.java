@@ -2,8 +2,12 @@ package com.ntk.darkmoor.engine.graphics;
 
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.ntk.darkmoor.config.LanguagesManager;
+import com.ntk.darkmoor.config.Settings;
 import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
 import com.badlogic.gdx.utils.Disposable;
 import com.ntk.darkmoor.engine.Compass;
@@ -14,196 +18,240 @@ import com.ntk.darkmoor.resource.GraphicAssets;
 
 public class NavigationControlsGroup extends GameScreenGroup implements Disposable {
 
-	private static final int BUTTON_HEIGHT = 112;
-	private static final int BUTTON_WIDTH = 79;
-	private static final int NAVIGATION_AREA_TOP = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - 418;
-	private static final int NAVIGATION_AREA_LEFT = 18;
+        private static final int BUTTON_HEIGHT = 112;
+        private static final int BUTTON_WIDTH = 79;
+        private static final int NAVIGATION_AREA_TOP = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - 418;
+        private static final int NAVIGATION_AREA_LEFT = 18;
 
-	private static final int COMPASS_TOP_DIRECTION_X = 457;
-	private static final int COMPASS_TOP_DIRECTION_Y = 330;
-	private static final int COMPASS_TOP_DIRECTION_WIDTH = 82;
-	private static final int COMPASS_TOP_DIRECTION_HEIGHT = 115;
+        private static final int COMPASS_TOP_DIRECTION_X = 457;
+        private static final int COMPASS_TOP_DIRECTION_Y = 330;
+        private static final int COMPASS_TOP_DIRECTION_WIDTH = 82;
+        private static final int COMPASS_TOP_DIRECTION_HEIGHT = 115;
 
-	private static final int COMPASS_LEFT_DIRECTION_X = 309;
-	private static final int COMPASS_LEFT_DIRECTION_Y = 206;
-	private static final int COMPASS_LEFT_DIRECTION_WIDTH = 85;
-	private static final int COMPASS_LEFT_DIRECTION_HEIGHT = 64;
+        private static final int COMPASS_LEFT_DIRECTION_X = 309;
+        private static final int COMPASS_LEFT_DIRECTION_Y = 206;
+        private static final int COMPASS_LEFT_DIRECTION_WIDTH = 85;
+        private static final int COMPASS_LEFT_DIRECTION_HEIGHT = 64;
 
-	private static final int COMPASS_RIGHT_DIRECTION_X = 588;
-	private static final int COMPASS_RIGHT_DIRECTION_Y = 210;
-	private static final int COMPASS_RIGHT_DIRECTION_WIDTH = 85;
-	private static final int COMPASS_RIGHT_DIRECTION_HEIGHT = 60;
+        private static final int COMPASS_RIGHT_DIRECTION_X = 588;
+        private static final int COMPASS_RIGHT_DIRECTION_Y = 210;
+        private static final int COMPASS_RIGHT_DIRECTION_WIDTH = 85;
+        private static final int COMPASS_RIGHT_DIRECTION_HEIGHT = 60;
 
-	/**
-	 * The sprites for the directions (N,S,W,E) start at a specific position in the TextureSet.xml. In the default
-	 * resources for EOB2 it's simply 5 and there's no reason not to have it as a constant. However in new game content,
-	 * in case this engine is used for a new RPG game, this can change. The only convention is that suppose 5 is the "N"
-	 * sprite that appears as the forward direction (top of the compass), then 6 and 7 have to be its minimized
-	 * counterparts that appear on the left side and on the right side of the compass respectively
-	 */
-	private static final int DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML = 5;
+        /**
+         * The sprites for the directions (N,S,W,E) start at a specific position in the TextureSet.xml. In the default
+         * resources for EOB2 it's simply 5 and there's no reason not to have it as a constant. However in new game content,
+         * in case this engine is used for a new RPG game, this can change. The only convention is that suppose 5 is the "N"
+         * sprite that appears as the forward direction (top of the compass), then 6 and 7 have to be its minimized
+         * counterparts that appear on the left side and on the right side of the compass respectively
+         */
+        private static final int DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML = 5;
 
-	public Team team;
-	public Skin uiSkin;
+        public Team team;
+        public Skin uiSkin;
 
-	// Scene2d Actors
+        // Scene2d Actors
 
-	/** navigation buttons */
-	private Image turnLeft, forward, turnRight, left, back, right;
+        /** navigation buttons */
+        private Image turnLeft, forward, turnRight, left, back, right;
 
-	/** direction compass images */
-	private Image directionTop, directionLeft, directionRight;
+        /** direction compass images */
+        private Image directionTop, directionLeft, directionRight;
 
-	@Override
-	public void initialize() {
-		initializeNavigation();
+        /** CAMP 文本按钮（替代背景图里的 CAMP 像素，走 i18n）。 */
+        private TextButton campButton;
+        /** 游戏内设置按钮（点击弹出菜单）。 */
+        private TextButton settingsButton;
 
-		initializeCompass();
-	}
+        @Override
+        public void initialize() {
+                initializeNavigation();
 
-	private void initializeCompass() {
-		directionTop = new Image();
-		directionTop.setBounds(COMPASS_TOP_DIRECTION_X, COMPASS_TOP_DIRECTION_Y, COMPASS_TOP_DIRECTION_WIDTH,
-				COMPASS_TOP_DIRECTION_HEIGHT);
-		directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite())));
-		addActor(directionTop);
+                initializeCompass();
 
-		directionLeft = new Image();
-		directionLeft.setBounds(COMPASS_LEFT_DIRECTION_X, COMPASS_LEFT_DIRECTION_Y, COMPASS_LEFT_DIRECTION_WIDTH,
-				COMPASS_LEFT_DIRECTION_HEIGHT);
-		directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite() + 1)));
-		addActor(directionLeft);
+                initializeActionButtons();
+        }
 
-		directionRight = new Image();
-		directionRight.setBounds(COMPASS_RIGHT_DIRECTION_X, COMPASS_RIGHT_DIRECTION_Y, COMPASS_RIGHT_DIRECTION_WIDTH,
-				COMPASS_RIGHT_DIRECTION_HEIGHT);
-		directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite() + 2)));
-		addActor(directionRight);
-	}
+        private void initializeCompass() {
+                directionTop = new Image();
+                directionTop.setBounds(COMPASS_TOP_DIRECTION_X, COMPASS_TOP_DIRECTION_Y, COMPASS_TOP_DIRECTION_WIDTH,
+                                COMPASS_TOP_DIRECTION_HEIGHT);
+                directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite())));
+                addActor(directionTop);
 
-	private void initializeNavigation() {
-		turnLeft = new Image();
-		turnLeft.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-		// strafeLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("heads").getSprite(2)));
-		turnLeft.addListener(new InputListener() {
+                directionLeft = new Image();
+                directionLeft.setBounds(COMPASS_LEFT_DIRECTION_X, COMPASS_LEFT_DIRECTION_Y, COMPASS_LEFT_DIRECTION_WIDTH,
+                                COMPASS_LEFT_DIRECTION_HEIGHT);
+                directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite() + 1)));
+                addActor(directionLeft);
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.getLocation().setDirection(
-						Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate270));
-				return true;
-			}
+                directionRight = new Image();
+                directionRight.setBounds(COMPASS_RIGHT_DIRECTION_X, COMPASS_RIGHT_DIRECTION_Y, COMPASS_RIGHT_DIRECTION_WIDTH,
+                                COMPASS_RIGHT_DIRECTION_HEIGHT);
+                directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite() + 2)));
+                addActor(directionRight);
+        }
 
-		});
-		addActor(turnLeft);
+        /** 创建 CAMP 和 Settings 文本按钮（i18n 文本，可点击）。
+         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置，
+         * 因为点击需要调用 GameScreen.openCampDialog() 等方法。 */
+        private void initializeActionButtons() {
+                campButton = new TextButton(
+                                LanguagesManager.getString("titles", 1), uiSkin, "transparent-font64");
+                campButton.setBounds(540, 360, 140, 50);
+                campButton.setTouchable(Touchable.enabled);
+                addActor(campButton);
 
-		forward = new Image();
-		forward.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-		forward.addListener(new InputListener() {
+                settingsButton = new TextButton(
+                                LanguagesManager.getString("titles", 3), uiSkin, "transparent-font64");
+                settingsButton.setBounds(690, 360, 140, 50);
+                settingsButton.setTouchable(Touchable.enabled);
+                addActor(settingsButton);
+        }
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.walk(0, -1);
-				return true;
-			}
+        /** 供 GameScreen 设置 CAMP 按钮的点击监听器。 */
+        public TextButton getCampButton() {
+                return campButton;
+        }
 
-		});
-		addActor(forward);
+        /** 供 GameScreen 设置 Settings 按钮的点击监听器。 */
+        public TextButton getSettingsButton() {
+                return settingsButton;
+        }
 
-		turnRight = new Image();
-		turnRight.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-		turnRight.addListener(new InputListener() {
+        private void initializeNavigation() {
+                turnLeft = new Image();
+                turnLeft.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+                // strafeLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("heads").getSprite(2)));
+                turnLeft.addListener(new InputListener() {
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.getLocation().setDirection(
-						Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate90));
-				return true;
-			}
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.getLocation().setDirection(
+                                                Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate270));
+                                return true;
+                        }
 
-		});
-		addActor(turnRight);
+                });
+                addActor(turnLeft);
 
-		left = new Image();
-		left.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT);
-		left.addListener(new InputListener() {
+                forward = new Image();
+                forward.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+                forward.addListener(new InputListener() {
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.walk(-1, 0);
-				return true;
-			}
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.walk(0, -1);
+                                return true;
+                        }
 
-		});
-		addActor(left);
+                });
+                addActor(forward);
 
-		back = new Image();
-		back.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
-				BUTTON_HEIGHT);
-		back.addListener(new InputListener() {
+                turnRight = new Image();
+                turnRight.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+                turnRight.addListener(new InputListener() {
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.walk(0, 1);
-				return true;
-			}
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.getLocation().setDirection(
+                                                Compass.rotate(team.getLocation().getDirection(), CompassRotation.Rotate90));
+                                return true;
+                        }
 
-		});
-		addActor(back);
+                });
+                addActor(turnRight);
 
-		right = new Image();
-		right.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
-				BUTTON_HEIGHT);
-		right.addListener(new InputListener() {
+                left = new Image();
+                left.setBounds(NAVIGATION_AREA_LEFT, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT);
+                left.addListener(new InputListener() {
 
-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				team.walk(1, 0);
-				return true;
-			}
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.walk(-1, 0);
+                                return true;
+                        }
 
-		});
-		addActor(right);
-	}
+                });
+                addActor(left);
 
-	@Override
-	public void update() {
-		updateCompass();
-	}
+                back = new Image();
+                back.setBounds(NAVIGATION_AREA_LEFT + BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
+                                BUTTON_HEIGHT);
+                back.addListener(new InputListener() {
 
-	/**
-	 * updates the compass images
-	 * 
-	 */
-	private void updateCompass() {
-		// TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.walk(0, 1);
+                                return true;
+                        }
 
-		directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite())));
+                });
+                addActor(back);
 
-		directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite() + 1))); // +1: read comments of
-																// DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+                right = new Image();
+                right.setBounds(NAVIGATION_AREA_LEFT + 2 * BUTTON_WIDTH, NAVIGATION_AREA_TOP - BUTTON_HEIGHT, BUTTON_WIDTH,
+                                BUTTON_HEIGHT);
+                right.addListener(new InputListener() {
 
-		directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
-				.getSprite(resolveTopDirectionSprite() + 2))); // +2: read comments of
-																// DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                team.walk(1, 0);
+                                return true;
+                        }
 
-	}
+                });
+                addActor(right);
+        }
 
-	private int resolveTopDirectionSprite() {
-		switch (team.getLocation().getDirection()) {
-		case North: // sprites: 5,6,7 in interface.png (see TextureSet.xml, line 1751)
-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
-		case South:
-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 3;
-		case West:
-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 6;
-		case East:
-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 9;
-		default:
-			return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
-		}
-	}
+        @Override
+        public void update() {
+                updateCompass();
 
-	@Override
-	public void dispose() {
-	}
+                // 根据 Settings 切换方向按钮可见性（CAMP 和 Settings 按钮始终可见）
+                Settings settings = Settings.getLastLoadedInstance();
+                boolean showNav = (settings == null) ? true : settings.isShowNavButtons();
+                if (turnLeft != null) turnLeft.setVisible(showNav);
+                if (forward != null) forward.setVisible(showNav);
+                if (turnRight != null) turnRight.setVisible(showNav);
+                if (left != null) left.setVisible(showNav);
+                if (back != null) back.setVisible(showNav);
+                if (right != null) right.setVisible(showNav);
+        }
+
+        /**
+         * updates the compass images
+         * 
+         */
+        private void updateCompass() {
+                // TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
+
+                directionTop.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite())));
+
+                directionLeft.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite() + 1))); // +1: read comments of
+                                                                                                                                // DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+
+                directionRight.setDrawable(new SpriteDrawable(GraphicAssets.getDefault().getTextureSet("interface")
+                                .getSprite(resolveTopDirectionSprite() + 2))); // +2: read comments of
+                                                                                                                                // DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML
+
+        }
+
+        private int resolveTopDirectionSprite() {
+                switch (team.getLocation().getDirection()) {
+                case North: // sprites: 5,6,7 in interface.png (see TextureSet.xml, line 1751)
+                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
+                case South:
+                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 3;
+                case West:
+                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 6;
+                case East:
+                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML + 9;
+                default:
+                        return DIRECTION_NORTH_SPRITE_IN_TEXTURE_SET_XML;
+                }
+        }
+
+        @Override
+        public void dispose() {
+        }
 }

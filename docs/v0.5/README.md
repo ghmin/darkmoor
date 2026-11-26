@@ -17,6 +17,9 @@
 | [05-libgdx-crash-course.md](05-libgdx-crash-course.md) | libGDX 入门速览（给 Java 新手） | 没用过 libGDX 的人 |
 | [06-roadmap.md](06-roadmap.md) | 已完成 / 未完成 / 下一步建议 | 决定接下来做什么的人 |
 | [07-i18n-system.md](07-i18n-system.md) | 多语言系统详解 + 中文化改造记录 | 改翻译 / 加新语言的人 |
+| [08-minimap-design.md](08-minimap-design.md) | 小地图模块设计与实现 | 想加地图功能的人 |
+| [09-input-system.md](09-input-system.md) | 键盘输入与操控系统（按键绑定 / 配置 UI） | 想改按键 / 加键盘操控的人 |
+| [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
 
 ### 子模块详细文档（位于 `modules/` 目录）
 
@@ -33,6 +36,7 @@
 | [modules/09-engine-script.md](modules/09-engine-script.md) | `com.ntk.darkmoor.engine.script` (+ `actions` + `gui`) | `ScriptBase`、`ActionBase`、20+ 个 action |
 | [modules/10-engine-monsterstate.md](modules/10-engine-monsterstate.md) | `com.ntk.darkmoor.engine.monsterstate` | `MonsterState`、`Attack`、`Hurt`、`Idle` |
 | [modules/11-exception-stub-util.md](modules/11-exception-stub-util.md) | `exception` + `stub` + `util` | `BaseException`、`Display`、`Mouse`、`RandomEnum` |
+| [modules/12-maze-system.md](modules/12-maze-system.md) | 地图系统（`Dungeon` / `Maze` / `Square` / `DungeonLocation` / `Team` 位置） | 想加地图 / 小地图 / 自动化地图的人 |
 
 ## 阅读建议
 

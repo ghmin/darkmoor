@@ -20,6 +20,7 @@ public class Settings {
 	private static final String SETTING_INPUTSCHEME = "inputscheme";
 	private static final String SETTING_SAVE_SLOTS = "saveSlots";
 	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
+	private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
 	
 	// last loaded instance. (almost) a singleton
 	private static Settings instance;
@@ -33,6 +34,7 @@ public class Settings {
 	private boolean fullScreen;
 	private int saveSlots;
 	private boolean showMinimap;
+	private boolean showNavButtons;
 
 	// the properties that hold all settings
 	private Properties props;
@@ -60,6 +62,7 @@ public class Settings {
 		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
 		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
 		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
+		settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, true));
 		
 		instance = settings;
 		
@@ -195,6 +198,19 @@ public class Settings {
 
 	public void setShowMinimap(boolean showMinimap) {
 		this.showMinimap = showMinimap;
+	}
+
+	public boolean isShowNavButtons() {
+		return showNavButtons;
+	}
+
+	public void setShowNavButtons(boolean showNavButtons) {
+		this.showNavButtons = showNavButtons;
+	}
+
+	/** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
+	public Properties getProperties() {
+		return props;
 	}
 
 	public static Settings getLastLoadedInstance() {

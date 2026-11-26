@@ -8,92 +8,94 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button;
 
 public class ScreenButton extends Button {
 
-	private EventListener selectedListener;
-	private String text;
-	private Rectangle rectangle;
-	private boolean visible;
-	private Color textColor;
-	private boolean reactOnMouseOver;
-	private Object tag;
+        private EventListener selectedListener;
+        private String text;
+        private Rectangle rectangle;
+        private boolean visible;
+        private Color textColor;
+        private boolean reactOnMouseOver;
+        private Object tag;
 
-	public ScreenButton(String text, Rectangle rectangle) {
-		this.text = text;
-		this.rectangle = rectangle;
-		this.visible = true;
-		this.textColor = Color.WHITE;
-		this.reactOnMouseOver = true;
-	}
+        public ScreenButton(String text, Rectangle rectangle) {
+                this.text = text;
+                this.rectangle = rectangle;
+                this.visible = true;
+                this.textColor = Color.WHITE;
+                this.reactOnMouseOver = true;
+        }
 
-	public void onSelectEntry() {
-//		if (getListeners().size > 0) {
-//			for (EventListener listener: getListeners()) {
-//				Event e = new Event();
-//				e.setTarget(this);
-//				listener.handle(e);
-//			}
-//		}
-		if (selectedListener != null) {
-			Event e = new Event();
-			e.setTarget(this);
-			selectedListener.handle(e);
-		}
-	}
+        public void onSelectEntry() {
+                // v0.5 修复：同时调用通过 addListener 注册的 listener（MainWindow 等用此方式）
+                if (getListeners().size > 0) {
+                        com.badlogic.gdx.scenes.scene2d.Event e = new com.badlogic.gdx.scenes.scene2d.Event();
+                        e.setTarget(this);
+                        for (EventListener listener : getListeners()) {
+                                listener.handle(e);
+                        }
+                }
+                // 兼容旧 setSelectedListener 路径
+                if (selectedListener != null) {
+                        Event e = new Event();
+                        e.setTarget(this);
+                        selectedListener.handle(e);
+                }
+        }
 
 
-	// ntk: careful here! we provide only one selected Listener!
-	public EventListener getSelectedListener() {
-		return selectedListener;
-	}
+        // ntk: careful here! we provide only one selected Listener!
+        public EventListener getSelectedListener() {
+                return selectedListener;
+        }
 
-	public void setSelectedListener(EventListener selectedListener) {
-		this.selectedListener = selectedListener;
-	}
+        public void setSelectedListener(EventListener selectedListener) {
+                this.selectedListener = selectedListener;
+        }
 
-	public String getText() {
-		return text;
-	}
+        public String getText() {
+                return text;
+        }
 
-	public void setText(String text) {
-		this.text = text;
-	}
+        public void setText(String text) {
+                this.text = text;
+        }
 
-	public Rectangle getRectangle() {
-		return rectangle;
-	}
+        public Rectangle getRectangle() {
+                return rectangle;
+        }
 
-	public void setRectangle(Rectangle rectangle) {
-		this.rectangle = rectangle;
-	}
+        public void setRectangle(Rectangle rectangle) {
+                this.rectangle = rectangle;
+        }
 
-	public boolean isVisible() {
-		return visible;
-	}
+        public boolean isVisible() {
+                return visible;
+        }
 
-	public void setVisible(boolean visible) {
-		this.visible = visible;
-	}
+        public void setVisible(boolean visible) {
+                this.visible = visible;
+        }
 
-	public Color getTextColor() {
-		return textColor;
-	}
+        public Color getTextColor() {
+                return textColor;
+        }
 
-	public void setTextColor(Color textColor) {
-		this.textColor = textColor;
-	}
+        public void setTextColor(Color textColor) {
+                this.textColor = textColor;
+        }
 
-	public boolean isReactOnMouseOver() {
-		return reactOnMouseOver;
-	}
+        public boolean isReactOnMouseOver() {
+                return reactOnMouseOver;
+        }
 
-	public void setReactOnMouseOver(boolean reactOnMouseOver) {
-		this.reactOnMouseOver = reactOnMouseOver;
-	}
+        public void setReactOnMouseOver(boolean reactOnMouseOver) {
+                this.reactOnMouseOver = reactOnMouseOver;
+        }
 
-	public Object getTag() {
-		return tag;
-	}
+        public Object getTag() {
+                return tag;
+        }
 
-	public void setTag(Object tag) {
-		this.tag = tag;
-	}
+        public void setTag(Object tag) {
+                this.tag = tag;
+        }
 }
