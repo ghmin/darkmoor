@@ -1,122 +1,95 @@
+apply plugin: 'com.android.application'
+
 android {
-    buildToolsVersion "21.1.2"
-    compileSdkVersion 21
+    // AGP 8+ requires the namespace here (previously declared as `package` in AndroidManifest.xml).
+    namespace 'com.ntk.darkmoor.android'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.ntk.darkmoor.android'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = ['src']
-            resources.srcDirs = ['src']
-            aidl.srcDirs = ['src']
-            renderscript.srcDirs = ['src']
-            res.srcDirs = ['res']
-            assets.srcDirs = ['assets']
+            java.srcDirs = [ 'src' ]
+            resources.srcDirs = [ 'src' ]
+            aidl.srcDirs = [ 'src' ]
+            renderscript.srcDirs = [ 'src' ]
+            res.srcDirs = [ 'res' ]
+            assets.srcDirs = [ 'assets' ]
         }
+        androidTest.setRoot 'tests'
+    }
 
-        instrumentTest.setRoot('tests')
+    packaging {
+        // libGDX ships duplicate files across native jars; let AGP pick the first one.
+        jniLibs.useLegacyPackaging = false
     }
 }
 
-// needed to add JNI shared libraries to APK when compiling on CLI
-tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
-    pkgTask.jniFolders = new HashSet<File>()
-    pkgTask.jniFolders.add(new File(projectDir, 'libs'))
+configurations { natives }
+
+dependencies {
+    implementation project(':core')
+    implementation "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
+    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a"
+    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-arm64-v8a"
+    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86"
+    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86_64"
+    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-armeabi-v7a"
+    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-arm64-v8a"
+    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86"
+    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86_64"
 }
 
-// called every time gradle gets executed, takes the native dependencies of
-// the natives configuration, and extracts them to the proper libs/ folders
-// so they get packed with the APK.
-task copyAndroidNatives() { 
-    file("libs/armeabi/").mkdirs();
-    file("libs/armeabi-v7a/").mkdirs();
-    file("libs/x86/").mkdirs();
-
-    configurations.natives.files.each { jar ->
-        def outputDir = null
-        if(jar.name.endsWith("natives-armeabi-v7a.jar")) outputDir = file("libs/armeabi-v7a")
-        if(jar.name.endsWith("natives-armeabi.jar")) outputDir = file("libs/armeabi")
-        if(jar.name.endsWith("natives-x86.jar")) outputDir = file("libs/x86")
-        if(outputDir != null) {
-            copy {
-                from zipTree(jar)
-                into outputDir
-                include "*.so"
-            }
+// Extract native .so files from the `natives` configuration into the per-ABI
+// jniLibs folders so they get packaged into the APK. Replaces the old
+// `tasks.withType(PackageApplication).jniFolders` API removed in AGP 8.
+task copyAndroidNatives {
+    doFirst {
+        [ 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64' ].each { abi ->
+            file("libs/${abi}").mkdirs()
         }
-    }
-}
-
-task run(type: Exec) {
-    def path
-    def localProperties = project.file("../local.properties")
-    if (localProperties.exists()) {
-        Properties properties = new Properties()
-        localProperties.withInputStream { instr ->
-            properties.load(instr)
-        }
-        def sdkDir = properties.getProperty('sdk.dir')
-        if (sdkDir) {
-            path = sdkDir
-        } else {
-            path = "$System.env.ANDROID_HOME"
-        }
-    } else {
-        path = "$System.env.ANDROID_HOME"
-    }
-
-    def adb = path + "/platform-tools/adb"
-    commandLine "$adb", 'shell', 'am', 'start', '-n', 'com.mygdx.game.android/com.mygdx.game.android.AndroidLauncher'
-}
-
-// sets up the Android Eclipse project, using the old Ant based build.
-eclipse {
-    // need to specify Java source sets explicitely, SpringSource Gradle Eclipse plugin
-    // ignores any nodes added in classpath.file.withXml
-    sourceSets {
-        main {
-            java.srcDirs "src", 'gen'
-        }
-    }
-
-    jdt {
-        sourceCompatibility = 1.6
-        targetCompatibility = 1.6
-    }
-
-    classpath {
-        plusConfigurations += [ project.configurations.compile ]        
-        containers 'com.android.ide.eclipse.adt.ANDROID_FRAMEWORK', 'com.android.ide.eclipse.adt.LIBRARIES'       
-    }
-
-    project {
-        name = appName + "-android"
-        natures 'com.android.ide.eclipse.adt.AndroidNature'
-        buildCommands.clear();
-        buildCommand "com.android.ide.eclipse.adt.ResourceManagerBuilder"
-        buildCommand "com.android.ide.eclipse.adt.PreCompilerBuilder"
-        buildCommand "org.eclipse.jdt.core.javabuilder"
-        buildCommand "com.android.ide.eclipse.adt.ApkBuilder"
-    }
-}
-
-// sets up the Android Idea project, using the old Ant based build.
-idea {
-    module {
-        sourceDirs += file("src");
-        scopes = [ COMPILE: [plus:[project.configurations.compile]]]        
-
-        iml {
-            withXml {
-                def node = it.asNode()
-                def builder = NodeBuilder.newInstance();
-                builder.current = node;
-                builder.component(name: "FacetManager") {
-                    facet(type: "android", name: "Android") {
-                        configuration {
-                            option(name: "UPDATE_PROPERTY_FILES", value:"true")
-                        }
-                    }
+        configurations.natives.files.each { jar ->
+            def abi = jar.name.find(/natives-(armeabi-v7a|arm64-v8a|x86|x86_64)\.jar/) { _, a -> a }
+            if (abi) {
+                copy {
+                    from zipTree(jar)
+                    into "libs/${abi}"
+                    include '*.so'
                 }
             }
         }
     }
+}
+
+tasks.matching { it.name.matches(/merge.*JniLibFolders|package.*Debug|package.*Release/) }.configureEach {
+    it.dependsOn copyAndroidNatives
+}
+
+// `run` task: launches the app on a connected device via adb.
+task run(type: Exec) {
+    def localProperties = project.file('../local.properties')
+    def path = null
+    if (localProperties.exists()) {
+        Properties props = new Properties()
+        localProperties.withInputStream { props.load(it) }
+        path = props.getProperty('sdk.dir') ?: "$System.env.ANDROID_HOME"
+    } else {
+        path = "$System.env.ANDROID_HOME"
+    }
+    def adb = path + '/platform-tools/adb'
+    commandLine adb, 'shell', 'am', 'start', '-n',
+        'com.ntk.darkmoor.android/.com.ntk.darkmoor.android.AndroidLauncher'
 }

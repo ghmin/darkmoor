@@ -1,1 +1,16 @@
-include 'desktop', 'android', 'ios', 'html', 'core'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'darkmoor'
+
+// Active subprojects (kept buildable after the 2026 dependency upgrade).
+// 'ios' and 'html' have been excluded from the build:
+//   * ios   - RoboVM is unmaintained; use MobiVM (or libGDX MOE backend) to re-enable later.
+//   * html  - the old gwt-gradle-plugin 0.4 is incompatible with Gradle 8; re-enable after
+//             migrating to org.gwtproject.gradle:gwt-gradle-plugin:1.1.0+ and GWT 2.10+.
+include 'core', 'desktop' // --ignore  'android' now(暂时忽略android版本)

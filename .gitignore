@@ -24,8 +24,12 @@ www-test/
 ## Android Studio and Intellij and Android in general
 android/libs/armeabi/
 android/libs/armeabi-v7a/
+android/libs/arm64-v8a/
 android/libs/x86/
+android/libs/x86_64/
 android/gen/
+android/build/
+
 .idea/
 *.ipr
 *.iws
@@ -70,3 +74,4 @@ IceCaps.ttf
 main.ogg
 gdx-freetype.jar
 gdx-freetype-natives.jar
+.idea

@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ntk.darkmoor.android"
-    android:versionCode="1"
-    android:versionName="1.0" >
-
-    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="19" />
+<!-- AGP 8+ requires the `package`/namespace to be set in build.gradle (as `namespace`).
+     minSdk/targetSdk are now also declared in build.gradle (defaultConfig). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
         android:allowBackup="true"
@@ -13,7 +10,7 @@
         android:theme="@style/GdxTheme" >
         <activity
             android:name="com.ntk.darkmoor.android.AndroidLauncher"
-            android:label="@string/app_name" 
+            android:label="@string/app_name"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
             <intent-filter>

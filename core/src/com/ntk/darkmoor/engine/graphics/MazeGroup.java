@@ -200,8 +200,12 @@ public class MazeGroup extends GameScreenGroup implements Disposable {
 	public void drawChildren(Batch batch, float parentAlpha) {
 		Rectangle scissors = new Rectangle();
 		Rectangle clipBounds = new Rectangle(-1f, -0.21f, 1.111f, 1.25f);
-		ScissorStack.calculateScissors(DarkmoorGame.getInstance().getCamera(), batch.getTransformMatrix(), clipBounds,
-				scissors);
+		// libGDX 1.13+ removed the deprecated 4-arg calculateScissors(Camera, Matrix4, Rectangle, Rectangle).
+		// Use the 8-arg overload that takes the explicit viewport bounds instead.
+		ScissorStack.calculateScissors(
+				DarkmoorGame.getInstance().getCamera(),
+				0, 0, com.badlogic.gdx.Gdx.graphics.getWidth(), com.badlogic.gdx.Gdx.graphics.getHeight(),
+				batch.getTransformMatrix(), clipBounds, scissors);
 
 		if (ScissorStack.pushScissors(scissors)) {
 			batch.flush();

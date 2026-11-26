@@ -1,13 +1,16 @@
-apply plugin: "java"
+apply plugin: 'java'
 
-sourceCompatibility = 1.6
-sourceSets.main.java.srcDirs = [ "src/" ]
+sourceCompatibility = 21
+targetCompatibility = 21
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
-project.ext.mainClassName = "com.ntk.darkmoor.desktop.DesktopLauncher"
-project.ext.assetsDir = new File("../android/assets");
+sourceSets.main.java.srcDirs = [ 'src/' ]
+
+project.ext.mainClassName = 'com.ntk.darkmoor.desktop.DesktopLauncher'
+project.ext.assetsDir = new File('../android/assets')
 
 task run(dependsOn: classes, type: JavaExec) {
-    main = project.mainClassName
+    mainClass = project.mainClassName
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in
     workingDir = project.assetsDir
@@ -15,32 +18,16 @@ task run(dependsOn: classes, type: JavaExec) {
 }
 
 task dist(type: Jar) {
-    from files(sourceSets.main.output.classesDir)
+    // `classesDirs` (plural) replaced the deprecated single `classesDir` in Gradle 7+.
+    from files(sourceSets.main.output.classesDirs)
     from files(sourceSets.main.output.resourcesDir)
-    from {configurations.compile.collect {zipTree(it)}}
-    from files(project.assetsDir);
- 
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    from files(project.assetsDir)
+
     manifest {
         attributes 'Main-Class': project.mainClassName
     }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 dist.dependsOn classes
-
-eclipse {
-    project {
-        name = appName + "-desktop"
-        linkedResource name: 'assets', type: '2', location: 'PARENT-1-PROJECT_LOC/android/assets'
-    }
-}
-
-task afterEclipseImport(description: "Post processing after project generation", group: "IDE") {
-  doLast {
-    def classpath = new XmlParser().parse(file(".classpath"))
-    new Node(classpath, "classpathentry", [ kind: 'src', path: 'assets' ]);
-    def writer = new FileWriter(file(".classpath"))
-    def printer = new XmlNodePrinter(new PrintWriter(writer))
-    printer.setPreserveWhitespace(true)
-    printer.print(classpath)
-  }
-}

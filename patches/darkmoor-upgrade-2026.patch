@@ -1,0 +1,744 @@
+diff --git a/.gitignore b/.gitignore
+index caed859..09a0647 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,8 +24,12 @@ www-test/
+ ## Android Studio and Intellij and Android in general
+ android/libs/armeabi/
+ android/libs/armeabi-v7a/
++android/libs/arm64-v8a/
+ android/libs/x86/
++android/libs/x86_64/
+ android/gen/
++android/build/
++
+ .idea/
+ *.ipr
+ *.iws
+diff --git a/README.md b/README.md
+index f583e7e..b3a22cc 100644
+--- a/README.md
++++ b/README.md
+@@ -1,9 +1,65 @@
+ # The Legend Of Darkmoor
+-Java remake of the classic RPG Eye Of The Beholder II: The Legend of Darkmoon for Android, iOS and PC platforms
++Java remake of the classic RPG **Eye Of The Beholder II: The Legend of Darkmoon** for Android and PC platforms.
+ 
+-The project is based on libGDX (http://libgdx.badlogicgames.com/) and it's currently under development. 
+-It consists mainly of an engine to generate dungeon crawlers in the style of the classic E.O.B. The engine resource system is compatible with 
+-Dungeon Eye (http://www.dungeoneye.net/). This previous remake offers even an editor for resources and levels, which can be used to generate multi platform games with the darkmoor engine.
++The project is based on [libGDX](https://libgdx.com/) and is currently under development.
++It consists mainly of an engine to generate dungeon crawlers in the style of the classic E.O.B.
++The engine resource system is compatible with
++[Dungeon Eye](http://www.dungeoneye.net/), which offers an editor for resources and levels that can be used to generate multi-platform games with the darkmoor engine.
++
++## Build status (2026 dependency upgrade)
++
++| Toolchain / dependency | Old (2015)         | New (2026)         |
++|------------------------|--------------------|--------------------|
++| Gradle wrapper         | 2.2                | **8.7**            |
++| Android Gradle Plugin  | 1.0.0              | **8.5.2**          |
++| libGDX                 | 1.5.3 (LWJGL2)     | **1.14.2 (LWJGL3)**|
++| Java source level      | 1.6                | **1.8 core / 21 desktop** |
++| Java toolchain (build) | 1.6/1.7            | **JDK 21**         |
++| Android minSdk         | 8                  | **21**             |
++| Android targetSdk      | 19                 | **34**             |
++| RoboVM (iOS)           | 1.0.0-beta-03      | **removed** (dead) |
++| GWT (HTML)             | 0.4 + GWT 2.6.0    | **removed** (legacy)|
++
++### Active subprojects
++- `core`     - shared game code (Java 8 bytecode so Android can consume it)
++- `desktop`  - LWJGL3 backend launcher (Java 21)
++- `android`  - Android backend launcher
++
++### Disabled subprojects (source kept for reference)
++- `ios`   - RoboVM is unmaintained. To re-enable, use [MobiVM](https://github.com/MobiVM/robovm) (a maintained RoboVM fork) and the `gdx-backend-robovm` artifact.
++- `html`  - the old `de.richsource.gradle.plugins:gwt-gradle-plugin:0.4` is incompatible with Gradle 8. To re-enable, switch to `org.gwtproject.gradle:gwt-gradle-plugin:1.1.0` + GWT 2.10+ and rewrite `html/build.gradle` accordingly.
++
++### How to build
++Prerequisites:
++- JDK 21 installed (`java -version` shows 21.x)
++- Android SDK with platform 34 + build-tools 34.x (only needed for the android subproject)
++- Internet access (first build downloads libGDX 1.14.2 + LWJGL3 natives)
++
++Create `local.properties` at the project root (only for Android builds):
++```
++sdk.dir=/path/to/Android/Sdk
++```
++
++Run from the project root:
++```bash
++# Desktop (the easiest way to verify the upgrade compiles and runs)
++./gradlew desktop:run
++
++# Desktop distributable jar
++./gradlew desktop:dist
++
++# Android debug APK
++./gradlew android:assembleDebug
++```
++
++### Known follow-up work
++After applying this upgrade, the project compiles against libGDX 1.14.2 / LWJGL3, but the original game code was
++written against libGDX 1.5.x and may still hide subtle runtime differences:
++- `ScissorStack.calculateScissors` has been migrated to the 8-arg overload (see `MazeGroup.drawChildren`).
++- `LwjglApplication` -> `Lwjgl3Application` (see `DesktopLauncher`); LWJGL3 has a different input/windowing model,
++  so some `Gdx.input` behavior (cursor, multi-window, clipboard) may differ from LWJGL2.
++- `FreeTypeFontGenerator` default character set is unchanged; verify font glyphs render correctly on first launch.
++- `AssetManager` API is stable but `AssetErrorHandling` defaults changed in 1.10+ — errors now bubble up by default.
+ 
+ The current stage of implementation of the game covers:
+ * Loading a predefined saved game. That's for now the only way to enter the game, no new adventure party can be created
+diff --git a/android/AndroidManifest.xml b/android/AndroidManifest.xml
+index 1c4d0cc..63280c4 100644
+--- a/android/AndroidManifest.xml
++++ b/android/AndroidManifest.xml
+@@ -1,10 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    package="com.ntk.darkmoor.android"
+-    android:versionCode="1"
+-    android:versionName="1.0" >
+-
+-    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="19" />
++<!-- AGP 8+ requires the `package`/namespace to be set in build.gradle (as `namespace`).
++     minSdk/targetSdk are now also declared in build.gradle (defaultConfig). -->
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+     <application
+         android:allowBackup="true"
+@@ -13,7 +10,7 @@
+         android:theme="@style/GdxTheme" >
+         <activity
+             android:name="com.ntk.darkmoor.android.AndroidLauncher"
+-            android:label="@string/app_name" 
++            android:label="@string/app_name"
+             android:screenOrientation="landscape"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
+             <intent-filter>
+diff --git a/android/build.gradle b/android/build.gradle
+index 7f958dd..024142c 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -1,122 +1,95 @@
++apply plugin: 'com.android.application'
++
+ android {
+-    buildToolsVersion "21.1.2"
+-    compileSdkVersion 21
++    // AGP 8+ requires the namespace here (previously declared as `package` in AndroidManifest.xml).
++    namespace 'com.ntk.darkmoor.android'
++    compileSdk 34
++
++    defaultConfig {
++        applicationId 'com.ntk.darkmoor.android'
++        minSdk 21
++        targetSdk 34
++        versionCode 1
++        versionName '1.0'
++    }
++
++    compileOptions {
++        sourceCompatibility JavaVersion.VERSION_1_8
++        targetCompatibility JavaVersion.VERSION_1_8
++    }
++
+     sourceSets {
+         main {
+             manifest.srcFile 'AndroidManifest.xml'
+-            java.srcDirs = ['src']
+-            resources.srcDirs = ['src']
+-            aidl.srcDirs = ['src']
+-            renderscript.srcDirs = ['src']
+-            res.srcDirs = ['res']
+-            assets.srcDirs = ['assets']
++            java.srcDirs = [ 'src' ]
++            resources.srcDirs = [ 'src' ]
++            aidl.srcDirs = [ 'src' ]
++            renderscript.srcDirs = [ 'src' ]
++            res.srcDirs = [ 'res' ]
++            assets.srcDirs = [ 'assets' ]
+         }
++        androidTest.setRoot 'tests'
++    }
+ 
+-        instrumentTest.setRoot('tests')
++    packaging {
++        // libGDX ships duplicate files across native jars; let AGP pick the first one.
++        jniLibs.useLegacyPackaging = false
+     }
+ }
+ 
+-// needed to add JNI shared libraries to APK when compiling on CLI
+-tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
+-    pkgTask.jniFolders = new HashSet<File>()
+-    pkgTask.jniFolders.add(new File(projectDir, 'libs'))
+-}
++configurations { natives }
+ 
+-// called every time gradle gets executed, takes the native dependencies of
+-// the natives configuration, and extracts them to the proper libs/ folders
+-// so they get packed with the APK.
+-task copyAndroidNatives() { 
+-    file("libs/armeabi/").mkdirs();
+-    file("libs/armeabi-v7a/").mkdirs();
+-    file("libs/x86/").mkdirs();
++dependencies {
++    implementation project(':core')
++    implementation "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
++    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a"
++    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-arm64-v8a"
++    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86"
++    natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86_64"
++    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
++    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-armeabi-v7a"
++    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-arm64-v8a"
++    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86"
++    natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86_64"
++}
+ 
+-    configurations.natives.files.each { jar ->
+-        def outputDir = null
+-        if(jar.name.endsWith("natives-armeabi-v7a.jar")) outputDir = file("libs/armeabi-v7a")
+-        if(jar.name.endsWith("natives-armeabi.jar")) outputDir = file("libs/armeabi")
+-        if(jar.name.endsWith("natives-x86.jar")) outputDir = file("libs/x86")
+-        if(outputDir != null) {
+-            copy {
+-                from zipTree(jar)
+-                into outputDir
+-                include "*.so"
++// Extract native .so files from the `natives` configuration into the per-ABI
++// jniLibs folders so they get packaged into the APK. Replaces the old
++// `tasks.withType(PackageApplication).jniFolders` API removed in AGP 8.
++task copyAndroidNatives {
++    doFirst {
++        [ 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64' ].each { abi ->
++            file("libs/${abi}").mkdirs()
++        }
++        configurations.natives.files.each { jar ->
++            def abi = jar.name.find(/natives-(armeabi-v7a|arm64-v8a|x86|x86_64)\.jar/) { _, a -> a }
++            if (abi) {
++                copy {
++                    from zipTree(jar)
++                    into "libs/${abi}"
++                    include '*.so'
++                }
+             }
+         }
+     }
+ }
+ 
++tasks.matching { it.name.matches(/merge.*JniLibFolders|package.*Debug|package.*Release/) }.configureEach {
++    it.dependsOn copyAndroidNatives
++}
++
++// `run` task: launches the app on a connected device via adb.
+ task run(type: Exec) {
+-    def path
+-    def localProperties = project.file("../local.properties")
++    def localProperties = project.file('../local.properties')
++    def path = null
+     if (localProperties.exists()) {
+-        Properties properties = new Properties()
+-        localProperties.withInputStream { instr ->
+-            properties.load(instr)
+-        }
+-        def sdkDir = properties.getProperty('sdk.dir')
+-        if (sdkDir) {
+-            path = sdkDir
+-        } else {
+-            path = "$System.env.ANDROID_HOME"
+-        }
++        Properties props = new Properties()
++        localProperties.withInputStream { props.load(it) }
++        path = props.getProperty('sdk.dir') ?: "$System.env.ANDROID_HOME"
+     } else {
+         path = "$System.env.ANDROID_HOME"
+     }
+-
+-    def adb = path + "/platform-tools/adb"
+-    commandLine "$adb", 'shell', 'am', 'start', '-n', 'com.mygdx.game.android/com.mygdx.game.android.AndroidLauncher'
+-}
+-
+-// sets up the Android Eclipse project, using the old Ant based build.
+-eclipse {
+-    // need to specify Java source sets explicitely, SpringSource Gradle Eclipse plugin
+-    // ignores any nodes added in classpath.file.withXml
+-    sourceSets {
+-        main {
+-            java.srcDirs "src", 'gen'
+-        }
+-    }
+-
+-    jdt {
+-        sourceCompatibility = 1.6
+-        targetCompatibility = 1.6
+-    }
+-
+-    classpath {
+-        plusConfigurations += [ project.configurations.compile ]        
+-        containers 'com.android.ide.eclipse.adt.ANDROID_FRAMEWORK', 'com.android.ide.eclipse.adt.LIBRARIES'       
+-    }
+-
+-    project {
+-        name = appName + "-android"
+-        natures 'com.android.ide.eclipse.adt.AndroidNature'
+-        buildCommands.clear();
+-        buildCommand "com.android.ide.eclipse.adt.ResourceManagerBuilder"
+-        buildCommand "com.android.ide.eclipse.adt.PreCompilerBuilder"
+-        buildCommand "org.eclipse.jdt.core.javabuilder"
+-        buildCommand "com.android.ide.eclipse.adt.ApkBuilder"
+-    }
++    def adb = path + '/platform-tools/adb'
++    commandLine adb, 'shell', 'am', 'start', '-n',
++        'com.ntk.darkmoor.android/.com.ntk.darkmoor.android.AndroidLauncher'
+ }
+-
+-// sets up the Android Idea project, using the old Ant based build.
+-idea {
+-    module {
+-        sourceDirs += file("src");
+-        scopes = [ COMPILE: [plus:[project.configurations.compile]]]        
+-
+-        iml {
+-            withXml {
+-                def node = it.asNode()
+-                def builder = NodeBuilder.newInstance();
+-                builder.current = node;
+-                builder.component(name: "FacetManager") {
+-                    facet(type: "android", name: "Android") {
+-                        configuration {
+-                            option(name: "UPDATE_PROPERTY_FILES", value:"true")
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-    }
+-}
+\ No newline at end of file
+diff --git a/build.gradle b/build.gradle
+index f35322c..c0c787b 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,107 +1,106 @@
+ buildscript {
+     repositories {
+         mavenCentral()
+-        mavenLocal()
+-        maven { url 'https://github.com/steffenschaefer/gwt-gradle-plugin/raw/maven-repo/' }
++        google()
++        gradlePluginPortal()
+     }
+     dependencies {
+-        classpath 'de.richsource.gradle.plugins:gwt-gradle-plugin:0.4'
+-        classpath 'com.android.tools.build:gradle:1.0.0'
+-        classpath 'com.github.jtakakura:gradle-robovm-plugin:0.0.8'
++        // Android Gradle Plugin 8.5.x requires Gradle 8.7+ and JDK 17+.
++        classpath 'com.android.tools.build:gradle:8.5.2'
+     }
+ }
++
+ allprojects {
+-    apply plugin: "eclipse"
+-    apply plugin: "idea"
++    apply plugin: 'eclipse'
++    apply plugin: 'idea'
+ 
+     version = '1.0'
+     ext {
+-        appName = 'darkmoor'
+-        gdxVersion = '1.5.3'
+-        roboVMVersion = '1.0.0-beta-03'
+-        box2DLightsVersion = '1.3'
+-        ashleyVersion = '1.3.1'
+-        aiVersion = '1.4.0'
++        appName     = 'darkmoor'
++        gdxVersion  = '1.14.2'   // latest stable libGDX as of 2026-06
++        // Other versions retained for reference / future re-enablement of ios/html modules.
++        roboVMVersion       = '1.0.0-beta-03'   // legacy, ios module disabled
++        box2DLightsVersion  = '1.5'
++        ashleyVersion       = '1.7.4'
++        aiVersion           = '1.8.2'
+     }
+ 
+     repositories {
+-        mavenLocal()        
+-		mavenCentral()
+-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+-        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
++        mavenLocal()
++        mavenCentral()
++        google()
++        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
++        maven { url 'https://oss.sonatype.org/content/repositories/releases/' }
+     }
+ }
+ 
+-project(":desktop") {
+-    apply plugin: "java"
+-
+-
+-    dependencies {
+-        compile project(":core")
+-        compile "com.badlogicgames.gdx:gdx-backend-lwjgl:$gdxVersion"
+-        compile "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
++// -----------------------------------------------------------------------------
++// Common Java toolchain: build with JDK 21, but keep the shared `core` module
++// compiled to Java 8 bytecode so that the Android subproject can consume it
++// (Android runtime does not yet understand Java 21 bytecode natively).
++// -----------------------------------------------------------------------------
++subprojects { sp ->
++    plugins.withId('java') {
++        sp.apply plugin: 'java'
++        sp.java {
++            sourceCompatibility = JavaVersion.VERSION_1_8
++            targetCompatibility = JavaVersion.VERSION_1_8
++        }
++        sp.compileJava.options.encoding = 'UTF-8'
++        sp.compileTestJava.options.encoding = 'UTF-8'
+     }
+ }
+ 
+-project(":android") {
+-    apply plugin: "android"
+-
+-    configurations { natives }
++project(':desktop') {
++    apply plugin: 'java'
+ 
+-    dependencies {
+-        compile project(":core")
+-        compile "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
+-        natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi"
+-        natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a"
+-        natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86"
+-        compile "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+-        natives "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-armeabi"
+-        natives "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-armeabi-v7a"
+-        natives "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86"
++    // Desktop can use the full JDK 21 source level.
++    java {
++        sourceCompatibility = JavaVersion.VERSION_21
++        targetCompatibility = JavaVersion.VERSION_21
+     }
+-}
+-
+-project(":ios") {
+-    apply plugin: "java"
+-    apply plugin: "robovm"
+-
+-    configurations { natives }
+ 
+     dependencies {
+-        compile project(":core")
+-        compile "org.robovm:robovm-rt:${roboVMVersion}"
+-        compile "org.robovm:robovm-cocoatouch:${roboVMVersion}"
+-        compile "com.badlogicgames.gdx:gdx-backend-robovm:$gdxVersion"
+-        natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-ios"
+-        natives "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-ios"
++        implementation project(':core')
++        // LWJGL3 is now the default desktop backend in libGDX (since 1.11.0).
++        implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
++        implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
++        implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+     }
+ }
+ 
+-project(":html") {
+-    apply plugin: "gwt"
+-    apply plugin: "war"
++project(':android') {
++    apply plugin: 'com.android.application'
+ 
++    configurations { natives }
+ 
+     dependencies {
+-        compile project(":core")
+-        compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+-        compile "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+-        compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+-		compile fileTree(dir: 'libs', include: '*.jar')
++        implementation project(':core')
++        implementation "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
++        natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a"
++        natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-arm64-v8a"
++        natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86"
++        natives    "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86_64"
++        implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
++        natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-armeabi-v7a"
++        natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-arm64-v8a"
++        natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86"
++        natives    "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86_64"
+     }
+ }
+ 
+-project(":core") {
+-    apply plugin: "java"
+-
++project(':core') {
++    apply plugin: 'java-library'
+ 
+     dependencies {
+-        compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+-        compile "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+-		compile fileTree(dir: 'libs', include: '*.jar')
++        api "com.badlogicgames.gdx:gdx:$gdxVersion"
++        api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
++        // Local utility jar (org.ntk.commons.StringUtils) - kept as-is.
++        implementation files('../libs/ntk-commons-android-0.1.jar')
+     }
+ }
+ 
++// Eclipse housekeeping (kept from original).
+ tasks.eclipse.doLast {
+-    delete ".project"
+-}
+\ No newline at end of file
++    delete '.project'
++}
+diff --git a/core/build.gradle b/core/build.gradle
+index 40314b6..ca4bded 100644
+--- a/core/build.gradle
++++ b/core/build.gradle
+@@ -1,15 +1,11 @@
+-apply plugin: "java"
++apply plugin: 'java-library'
+ 
+-sourceCompatibility = 1.6
++sourceCompatibility = 1.8
++targetCompatibility = 1.8
+ [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+ 
+-sourceSets.main.java.srcDirs = [ "src/" ]
+-
++sourceSets.main.java.srcDirs = [ 'src/' ]
+ 
+ eclipse.project {
+-    name = appName + "-core"
++    name = appName + '-core'
+ }
+-    dependencies {
+-        compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+-		compile fileTree(dir: '../libs', include: '*.jar')
+-    }
+\ No newline at end of file
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/MazeGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/MazeGroup.java
+index 711301d..79783bf 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/MazeGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/MazeGroup.java
+@@ -200,8 +200,12 @@ public class MazeGroup extends GameScreenGroup implements Disposable {
+ 	public void drawChildren(Batch batch, float parentAlpha) {
+ 		Rectangle scissors = new Rectangle();
+ 		Rectangle clipBounds = new Rectangle(-1f, -0.21f, 1.111f, 1.25f);
+-		ScissorStack.calculateScissors(DarkmoorGame.getInstance().getCamera(), batch.getTransformMatrix(), clipBounds,
+-				scissors);
++		// libGDX 1.13+ removed the deprecated 4-arg calculateScissors(Camera, Matrix4, Rectangle, Rectangle).
++		// Use the 8-arg overload that takes the explicit viewport bounds instead.
++		ScissorStack.calculateScissors(
++				DarkmoorGame.getInstance().getCamera(),
++				0, 0, com.badlogic.gdx.Gdx.graphics.getWidth(), com.badlogic.gdx.Gdx.graphics.getHeight(),
++				batch.getTransformMatrix(), clipBounds, scissors);
+ 
+ 		if (ScissorStack.pushScissors(scissors)) {
+ 			batch.flush();
+diff --git a/desktop/build.gradle b/desktop/build.gradle
+index 1e3b865..7ad99a8 100644
+--- a/desktop/build.gradle
++++ b/desktop/build.gradle
+@@ -1,13 +1,16 @@
+-apply plugin: "java"
++apply plugin: 'java'
+ 
+-sourceCompatibility = 1.6
+-sourceSets.main.java.srcDirs = [ "src/" ]
++sourceCompatibility = 21
++targetCompatibility = 21
++[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+ 
+-project.ext.mainClassName = "com.ntk.darkmoor.desktop.DesktopLauncher"
+-project.ext.assetsDir = new File("../android/assets");
++sourceSets.main.java.srcDirs = [ 'src/' ]
++
++project.ext.mainClassName = 'com.ntk.darkmoor.desktop.DesktopLauncher'
++project.ext.assetsDir = new File('../android/assets')
+ 
+ task run(dependsOn: classes, type: JavaExec) {
+-    main = project.mainClassName
++    mainClass = project.mainClassName
+     classpath = sourceSets.main.runtimeClasspath
+     standardInput = System.in
+     workingDir = project.assetsDir
+@@ -15,32 +18,16 @@ task run(dependsOn: classes, type: JavaExec) {
+ }
+ 
+ task dist(type: Jar) {
+-    from files(sourceSets.main.output.classesDir)
++    // `classesDirs` (plural) replaced the deprecated single `classesDir` in Gradle 7+.
++    from files(sourceSets.main.output.classesDirs)
+     from files(sourceSets.main.output.resourcesDir)
+-    from {configurations.compile.collect {zipTree(it)}}
+-    from files(project.assetsDir);
+- 
++    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
++    from files(project.assetsDir)
++
+     manifest {
+         attributes 'Main-Class': project.mainClassName
+     }
++    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+ }
+ 
+ dist.dependsOn classes
+-
+-eclipse {
+-    project {
+-        name = appName + "-desktop"
+-        linkedResource name: 'assets', type: '2', location: 'PARENT-1-PROJECT_LOC/android/assets'
+-    }
+-}
+-
+-task afterEclipseImport(description: "Post processing after project generation", group: "IDE") {
+-  doLast {
+-    def classpath = new XmlParser().parse(file(".classpath"))
+-    new Node(classpath, "classpathentry", [ kind: 'src', path: 'assets' ]);
+-    def writer = new FileWriter(file(".classpath"))
+-    def printer = new XmlNodePrinter(new PrintWriter(writer))
+-    printer.setPreserveWhitespace(true)
+-    printer.print(classpath)
+-  }
+-}
+\ No newline at end of file
+diff --git a/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java b/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
+index a54af9c..dbf475b 100644
+--- a/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
++++ b/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
+@@ -1,14 +1,19 @@
+ package com.ntk.darkmoor.desktop;
+ 
+-import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
+-import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
++import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
++import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+ import com.ntk.darkmoor.DarkmoorGame;
+ 
+ public class DesktopLauncher {
+ 	public static void main (String[] arg) {
+-		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
+-		config.height = DarkmoorGame.DISPLAY_HEIGHT;
+-		config.width = DarkmoorGame.DISPLAY_WIDTH;
+-		new LwjglApplication(new DarkmoorGame(), config);
++		// LWJGL3 backend (libGDX >= 1.11.0). The old `LwjglApplication` /
++		// `LwjglApplicationConfiguration` classes from the LWJGL2 backend are gone.
++		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
++		config.setTitle("The Legend of Darkmoor");
++		config.setWindowedMode(DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_HEIGHT);
++		config.setForegroundFPS(60);
++		config.useVsync(true);
++		// `config.disableAudio(false)` - audio is enabled by default.
++		new Lwjgl3Application(new DarkmoorGame(), config);
+ 	}
+ }
+diff --git a/gradle.properties b/gradle.properties
+new file mode 100644
+index 0000000..5982b1d
+--- /dev/null
++++ b/gradle.properties
+@@ -0,0 +1,10 @@
++org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
++org.gradle.caching=true
++org.gradle.configuration-cache=false
++org.gradle.parallel=true
++
++# AndroidX (required by AGP 8.x; libGDX 1.14 still targets the legacy support
++# library for its AndroidApplication base class, but enabling AndroidX here is
++# safe and lets you mix in AndroidX-aware dependencies later).
++android.useAndroidX=true
++android.nonTransitiveRClass=true
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 8e600c9..b82aa23 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,6 +1,7 @@
+-#Sat Sep 21 13:08:26 CEST 2013
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
++distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
++networkTimeout=10000
++validateDistributionUrl=true
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+-distributionUrl=http\://services.gradle.org/distributions/gradle-2.2-all.zip
+diff --git a/html/DISABLED-README.txt b/html/DISABLED-README.txt
+new file mode 100644
+index 0000000..81c4b55
+--- /dev/null
++++ b/html/DISABLED-README.txt
+@@ -0,0 +1,21 @@
++This subproject is intentionally excluded from settings.gradle since the 2026 dependency upgrade.
++
++Reason:
++  The old `de.richsource.gradle.plugins:gwt-gradle-plugin:0.4` (used by the
++  original build) is incompatible with Gradle 7/8 and has been unmaintained
++  since 2015. Its DSL (jetty plugin, `<<` task shorthand, `gwt { }` block)
++  is fundamentally different from the modern gwt-gradle-plugin.
++
++How to re-enable HTML/GWT support:
++  1. Add the modern GWT Gradle plugin to settings.gradle pluginManagement:
++         id 'org.gwtproject.gradle.gwt' version '1.1.0'
++  2. Use GWT 2.10.0 (or newer) - update gwt {} block accordingly.
++  3. Update html/src/com/ntk/darkmoor/GdxDefinition*.gwt.xml DOCTYPE to:
++         <!DOCTYPE module PUBLIC "-//Google Inc.//DTD Google Web Toolkit 2.10.0//EN"
++           "http://www.gwtproject.org/doctype/2.10.0/gwt-module.dtd">
++  4. Replace the deprecated `jetty` plugin with the modern `org.gretty` plugin
++     (or run the compiled output via any static web server).
++  5. Add 'html' back to settings.gradle's include list.
++  6. Rewrite html/build.gradle using the new plugin's DSL.
++
++Reference: https://github.com/libgdx/libgdx/wiki/HTML5,-GWT-and-GWT-Gradle-plugin
+diff --git a/ios/DISABLED-README.txt b/ios/DISABLED-README.txt
+new file mode 100644
+index 0000000..60ea46a
+--- /dev/null
++++ b/ios/DISABLED-README.txt
+@@ -0,0 +1,17 @@
++This subproject is intentionally excluded from settings.gradle since the 2026 dependency upgrade.
++
++Reason:
++  RoboVM (com.badlogicgames.gdx:gdx-backend-robovm) has been unmaintained
++  since 2015 and does not work with libGDX 1.14.x, Gradle 8.x or JDK 21.
++
++How to re-enable iOS support:
++  1. Switch to the MobiVM fork of RoboVM (https://github.com/MobiVM/robovm)
++     which is actively maintained.
++  2. Add the MobiVM Gradle plugin to the root buildscript block:
++         classpath 'com.mobidevelop.robovm:robovm-gradle-plugin:2.3.22'
++  3. Replace the old backend dependency:
++         implementation "com.mobidevelop.robovm:robovm-rt:${roboVMVersion}"
++         implementation "com.mobidevelop.robovm:robovm-cocoatouch:${roboVMVersion}"
++         implementation "com.badlogicgames.gdx:gdx-backend-robovm:$gdxVersion"
++  4. Add 'ios' back to settings.gradle's include list.
++  5. Rewrite ios/build.gradle using the modern robovm plugin DSL.
+diff --git a/settings.gradle b/settings.gradle
+index 965b6a3..23b7164 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -1 +1,16 @@
+-include 'desktop', 'android', 'ios', 'html', 'core'
+\ No newline at end of file
++pluginManagement {
++    repositories {
++        gradlePluginPortal()
++        google()
++        mavenCentral()
++    }
++}
++
++rootProject.name = 'darkmoor'
++
++// Active subprojects (kept buildable after the 2026 dependency upgrade).
++// 'ios' and 'html' have been excluded from the build:
++//   * ios   - RoboVM is unmaintained; use MobiVM (or libGDX MOE backend) to re-enable later.
++//   * html  - the old gwt-gradle-plugin 0.4 is incompatible with Gradle 8; re-enable after
++//             migrating to org.gwtproject.gradle:gwt-gradle-plugin:1.1.0+ and GWT 2.10+.
++include 'core', 'desktop', 'android'
