@@ -6,6 +6,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.assets.loaders.TextureLoader.TextureParameter;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -25,6 +26,10 @@ public class Resources {
 	private static final String DEVILSUMMONEREXPAND_TTF = "devilsummonerexpand.ttf";
 	// private static final String DALELANDS_ITALIC_TTF = "Dalelands Italic.ttf";
 	private static final String IN_GAME_FONT_TTF = "tahoma.ttf";
+	/** Optional bundled CJK font; when present it is used for ALL fonts so
+	 *  that Chinese (or any non-Latin) UI text renders correctly. See
+	 *  docs/v0.5/07-i18n-system.md for how to provide this file. */
+	private static final String CJK_FONT_TTF = "darkmoor-cjk.ttf";
 
 	private static String resourcePath = "data/";
 	public static final String TEXTURE_SET_FILE = "TextureSet.xml";
@@ -118,6 +123,27 @@ public class Resources {
 
 	private static void initFonts() {
 		try {
+			// When the bundled CJK font is present, generate ALL fonts from it so
+			// that every UI string (any language in StringTable.xml) can render.
+			FileHandle cjkFont = Gdx.files.internal(FONT_PATH + CJK_FONT_TTF);
+			if (cjkFont.exists()) {
+				FreeTypeFontGenerator gen = new FreeTypeFontGenerator(cjkFont);
+				FreeTypeFontParameter parameter = new FreeTypeFontParameter();
+				parameter.characters = buildFontCharacterSet();
+				parameter.size = 48;
+				font48 = gen.generateFont(parameter);
+
+				parameter.size = 64;
+				font64 = gen.generateFont(parameter);
+
+				parameter.size = 48;
+				gameFont48 = gen.generateFont(parameter);
+
+				gen.dispose();
+				return;
+			}
+
+			// Original Latin-only path (fallback when no CJK font is bundled).
 			FreeTypeFontGenerator gen = new FreeTypeFontGenerator(Gdx.files.internal(FONT_PATH
 					+ DEVILSUMMONEREXPAND_TTF));
 			FreeTypeFontParameter parameter = new FreeTypeFontParameter();
@@ -136,6 +162,26 @@ public class Resources {
 		} catch (Exception e) {
 			throw new LoadException(e);
 		}
+	}
+
+	/**
+	 * Builds the character set used when generating fonts from the CJK file:
+	 * the libGDX default ASCII set plus every character that appears in the
+	 * string table (all languages). Keeping this dynamic means newly added
+	 * translations are picked up without touching this file.
+	 */
+	private static String buildFontCharacterSet() {
+		StringBuilder sb = new StringBuilder(FreeTypeFontGenerator.DEFAULT_CHARS);
+		LanguagesManager languages = LanguagesManager.getInstance();
+		if (languages != null) {
+			String extra = languages.getAllCharacters();
+			for (int i = 0; i < extra.length(); i++) {
+				char c = extra.charAt(i);
+				if (sb.indexOf(String.valueOf(c)) < 0)
+					sb.append(c);
+			}
+		}
+		return sb.toString();
 	}
 
 	public static void loadGameResources() {
@@ -173,8 +219,10 @@ public class Resources {
 	}
 
 	public static BitmapFont lockSharedFontAsset(String string) {
-		// TODO Auto-generated method stub
-		return null;
+		// Was a null-returning stub: GUI.menuFont/dialogFont stayed null and every
+		// GUI.getMenuFont()/getDialogFont() call site crashed with an NPE at runtime.
+		// "intro"/"inventory" fall through to font48 inside createFontAsset().
+		return createFontAsset(string);
 	}
 
 	public static BitmapFont createSharedFontAsset(String name) {

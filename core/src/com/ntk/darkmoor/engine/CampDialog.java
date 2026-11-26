@@ -10,6 +10,7 @@ import com.ntk.darkmoor.engine.gui.BaseWindow;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
 import com.ntk.darkmoor.engine.gui.campwindows.MainWindow;
 import com.ntk.darkmoor.stub.Mouse;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class CampDialog extends BaseWindow {
 
@@ -19,7 +20,7 @@ public class CampDialog extends BaseWindow {
 	private ArrayDeque<BaseWindow> windows;
 
 	public CampDialog(GameScreenBase game, GameScreenBase parent) {
-		super(null, "Camp", parent);
+		super(null, LanguagesManager.getString("titles", 1), parent);
 		this.game = game;
 		windows = new ArrayDeque<BaseWindow>(); 
 		buttons = new ArrayList<ScreenButton>();

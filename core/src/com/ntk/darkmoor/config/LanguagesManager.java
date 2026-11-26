@@ -24,7 +24,11 @@ public class LanguagesManager implements Disposable {
 	private String fileName;
 	/** Current language setting (set by LanguagesManager users from Settings class) */
 	private String language;
-	private String[] availableLanguages = {"English","French"};
+	// NOTE: these names MUST match the `name` attributes of the <language> elements
+	// in StringTable.xml, because the lookup key is "<language>|<section>|<id>".
+	// The French sections are spelled "Francais" in the XML (historical), so the
+	// array must use "Francais" - NOT "French" - or French lookups never resolve.
+	private String[] availableLanguages = {"English","Francais","Chinese"};
 
 	private LanguagesManager(String stringTableFile) {
 		// Create language map
@@ -149,6 +153,30 @@ public class LanguagesManager implements Disposable {
 	
 	public String[] getAvailableLanguages() {
 		return availableLanguages ;
+	}
+
+	/**
+	 * Returns every character that appears in ANY string of the loaded string
+	 * table (all languages combined), excluding whitespace.
+	 *
+	 * Used by {@link com.ntk.darkmoor.resource.Resources} to build the
+	 * FreeTypeFontGenerator character set so that generated BitmapFonts can
+	 * render every translatable string (including CJK) without missing glyphs.
+	 */
+	public String getAllCharacters() {
+		StringBuilder sb = new StringBuilder();
+		if (messages == null)
+			return "";
+		for (String value : messages.values()) {
+			for (int i = 0; i < value.length(); i++) {
+				char c = value.charAt(i);
+				if (Character.isWhitespace(c))
+					continue;
+				if (sb.indexOf(String.valueOf(c)) < 0)
+					sb.append(c);
+			}
+		}
+		return sb.toString();
 	}
 
 }

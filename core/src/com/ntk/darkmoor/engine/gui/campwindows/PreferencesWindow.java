@@ -8,11 +8,12 @@ import com.ntk.darkmoor.config.Settings;
 import com.ntk.darkmoor.engine.CampDialog;
 import com.ntk.darkmoor.engine.gui.BaseWindow;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class PreferencesWindow extends BaseWindow {
 
 	public PreferencesWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Preferences :", parent);
+		super(camp, LanguagesManager.getString("titles", 6), parent);
 
 		ScreenButton button;
 
@@ -26,9 +27,9 @@ public class PreferencesWindow extends BaseWindow {
 
 		});
 		if (Settings.getLastLoadedInstance().isMusic())
-			button.setText("Music is ON");
+			button.setText(LanguagesManager.getString("campui", 10));
 		else
-			button.setText("Music is OFF");
+			button.setText(LanguagesManager.getString("campui", 11));
 		//getButtons().add(button);
 
 		button = new ScreenButton("", new Rectangle(16, 74, 320, 28));
@@ -41,9 +42,9 @@ public class PreferencesWindow extends BaseWindow {
 
 		});
 		if (Settings.getLastLoadedInstance().isEffects())
-			button.setText("Sound FX are ON");
+			button.setText(LanguagesManager.getString("campui", 12));
 		else
-			button.setText("Sound FX are OFF");
+			button.setText(LanguagesManager.getString("campui", 13));
 		//getButtons().add(button);
 
 		button = new ScreenButton("", new Rectangle(16, 108, 320, 28));
@@ -56,12 +57,12 @@ public class PreferencesWindow extends BaseWindow {
 
 		});
 		if (Settings.getLastLoadedInstance().isHPAsBar())
-			button.setText("Bar Graphs are ON");
+			button.setText(LanguagesManager.getString("campui", 14));
 		else
-			button.setText("Bar Graphs are OFF");
+			button.setText(LanguagesManager.getString("campui", 15));
 		//getButtons().add(button);
 
-		button = new ScreenButton("Exit", new Rectangle(256, 244, 80, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 1), new Rectangle(256, 244, 80, 28));
 		button.addListener(new EventListener() {
 
 			@Override

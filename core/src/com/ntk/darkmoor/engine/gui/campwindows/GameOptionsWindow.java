@@ -12,18 +12,18 @@ import com.ntk.darkmoor.engine.gui.MessageBox;
 import com.ntk.darkmoor.engine.gui.MessageBox.DialogResult;
 import com.ntk.darkmoor.engine.gui.MessageBox.MessageBoxButtons;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class GameOptionsWindow extends BaseWindow {
 
-	private static final String WINDOW_TITLE = "Game Options:";
 	private Skin skin;
 
 	public GameOptionsWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, WINDOW_TITLE, parent);
+		super(camp, LanguagesManager.getString("titles", 10), parent);
 
 		ScreenButton button;
 
-		button = new ScreenButton("Load Game", new Rectangle(16, 40, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("titles", 7), new Rectangle(16, 40, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -34,7 +34,7 @@ public class GameOptionsWindow extends BaseWindow {
 		});
 //		//getButtons().add(button);
 
-		button = new ScreenButton("Save Game", new Rectangle(16, 74, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("titles", 8), new Rectangle(16, 74, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -45,7 +45,7 @@ public class GameOptionsWindow extends BaseWindow {
 		});
 //		//getButtons().add(button);
 
-		button = new ScreenButton("Drop Character", new Rectangle(16, 108, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("titles", 9), new Rectangle(16, 108, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -56,7 +56,7 @@ public class GameOptionsWindow extends BaseWindow {
 		});
 //		//getButtons().add(button);
 
-		button = new ScreenButton("Quit Game", new Rectangle(16, 142, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("titles", 11), new Rectangle(16, 142, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -67,7 +67,7 @@ public class GameOptionsWindow extends BaseWindow {
 		});
 //		//getButtons().add(button);
 
-		button = new ScreenButton("Exit", new Rectangle(256, 244, 80, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 1), new Rectangle(256, 244, 80, 28));
 		button.addListener(new EventListener() {
 
 			@Override

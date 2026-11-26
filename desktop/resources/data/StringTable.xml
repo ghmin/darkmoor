@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="us-ascii" standalone="yes"?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <bank>
 	<stringtable name="Intro">
 		<default name="English" />
@@ -24,6 +24,17 @@
 			<string id="8">Nous les avons.</string>
 			<string id="9">Leur sort est scell&#xE9;.</string>
 		</language>
+		<language name="Chinese">
+			<string id="1">我们，深水城的诸位领主齐聚一堂，<br />只为涤荡城中潜藏的远古邪祟。</string>
+			<string id="2">传召这片大地上的英雄，<br />让我们挑选出自己的勇士。</string>
+			<string id="3">主人……</string>
+			<string id="4">他们以为已经找到了对策。</string>
+			<string id="5">我们委派你去查明这股邪恶的根源，<br />若力所能及，便将其彻底摧毁。</string>
+			<string id="6">准备好踏上这凶险的旅程。</string>
+			<string id="7">从城市地底开始你的搜寻。</string>
+			<string id="8">我们抓到他们了。</string>
+			<string id="9">他们的命运已被封定。</string>
+		</language>
 	</stringtable>
 	<stringtable name="Spells">
 		<default name="English" />
@@ -39,6 +50,12 @@
 			<string id="3">Detection de la magie</string>
 			<string id="4">Missile magique</string>
 		</language>
+		<language name="Chinese">
+			<string id="1">护甲术</string>
+			<string id="2">燃烧之手</string>
+			<string id="3">侦测魔法</string>
+			<string id="4">魔法飞弹</string>
+		</language>
 	</stringtable>
 	<stringtable name="generation">
 		<default name="English" />
@@ -47,6 +64,9 @@
 		</language>
 		<language name="English">
 			<string id="1">Select the box of the character you wish to create or view.</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">请选择要创建或查看的角色框。</string>
 		</language>
 	</stringtable>
 	<stringtable name="option">
@@ -60,6 +80,11 @@
 			<string id="1">KEYBOARD : </string>
 			<string id="2">LANGUAGE : </string>
 			<string id="3">BACK</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">键盘 ： </string>
+			<string id="2">语言 ： </string>
+			<string id="3">返回</string>
 		</language>
 	</stringtable>
 	<stringtable name="main">
@@ -78,16 +103,28 @@
 			<string id="5">Test 1</string>
 			<string id="6">Test 2</string>
 		</language>
+		<language name="Chinese">
+			<string id="1">读取进行中的游戏</string>
+			<string id="2">开始新的冒险小队</string>
+			<string id="3">选项</string>
+			<string id="4">退出</string>
+			<string id="5">测试 1</string>
+			<string id="6">测试 2</string>
+		</language>
 	</stringtable>
 	<stringtable name="game">
 		<default name="English" />
 		<language name="Francais">
 			<string id="1">Vous ne pouvez pas aller par la.</string>
-			<string id="2">{0} pris.</string>
+			<string id="2">%s pris.</string>
 		</language>
 		<language name="English">
 			<string id="1">You can't go that way !</string>
-			<string id="2">{0} taken.</string>
+			<string id="2">%s taken.</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">那个方向走不通！</string>
+			<string id="2">拾取了%s。</string>
 		</language>
 	</stringtable>
 	<stringtable name="Camp">
@@ -109,6 +146,15 @@
 			<string id="5">Preferences</string>
 			<string id="6">Options</string>
 			<string id="7">Sortir</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">队伍休息</string>
+			<string id="2">记忆法术</string>
+			<string id="3">祈祷法术</string>
+			<string id="4">抄写卷轴</string>
+			<string id="5">偏好设置</string>
+			<string id="6">游戏选项</string>
+			<string id="7">退出</string>
 		</language>
 	</stringtable>
 	<stringtable name="Chargen">
@@ -184,6 +230,156 @@
 			<string id="32">HOMME SEMI-HOMME</string>
 			<string id="33">FEMME SEMI-HOMME</string>
 			<string id="34">SELECTIONNER LA RACE:</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">请选择要创建或查看的<br />角色框。</string>
+			<string id="2">选择职业：</string>
+			<string id="3">战士</string>
+			<string id="4">游侠</string>
+			<string id="5">法师</string>
+			<string id="6">牧师</string>
+			<string id="7">盗贼</string>
+			<string id="8">战士/盗贼</string>
+			<string id="9">战士/法师</string>
+			<string id="10">战士/法师/盗贼</string>
+			<string id="11">盗贼/法师</string>
+			<string id="12">选择阵营：</string>
+			<string id="13">守序善良</string>
+			<string id="14">中立善良</string>
+			<string id="15">混乱善良</string>
+			<string id="16">守序中立</string>
+			<string id="17">绝对中立</string>
+			<string id="18">混乱中立</string>
+			<string id="19">守序邪恶</string>
+			<string id="20">中立邪恶</string>
+			<string id="21">混乱邪恶</string>
+			<string id="22">人类 男性</string>
+			<string id="23">人类 女性</string>
+			<string id="24">精灵 男性</string>
+			<string id="25">精灵 女性</string>
+			<string id="26">半精灵 男性</string>
+			<string id="27">半精灵 女性</string>
+			<string id="28">矮人 男性</string>
+			<string id="29">矮人 女性</string>
+			<string id="30">侏儒 男性</string>
+			<string id="31">侏儒 女性</string>
+			<string id="32">半身人 男性</string>
+			<string id="33">半身人 女性</string>
+			<string id="34">选择种族：</string>
+		</language>
+	</stringtable>
+	<stringtable name="campui">
+		<default name="English" />
+		<language name="English">
+			<string id="1">Exit</string>
+			<string id="2">Cancel</string>
+			<string id="3">Yes</string>
+			<string id="4">No</string>
+			<string id="5">Clear</string>
+			<string id="6">Empty slot %d</string>
+			<string id="7">Hours rested : %d</string>
+			<string id="8">%d of %d remaining.</string>
+			<string id="9">Spells Available :</string>
+			<string id="10">Music is ON</string>
+			<string id="11">Music is OFF</string>
+			<string id="12">Sound FX are ON</string>
+			<string id="13">Sound FX are OFF</string>
+			<string id="14">Bar Graphs are ON</string>
+			<string id="15">Bar Graphs are OFF</string>
+		</language>
+		<language name="Francais">
+			<string id="1">Sortir</string>
+			<string id="2">Annuler</string>
+			<string id="3">Oui</string>
+			<string id="4">Non</string>
+			<string id="5">Effacer</string>
+			<string id="6">Emplacement vide %d</string>
+			<string id="7">Heures de repos : %d</string>
+			<string id="8">%d sur %d restants.</string>
+			<string id="9">Sorts disponibles :</string>
+			<string id="10">Musique activ&#xE9;e</string>
+			<string id="11">Musique d&#xE9;sactiv&#xE9;e</string>
+			<string id="12">Effets sonores activ&#xE9;s</string>
+			<string id="13">Effets sonores d&#xE9;sactiv&#xE9;s</string>
+			<string id="14">Barres activ&#xE9;es</string>
+			<string id="15">Barres d&#xE9;sactiv&#xE9;es</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">退出</string>
+			<string id="2">取消</string>
+			<string id="3">是</string>
+			<string id="4">否</string>
+			<string id="5">清除</string>
+			<string id="6">空存档位 %d</string>
+			<string id="7">已休息小时数 : %d</string>
+			<string id="8">剩余 %d/%d。</string>
+			<string id="9">可用法术 :</string>
+			<string id="10">音乐：开</string>
+			<string id="11">音乐：关</string>
+			<string id="12">音效：开</string>
+			<string id="13">音效：关</string>
+			<string id="14">生命条显示：开</string>
+			<string id="15">生命条显示：关</string>
+		</language>
+	</stringtable>
+	<stringtable name="titles">
+		<default name="English" />
+		<language name="English">
+			<string id="1">Camp</string>
+			<string id="2">Camp :</string>
+			<string id="3">Options</string>
+			<string id="4">Rest Party :</string>
+			<string id="5">Scribe Scrolls :</string>
+			<string id="6">Preferences :</string>
+			<string id="7">Load Game</string>
+			<string id="8">Save Game</string>
+			<string id="9">Drop Character</string>
+			<string id="10">Game Options :</string>
+			<string id="11">Quit Game</string>
+			<string id="12">Music</string>
+			<string id="13">Effects</string>
+			<string id="14">Full Screen</string>
+			<string id="15">HP as bar</string>
+			<string id="16">Language : %s</string>
+			<string id="17">Back</string>
+		</language>
+		<language name="Francais">
+			<string id="1">Campement</string>
+			<string id="2">Campement :</string>
+			<string id="3">Options</string>
+			<string id="4">Repos de l'&#xE9;quipe :</string>
+			<string id="5">&#xC9;criture de parchemins :</string>
+			<string id="6">Pr&#xE9;f&#xE9;rences :</string>
+			<string id="7">Charger une partie</string>
+			<string id="8">Sauvegarder</string>
+			<string id="9">Renvoyer un personnage</string>
+			<string id="10">Options de jeu :</string>
+			<string id="11">Quitter la partie</string>
+			<string id="12">Musique</string>
+			<string id="13">Effets sonores</string>
+			<string id="14">Plein &#xE9;cran</string>
+			<string id="15">Points de vie en barre</string>
+			<string id="16">Langue : %s</string>
+			<string id="17">Retour</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">营地</string>
+			<string id="2">营地 :</string>
+			<string id="3">选项</string>
+			<string id="4">小队休息 :</string>
+			<string id="5">抄写卷轴 :</string>
+			<string id="6">偏好设置 :</string>
+			<string id="7">读取游戏</string>
+			<string id="8">保存游戏</string>
+			<string id="9">移除角色</string>
+			<string id="10">游戏选项 :</string>
+			<string id="11">退出游戏</string>
+			<string id="12">音乐</string>
+			<string id="13">音效</string>
+			<string id="14">全屏</string>
+			<string id="15">生命值显示为血条</string>
+			<string id="16">语言 : %s</string>
+			<string id="17">返回</string>
 		</language>
 	</stringtable>
 </bank>

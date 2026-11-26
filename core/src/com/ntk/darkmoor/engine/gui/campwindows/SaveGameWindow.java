@@ -15,6 +15,7 @@ import com.ntk.darkmoor.engine.gui.MessageBox;
 import com.ntk.darkmoor.engine.gui.MessageBox.DialogResult;
 import com.ntk.darkmoor.engine.gui.MessageBox.MessageBoxButtons;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class SaveGameWindow extends BaseWindow {
 
@@ -23,7 +24,7 @@ public class SaveGameWindow extends BaseWindow {
 	private Skin skin;
 
 	public SaveGameWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Save Game", parent);
+		super(camp, LanguagesManager.getString("titles", 8), parent);
 		parent.getGame().getSavedGame().load();
 
 		ScreenButton button;
@@ -43,7 +44,7 @@ public class SaveGameWindow extends BaseWindow {
 			//getButtons().add(button);
 		}
 
-		button = new ScreenButton("Cancel", new Rectangle(230, 244, 106, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 2), new Rectangle(230, 244, 106, 28));
 		button.addListener(new EventListener() {
 
 			@Override

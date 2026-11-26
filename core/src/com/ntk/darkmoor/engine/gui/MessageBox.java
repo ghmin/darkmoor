@@ -16,6 +16,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.ntk.darkmoor.engine.CampDialog;
 import com.ntk.darkmoor.engine.GameColors;
 import com.ntk.darkmoor.stub.GameTime;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class MessageBox extends Dialog {
 
@@ -102,7 +103,7 @@ public class MessageBox extends Dialog {
 		case YesNoCancel:
 			break;
 		case YesNo: {
-			button = new ScreenButton("Yes", new Rectangle(16, 74, 64, 28));
+			button = new ScreenButton(LanguagesManager.getString("campui", 3), new Rectangle(16, 74, 64, 28));
 			button.setSelectedListener(new EventListener() {
 
 				@Override
@@ -113,7 +114,7 @@ public class MessageBox extends Dialog {
 			});
 			buttons.add(button);
 
-			button = new ScreenButton("No", new Rectangle(240, 74, 64, 28));
+			button = new ScreenButton(LanguagesManager.getString("campui", 4), new Rectangle(240, 74, 64, 28));
 			button.setSelectedListener(new EventListener() {
 
 				@Override

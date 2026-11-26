@@ -20,6 +20,7 @@ import com.ntk.darkmoor.engine.gui.BaseWindow;
 import com.ntk.darkmoor.engine.gui.GUI;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
 import com.ntk.darkmoor.resource.TextureSet;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class SpellWindow extends BaseWindow {
 
@@ -34,7 +35,7 @@ public class SpellWindow extends BaseWindow {
 	public SpellWindow(CampDialog camp, GameScreenBase parent) {
 		super(camp, "", parent);
 
-		ScreenButton button = new ScreenButton("Exit", new Rectangle(256, 244, 80, 28));
+		ScreenButton button = new ScreenButton(LanguagesManager.getString("campui", 1), new Rectangle(256, 244, 80, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -75,7 +76,7 @@ public class SpellWindow extends BaseWindow {
 		if (hero == null) {
 			GUI.getMenuFont().draw(batch, message, 26, 58);
 		} else {
-			GUI.getMenuFont().draw(batch, "0 of 0 remaining.", 16, 76);
+			GUI.getMenuFont().draw(batch, String.format(LanguagesManager.getString("campui", 8), 0, 0), 16, 76);
 		}
 
 		for (int y = 0; y < 3; y++) {
@@ -139,10 +140,11 @@ public class SpellWindow extends BaseWindow {
 		if (hero != null)
 			return;
 
-		getTitleLabel().setText("Spells Available :"); // libGDX 1.10+: use getTitleLabel().setText()
+		// libGDX 1.10+: Dialog/Window has no setTitle(String); use the title label.
+		getTitleLabel().setText(LanguagesManager.getString("campui", 9));
 
 		ScreenButton button;
-		button = new ScreenButton("Clear", new Rectangle(16, 244, 96, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 5), new Rectangle(16, 244, 96, 28));
 		button.addListener(new EventListener() {
 
 			@Override

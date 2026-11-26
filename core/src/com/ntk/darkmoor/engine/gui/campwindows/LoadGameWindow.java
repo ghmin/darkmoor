@@ -11,13 +11,14 @@ import com.ntk.darkmoor.config.SaveGameSlot;
 import com.ntk.darkmoor.config.Settings;
 import com.ntk.darkmoor.engine.CampDialog;
 import com.ntk.darkmoor.engine.gui.BaseWindow;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class LoadGameWindow extends BaseWindow {
 
 	private int selectedSlot;
 
 	public LoadGameWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Load Game", parent);
+		super(camp, LanguagesManager.getString("titles", 7), parent);
 		selectedSlot = -1;
 		setupWindow();
 		setupButtons(parent.getSkin());
@@ -34,8 +35,10 @@ public class LoadGameWindow extends BaseWindow {
 				slot = parent.getGame().getSavedGame().getSlot(id);
 			final int slotNumber = id;
 
-			buttons[id] = new TextButton(!slot.isEmpty() ? slot.getName() : "Empty slot " + (id + 1), uiSkin,
-					"transparent-font64");
+			buttons[id] = new TextButton(
+					!slot.isEmpty() ? slot.getName()
+							: String.format(LanguagesManager.getString("campui", 6), id + 1),
+					uiSkin, "transparent-font64");
 			buttons[id].addListener(new InputListener() {
 				public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
 					slotSelected(slotNumber, event);
@@ -46,8 +49,8 @@ public class LoadGameWindow extends BaseWindow {
 			row().minHeight(150).minWidth(300).fillY().fillX().expandX().expandY();
 
 		}
-		buttons[Settings.getLastLoadedInstance().getSaveSlots()] = new TextButton("Cancel", uiSkin,
-				"transparent-font64");
+		buttons[Settings.getLastLoadedInstance().getSaveSlots()] = new TextButton(
+				LanguagesManager.getString("campui", 2), uiSkin, "transparent-font64");
 		buttons[Settings.getLastLoadedInstance().getSaveSlots()].addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
 				closeAndRemoveFromParent(LoadGameWindow.this);

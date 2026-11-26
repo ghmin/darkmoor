@@ -20,7 +20,7 @@ public class OptionsWindow extends BaseWindow {
 	private CheckBox chkMusic, chkEffects, chkHpAsBar, chkFullScreen, chkLanguage;
 
 	public OptionsWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Options", parent);
+		super(camp, LanguagesManager.getString("titles", 3), parent);
 		loadContent();
 	}
 
@@ -43,7 +43,7 @@ public class OptionsWindow extends BaseWindow {
 		int heightUnit = DarkmoorGame.DISPLAY_HEIGHT / 6;
 		buttons = new TextButton[6];
 
-		chkMusic = new CheckBox("Music", uiSkin, "transparent-font64");
+		chkMusic = new CheckBox(LanguagesManager.getString("titles", 12), uiSkin, "transparent-font64");
 		chkMusic.setChecked(Settings.getLastLoadedInstance().isMusic());
 		chkMusic.addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
@@ -57,7 +57,7 @@ public class OptionsWindow extends BaseWindow {
 			}
 		});
 
-		chkEffects = new CheckBox("Effects", uiSkin, "transparent-font64");
+		chkEffects = new CheckBox(LanguagesManager.getString("titles", 13), uiSkin, "transparent-font64");
 		chkEffects.setChecked(Settings.getLastLoadedInstance().isEffects());
 		chkEffects.addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
@@ -66,7 +66,7 @@ public class OptionsWindow extends BaseWindow {
 			}
 		});
 
-		chkFullScreen = new CheckBox("Full Screen", uiSkin, "transparent-font64");
+		chkFullScreen = new CheckBox(LanguagesManager.getString("titles", 14), uiSkin, "transparent-font64");
 		chkFullScreen.setChecked(Settings.getLastLoadedInstance().isFullScreen());
 		chkFullScreen.addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
@@ -75,7 +75,7 @@ public class OptionsWindow extends BaseWindow {
 			}
 		});
 
-		chkHpAsBar = new CheckBox("HP as bar", uiSkin, "transparent-font64");
+		chkHpAsBar = new CheckBox(LanguagesManager.getString("titles", 15), uiSkin, "transparent-font64");
 		chkHpAsBar.setChecked(Settings.getLastLoadedInstance().isHPAsBar());
 		chkHpAsBar.addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
@@ -84,22 +84,34 @@ public class OptionsWindow extends BaseWindow {
 			}
 		});
 
-		chkLanguage = new CheckBox("Language: " + Settings.getLastLoadedInstance().getLanguage(), uiSkin,
-				"transparent-font64");
-		chkLanguage.setChecked("English".equals(Settings.getLastLoadedInstance().getLanguage()));
+		chkLanguage = new CheckBox(
+				String.format(LanguagesManager.getString("titles", 16), Settings.getLastLoadedInstance().getLanguage()),
+				uiSkin, "transparent-font64");
+		chkLanguage.setChecked(true);
 		chkLanguage.addListener(new InputListener() {
 			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-				// ntk: warning! it covers only 2 languages!
-				if (stringTable.getAvailableLanguages()[0].equals(Settings.getLastLoadedInstance().getLanguage())) {
-					Settings.getLastLoadedInstance().setLanguage(stringTable.getAvailableLanguages()[1]);
-				} else
-					Settings.getLastLoadedInstance().setLanguage(stringTable.getAvailableLanguages()[0]);
-				chkLanguage.setText("Language : " + Settings.getLastLoadedInstance().getLanguage());
+				// Cycle through ALL languages advertised by the string table
+				// (English -> Francais -> Chinese -> English -> ...).
+				String[] languages = stringTable.getAvailableLanguages();
+				String current = Settings.getLastLoadedInstance().getLanguage();
+				int index = 0;
+				for (int i = 0; i < languages.length; i++) {
+					if (languages[i].equalsIgnoreCase(current)) {
+						index = i;
+						break;
+					}
+				}
+				String next = languages[(index + 1) % languages.length];
+				Settings.getLastLoadedInstance().setLanguage(next);
+				// Keep the manager in sync so LanguagesManager.getString(...) picks
+				// up the new language immediately (not just after a restart).
+				stringTable.setLanguage(next);
+				chkLanguage.setText(String.format(LanguagesManager.getString("titles", 16), next));
 				return true;
 			}
 		});
 
-		buttons[5] = new TextButton("Back", uiSkin, "transparent-font64");
+		buttons[5] = new TextButton(LanguagesManager.getString("titles", 17), uiSkin, "transparent-font64");
 		buttons[5].setBounds(widthUnit * 3, heightUnit << 1, widthUnit, heightUnit);
 		buttons[5].setTouchable(Touchable.enabled);
 		buttons[5].addListener(new InputListener() {

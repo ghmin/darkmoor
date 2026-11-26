@@ -16,6 +16,7 @@
 | [04-build-and-run.md](04-build-and-run.md) | 环境要求、构建命令、常见错误排查 | 准备本地跑起来的人 |
 | [05-libgdx-crash-course.md](05-libgdx-crash-course.md) | libGDX 入门速览（给 Java 新手） | 没用过 libGDX 的人 |
 | [06-roadmap.md](06-roadmap.md) | 已完成 / 未完成 / 下一步建议 | 决定接下来做什么的人 |
+| [07-i18n-system.md](07-i18n-system.md) | 多语言系统详解 + 中文化改造记录 | 改翻译 / 加新语言的人 |
 
 ### 子模块详细文档（位于 `modules/` 目录）
 

@@ -2,7 +2,7 @@ package com.ntk.darkmoor.config;
 
 public enum GameLanguage {
 
-	ENGLISH ("English"), FRENCH ("French");
+	ENGLISH ("English"), FRENCH ("Francais"),CHINESE("Chinese");
 	
 	private String value;
 	

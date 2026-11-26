@@ -11,17 +11,18 @@ import com.ntk.darkmoor.engine.CampDialog;
 import com.ntk.darkmoor.engine.Hero.HeroClass;
 import com.ntk.darkmoor.engine.gui.BaseWindow;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class MainWindow extends BaseWindow {
 
 	private Skin skin;
 
 	public MainWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Camp :", parent);
+		super(camp, LanguagesManager.getString("titles", 2), parent);
 
 		ScreenButton button;
 
-		button = new ScreenButton("Rest Party", new Rectangle(16, 40, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 1), new Rectangle(16, 40, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -32,7 +33,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// //getButtons().add(button);
 
-		button = new ScreenButton("Memorize Spells", new Rectangle(16, 74, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 2), new Rectangle(16, 74, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -43,7 +44,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// getButtons().add(button);
 
-		button = new ScreenButton("Pray for Spells", new Rectangle(16, 108, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 3), new Rectangle(16, 108, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -54,7 +55,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// getButtons().add(button);
 
-		button = new ScreenButton("Scribe Scrolls", new Rectangle(16, 142, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 4), new Rectangle(16, 142, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -65,7 +66,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// getButtons().add(button);
 
-		button = new ScreenButton("Preferences", new Rectangle(16, 176, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 5), new Rectangle(16, 176, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -76,7 +77,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// getButtons().add(button);
 
-		button = new ScreenButton("Game Options", new Rectangle(16, 210, 320, 28));
+		button = new ScreenButton(LanguagesManager.getString("Camp", 6), new Rectangle(16, 210, 320, 28));
 		button.addListener(new EventListener() {
 
 			@Override
@@ -87,7 +88,7 @@ public class MainWindow extends BaseWindow {
 		});
 		// getButtons().add(button);
 
-		button = new ScreenButton("Exit", new Rectangle(256, 244, 80, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 1), new Rectangle(256, 244, 80, 28));
 		button.addListener(new EventListener() {
 
 			@Override

@@ -20,10 +20,10 @@ import com.ntk.darkmoor.engine.gui.MessageBox.MessageBoxButtons;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
 import com.ntk.darkmoor.resource.Resources;
 import com.ntk.darkmoor.resource.TextureSet;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class DropNPCWindow extends BaseWindow {
 
-	private static final String WINDOW_TITLE = "Drop Character";
 
 	private TextureSet textureSetInterface;
 
@@ -36,7 +36,7 @@ public class DropNPCWindow extends BaseWindow {
 	private Skin skin;
 
 	public DropNPCWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, WINDOW_TITLE, parent);
+		super(camp, LanguagesManager.getString("titles", 9), parent);
 
 		if (GameScreen.getTeam().getHeroCount() <= 4) {
 			setClosing(true);
@@ -47,7 +47,7 @@ public class DropNPCWindow extends BaseWindow {
 
 		// Adds buttons
 		ScreenButton button;
-		button = new ScreenButton("Exit", new Rectangle(256, 244, 80, 28));
+		button = new ScreenButton(LanguagesManager.getString("campui", 1), new Rectangle(256, 244, 80, 28));
 		button.addListener(new EventListener() {
 
 			@Override

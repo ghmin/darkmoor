@@ -19,6 +19,7 @@ import com.ntk.darkmoor.engine.gui.MessageBox;
 import com.ntk.darkmoor.engine.gui.MessageBox.DialogResult;
 import com.ntk.darkmoor.engine.gui.MessageBox.MessageBoxButtons;
 import com.ntk.darkmoor.engine.gui.ScreenButton;
+import com.ntk.darkmoor.config.LanguagesManager;
 
 public class RestPartyWindow extends BaseWindow {
 
@@ -27,7 +28,7 @@ public class RestPartyWindow extends BaseWindow {
 	private boolean healParty;
 
 	public RestPartyWindow(CampDialog camp, GameScreenBase parent) {
-		super(camp, "Rest Party :", parent);
+		super(camp, LanguagesManager.getString("titles", 4), parent);
 
 		ScreenButton button;
 
@@ -92,7 +93,8 @@ public class RestPartyWindow extends BaseWindow {
 		// TODO: ntk: check if this is correct drawing
 		// Display
 		GUI.getMenuFont().setColor(Color.WHITE);
-		GUI.getMenuFont().draw(batch, "Hours rested : " + hours, 26, 58);
+		GUI.getMenuFont().draw(batch,
+				String.format(LanguagesManager.getString("campui", 7), hours), 26, 58);
 
 		// TODO: ntk: Should the next part move to update() method?
 		for (Hero hero : team.getHeroes()) {
