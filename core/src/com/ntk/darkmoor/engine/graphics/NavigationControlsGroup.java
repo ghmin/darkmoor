@@ -1,5 +1,6 @@
 package com.ntk.darkmoor.engine.graphics;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
@@ -63,6 +64,8 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
         private VisTextButton campButton;
         /** 游戏内设置按钮（点击弹出菜单）。 */
         private VisTextButton settingsButton;
+        /** 用于遮盖背景图 CAMP 像素的 1x1 深色纹理。 */
+        private com.badlogic.gdx.graphics.Texture campPatchTexture;
 
         @Override
         public void initialize() {
@@ -96,19 +99,34 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
                 addActor(directionRight);
         }
 
-        /** 创建 CAMP 和 Settings 文本按钮（VisUI 样式，i18n 文本，可点击）。
+        /** 创建 CAMP 和 Settings 小按钮（VisUI 样式，i18n 文本，可点击）。
          * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置。
-         * CAMP 按钮位置完全覆盖背景图里的 CAMP 像素区域 (578, 354, 62, 42)。 */
+         *
+         * <p>v0.5 第二轮布局调整（用户反馈）：两个按钮从屏幕中部 (560/720, 348)
+         * 移到<b>小地图正下方</b>（小地图占 Y 357..637），尺寸缩小到 132x46。
+         * 背景图中残留的 CAMP 像素区域 (578, 354, 62, 42) 用深色遮块盖住。 */
         private void initializeActionButtons() {
-                // CAMP 按钮 — 完全覆盖背景图里的 CAMP 像素区域
+                // 遮盖背景图里残留的 CAMP 像素（按钮移走后会露出来）
+                com.badlogic.gdx.graphics.Pixmap patch = new com.badlogic.gdx.graphics.Pixmap(1, 1,
+                                com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+                patch.setColor(new Color(0.09f, 0.09f, 0.12f, 1f));
+                patch.fill();
+                campPatchTexture = new com.badlogic.gdx.graphics.Texture(patch);
+                patch.dispose();
+                Image campPixelPatch = new Image(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
+                                new com.badlogic.gdx.graphics.g2d.TextureRegion(campPatchTexture)));
+                campPixelPatch.setBounds(566, 346, 92, 58);
+                addActor(campPixelPatch);
+
+                // 营地按钮 — 小地图下方左侧
                 campButton = new VisTextButton(LanguagesManager.getString("titles", 1));
-                campButton.setBounds(560, 348, 160, 60);
+                campButton.setBounds(18, 296, 132, 46);
                 campButton.setTouchable(Touchable.enabled);
                 addActor(campButton);
 
-                // Settings 按钮 — 紧邻 CAMP 右侧
+                // 选项按钮 — 小地图下方右侧
                 settingsButton = new VisTextButton(LanguagesManager.getString("titles", 3));
-                settingsButton.setBounds(720, 348, 160, 60);
+                settingsButton.setBounds(162, 296, 132, 46);
                 settingsButton.setTouchable(Touchable.enabled);
                 addActor(settingsButton);
         }
@@ -219,7 +237,7 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
 
         /**
          * updates the compass images
-         * 
+         *
          */
         private void updateCompass() {
                 // TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
@@ -254,5 +272,9 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
 
         @Override
         public void dispose() {
+                if (campPatchTexture != null) {
+                        campPatchTexture.dispose();
+                        campPatchTexture = null;
+                }
         }
 }

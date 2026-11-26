@@ -110,12 +110,14 @@ public class GameOptionsWindow extends BaseWindow {
 	}
 
 	protected boolean saveSelected(Event event) {
-		getCamp().addWindow(new SaveGameWindow(getCamp(), parent));
+		// v0.5: SaveGameWindow 已迁移为 VisWindow（非 BaseWindow），直接加入 stage
+		parent.getStage().addActor(new SaveGameWindow(getCamp(), parent));
 		return false;
 	}
 
 	protected boolean loadSelected(Event event) {
-		getCamp().addWindow(new LoadGameWindow(getCamp(), parent));
+		// v0.5: LoadGameWindow 已迁移为 VisWindow（非 BaseWindow），直接加入 stage
+		parent.getStage().addActor(new LoadGameWindow(getCamp(), parent));
 		return false;
 	}
 

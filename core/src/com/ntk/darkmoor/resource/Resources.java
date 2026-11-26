@@ -171,7 +171,7 @@ public class Resources {
 	 * string table (all languages). Keeping this dynamic means newly added
 	 * translations are picked up without touching this file.
 	 */
-	private static String buildFontCharacterSet() {
+	public static String buildFontCharacterSet() {
 		StringBuilder sb = new StringBuilder(FreeTypeFontGenerator.DEFAULT_CHARS);
 		LanguagesManager languages = LanguagesManager.getInstance();
 		if (languages != null) {
@@ -183,6 +183,11 @@ public class Resources {
 			}
 		}
 		return sb.toString();
+	}
+
+	/** Returns a handle to the bundled CJK TTF font (used by UITheme for VisUI skin). */
+	public static FileHandle getCjkFontFile() {
+		return Gdx.files.internal(FONT_PATH + CJK_FONT_TTF);
 	}
 
 	public static void loadGameResources() {

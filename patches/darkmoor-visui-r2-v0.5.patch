@@ -1,0 +1,1388 @@
+diff --git a/android/assets/data/StringTable.xml b/android/assets/data/StringTable.xml
+index 638998c..ee4a724 100644
+--- a/android/assets/data/StringTable.xml
++++ b/android/assets/data/StringTable.xml
+@@ -286,6 +286,8 @@
+ 			<string id="13">Sound FX are OFF</string>
+ 			<string id="14">Bar Graphs are ON</string>
+ 			<string id="15">Bar Graphs are OFF</string>
++			<string id="16">This feature is not implemented yet.</string>
++			<string id="18">Are you sure you want to overwrite this save slot?</string>
+ 		</language>
+ 		<language name="Francais">
+ 			<string id="1">Sortir</string>
+@@ -303,6 +305,8 @@
+ 			<string id="13">Effets sonores d&#xE9;sactiv&#xE9;s</string>
+ 			<string id="14">Barres activ&#xE9;es</string>
+ 			<string id="15">Barres d&#xE9;sactiv&#xE9;es</string>
++			<string id="16">Cette fonctionnalit&#xE9; n'est pas encore impl&#xE9;ment&#xE9;e.</string>
++			<string id="18">&#xC0;tes-vous s&#xFB;r de vouloir &#xE9;craser cette sauvegarde ?</string>
+ 		</language>
+ 		<language name="Chinese">
+ 			<string id="1">退出</string>
+@@ -320,6 +324,8 @@
+ 			<string id="13">音效：关</string>
+ 			<string id="14">生命条显示：开</string>
+ 			<string id="15">生命条显示：关</string>
++			<string id="16">该功能尚未实现。</string>
++			<string id="18">确定要覆盖这个存档吗？</string>
+ 		</language>
+ 	</stringtable>
+ 	<stringtable name="titles">
+diff --git a/core/src/com/ntk/darkmoor/DarkmoorGame.java b/core/src/com/ntk/darkmoor/DarkmoorGame.java
+index e85c46f..0a393d2 100644
+--- a/core/src/com/ntk/darkmoor/DarkmoorGame.java
++++ b/core/src/com/ntk/darkmoor/DarkmoorGame.java
+@@ -11,17 +11,21 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+ import com.badlogic.gdx.math.Vector2;
+ import com.badlogic.gdx.utils.async.AsyncExecutor;
+ import com.badlogic.gdx.utils.async.AsyncTask;
+-import com.kotcrab.vis.ui.VisUI;
+ import com.ntk.darkmoor.config.SaveGame;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.Dungeon;
+ import com.ntk.darkmoor.resource.Resources;
++import com.ntk.darkmoor.resource.UITheme;
+ 
+ public class DarkmoorGame extends Game {
+         private static final int MAX_THREADS = 2;
+         public static final int GAME_HEIGHT = 400;
+         public static final int GAME_WIDTH = 640;
+ 
++        /** UI 预览模式标志：由 DesktopLauncher 在检测到 --ui-preview 参数时置 true。
++         * 该模式跳过主菜单，直接打开 UiPreviewScreen，展示所有 VisUI 弹窗并定时截图。 */
++        public static boolean UI_PREVIEW = false;
++
+         public static final int DISPLAY_HEIGHT = 720;
+         public static final int DISPLAY_WIDTH = 1280;
+ 
+@@ -50,10 +54,15 @@ public class DarkmoorGame extends Game {
+ 
+                 batch = new SpriteBatch();
+ 
+-                // 加载 VisUI 皮肤 — 提供 VisWindow/VisDialog/ButtonBar/VisScrollPane 等标准组件
+-                VisUI.load();
++                // 加载 VisUI 皮肤并注入中文字体（VisUI 默认皮肤是拉丁字体，无法渲染中文）
++                UITheme.load();
+ 
+-                setScreen(getMainMenu());
++                if (UI_PREVIEW) {
++                        // UI 预览模式：--ui-preview 启动参数触发，用于界面视觉验证
++                        setScreen(new UiPreviewScreen(this));
++                } else {
++                        setScreen(getMainMenu());
++                }
+ //              initMusic();
+         }
+ 
+@@ -138,10 +147,8 @@ public class DarkmoorGame extends Game {
+ //              theme.dispose();
+                 batch.dispose();
+ 
+-                // 释放 VisUI 皮肤
+-                if (VisUI.isLoaded()) {
+-                        VisUI.dispose();
+-                }
++                // 释放 VisUI 皮肤及注入的中文字体
++                UITheme.dispose();
+ 
+                 Resources.unloadResources();
+                 super.dispose();
+diff --git a/core/src/com/ntk/darkmoor/UiPreviewScreen.java b/core/src/com/ntk/darkmoor/UiPreviewScreen.java
+new file mode 100644
+index 0000000..6e1de3a
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/UiPreviewScreen.java
+@@ -0,0 +1,110 @@
++package com.ntk.darkmoor;
++
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.Input;
++import com.badlogic.gdx.graphics.Pixmap;
++import com.badlogic.gdx.graphics.PixmapIO;
++import com.badlogic.gdx.utils.ScreenUtils;
++import com.ntk.darkmoor.config.Log;
++import com.ntk.darkmoor.engine.CampDialog;
++import com.ntk.darkmoor.engine.gui.campwindows.LoadGameWindow;
++
++/**
++ * UI 预览/测试屏幕 — 用于<b>视觉验证</b>所有 VisUI 弹窗的实际渲染效果。
++ *
++ * <p><b>动机</b>：v0.5 VisUI 迁移第一轮中，弹窗文本全部不可见
++ * （根因：VisUI 默认皮肤是拉丁字体，无法渲染中文）。为避免再次
++ * "改了但没看到效果"，本屏幕将主要弹窗同时铺开显示，并定时截图保存。
++ *
++ * <p><b>启动方式</b>：
++ * <pre>
++ *   java ... com.ntk.darkmoor.desktop.DesktopLauncher --ui-preview
++ *   （或 gradle: ./gradlew :desktop:run --args='--ui-preview'）
++ * </pre>
++ *
++ * <p><b>行为</b>：
++ * <ul>
++ *   <li>同时打开 4 个弹窗：选项 / 操控配置 / 营地 / 读取存档，四象限摆放</li>
++ *   <li>第 30 帧保存 {@code ui-preview-1-initial.png}（初始状态）</li>
++ *   <li>之后每 5 秒（300 帧）保存 {@code ui-preview-N.png}，可先操作再截图</li>
++ *   <li>按 ESC 退出程序</li>
++ * </ul>
++ *
++ * <p>截图保存在游戏工作目录（desktop 任务的 assetsDir）。
++ */
++public class UiPreviewScreen extends GameScreenBase {
++
++        private int frameCount;
++        private int shotIndex;
++
++        public UiPreviewScreen(DarkmoorGame game) {
++                super(game);
++        }
++
++        @Override
++        public void loadContent() {
++                super.loadContent();
++
++                // 四象限铺开所有已迁移到 VisUI 的弹窗，方便一眼对比
++                OptionsWindow options = new OptionsWindow(null, this);
++                options.setPosition(30, 700);
++                stage.addActor(options);
++
++                KeyConfigWindow keyConfig = new KeyConfigWindow(null, this);
++                keyConfig.setPosition(660, 620);
++                stage.addActor(keyConfig);
++
++                LoadGameWindow loadGame = new LoadGameWindow(null, this);
++                loadGame.setPosition(30, 120);
++                stage.addActor(loadGame);
++
++                CampDialog camp = new CampDialog(this, this);
++                camp.setPosition(700, 120);
++                stage.addActor(camp);
++
++                Log.debug("[UiPreviewScreen] All preview dialogs opened.");
++        }
++
++        @Override
++        public void render(float delta) {
++                super.render(delta);
++                frameCount++;
++
++                if (frameCount == 30) {
++                        // 初始状态截图（所有弹窗刚打开、无交互）
++                        snapshot("ui-preview-1-initial.png");
++                } else if (frameCount % 300 == 0) {
++                        // 每 5 秒一张，供交互后对比
++                        shotIndex++;
++                        snapshot("ui-preview-" + (shotIndex + 1) + ".png");
++                }
++
++                if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
++                        Gdx.app.exit();
++                }
++        }
++
++        /** 把当前帧保存为 PNG（工作目录）。 */
++        private void snapshot(String fileName) {
++                try {
++                        Pixmap frame = ScreenUtils.getFrameBufferPixmap(0, 0,
++                                        Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
++                        // 帧缓冲原点是左下角，PNG 需要上下翻转
++                        Pixmap flipped = new Pixmap(frame.getWidth(), frame.getHeight(), frame.getFormat());
++                        for (int y = 0; y < frame.getHeight(); y++) {
++                                flipped.drawPixmap(frame, 0, y, frame.getWidth(), 1, 0, frame.getHeight() - 1 - y);
++                        }
++                        PixmapIO.writePNG(Gdx.files.local(fileName), flipped);
++                        frame.dispose();
++                        flipped.dispose();
++                        Log.debug("[UiPreviewScreen] Screenshot saved: %s", new Object[] { fileName });
++                } catch (Throwable t) {
++                        Log.error("[UiPreviewScreen] Snapshot failed: %s", new Object[] { t.getMessage() });
++                }
++        }
++
++        @Override
++        public void unloadContent() {
++                super.unloadContent();
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/CampDialog.java b/core/src/com/ntk/darkmoor/engine/CampDialog.java
+index e69feed..5f5f093 100644
+--- a/core/src/com/ntk/darkmoor/engine/CampDialog.java
++++ b/core/src/com/ntk/darkmoor/engine/CampDialog.java
+@@ -1,93 +1,147 @@
+ package com.ntk.darkmoor.engine;
+ 
+-import java.util.ArrayDeque;
+-
+-import com.badlogic.gdx.math.Rectangle;
+-import com.ntk.darkmoor.GameScreen;
++import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
++import com.kotcrab.vis.ui.widget.VisDialog;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisWindow;
+ import com.ntk.darkmoor.GameScreenBase;
++import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.engine.gui.BaseWindow;
+-import com.ntk.darkmoor.engine.gui.campwindows.MainWindow;
++import com.ntk.darkmoor.engine.gui.campwindows.LoadGameWindow;
+ import com.ntk.darkmoor.stub.Mouse;
+-import com.ntk.darkmoor.config.LanguagesManager;
+ 
+ /**
+- * 营地对话框 — 玩家点击 CAMP 按钮或按 C 键时弹出。
++ * 营地对话框 — 玩家点击"营地"按钮或按 C 键时弹出。
+  *
+- * <p>管理一个 {@link ArrayDeque} 窗口栈：构造时压入 {@link MainWindow}，
+- * 子窗口可通过 {@link #addWindow(BaseWindow)} 入栈，{@link #exit()} 清空栈并关闭对话框。
++ * <p>v0.5 第二轮重构：从旧 {@code BaseWindow}（352x288 空壳 + 损坏的
++ * ScreenButton 子窗口栈）迁移为 {@link VisWindow}，菜单按钮内联渲染：
++ * <ul>
++ *   <li>标准标题栏"营地" + 右上角关闭按钮 + 可拖动</li>
++ *   <li>6 个菜单项 + 退出，用 VisTextButton 直接列出（中文字体来自 UITheme）</li>
++ *   <li>尺寸约 520x480，居中显示</li>
++ *   <li>"游戏选项"打开 VisUI 版读取存档窗口（LoadGameWindow）</li>
++ *   <li>其余菜单项（休息/记忆法术/祈求法术/抄写卷轴/偏好设置）在
++ *       v0.5 显示"功能尚未实现"提示 —— 旧营地子窗口仍是损坏的
++ *       BaseWindow（ScreenButton 未注册），打开只会得到空窗口</li>
++ * </ul>
+  *
+- * <p>v0.5 重构：原 {@code buttons} 字段和鼠标轮询逻辑已移到 {@link BaseWindow}，
+- * 由栈顶子窗口自己处理 ScreenButton 点击。
++ * <p>保留的旧 API：{@link #exit()}（LoadGameWindow 等通过
++ * getCamp().exit() 关闭整个营地）。{@code windows} 子窗口栈已废弃，
++ * {@link #addWindow(BaseWindow)} 保留为空操作以兼容旧调用。
+  *
+- * <p>设计文档：{@code docs/v0.5/10-camp-system.md}
++ * <p>设计文档：{@code docs/v0.5/10-camp-system.md}、{@code docs/v0.5/12-visui-migration-log.md} §12.9
+  */
+-public class CampDialog extends BaseWindow {
++public class CampDialog extends VisWindow {
+ 
+ 	private GameScreenBase game;
+-	private Rectangle rectangle;
+-	private ArrayDeque<BaseWindow> windows;
+ 
+ 	public CampDialog(GameScreenBase game, GameScreenBase parent) {
+-		super(null, LanguagesManager.getString("titles", 1), parent);
++		super(LanguagesManager.getString("titles", 1)); // "营地"
+ 		this.game = game;
+-		windows = new ArrayDeque<BaseWindow>();
+-		rectangle = new Rectangle(0, 0, 352, 288);
+-		addWindow(new MainWindow(this, parent));
++		setModal(true);
++		setMovable(true);
++		buildMenu(parent);
++		pack();
++		setSize(520, 480);
++		centerWindow();
+ 		Mouse.setTile(0);
+ 	}
+ 
+-	public void exit() {
+-		Team team = GameScreen.getTeam();
+-
+-		windows.clear();
+-
+-		// Restore item in hand cursor
+-		if (team.getItemInHand() != null)
+-			Mouse.setTile(team.getItemInHand().getTextureID());
+-
+-		closeAndRemoveFromParent(this);
+-	}
+-
+-	public void addWindow(BaseWindow window) {
+-		if (window == null)
+-			return;
+-
+-		windows.push(window);
+-	}
+-
+-	@Override
+-	public void update(float delta) {
+-		if (windows.size() > 0) {
+-			// Remove closing windows
+-			while (windows.size() > 0 && windows.peek().isClosing())
+-				windows.pop();
+-
+-			if (windows.isEmpty())
++	/** 构建营地菜单：6 个功能项 + 退出。 */
++	private void buildMenu(final GameScreenBase parent) {
++		VisTable table = new VisTable();
++		table.defaults().pad(8).left().growX();
++
++		addMenuButton(table, LanguagesManager.getString("Camp", 1), new ChangeListener() { // 小队休息
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				showNotImplemented();
++			}
++		});
++		addMenuButton(table, LanguagesManager.getString("Camp", 2), new ChangeListener() { // 记忆法术
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				showNotImplemented();
++			}
++		});
++		addMenuButton(table, LanguagesManager.getString("Camp", 3), new ChangeListener() { // 祈求法术
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				showNotImplemented();
++			}
++		});
++		addMenuButton(table, LanguagesManager.getString("Camp", 4), new ChangeListener() { // 抄写卷轴
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				showNotImplemented();
++			}
++		});
++		addMenuButton(table, LanguagesManager.getString("Camp", 5), new ChangeListener() { // 偏好设置
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				showNotImplemented();
++			}
++		});
++		addMenuButton(table, LanguagesManager.getString("Camp", 6), new ChangeListener() { // 游戏选项
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				// v0.5：游戏选项直接打开读取存档（VisUI 版）；保存/偏好等完整菜单 v0.6 恢复
++				parent.getStage().addActor(new LoadGameWindow(CampDialog.this, parent));
++				closeSelf();
++			}
++		});
++
++		table.row().padTop(16);
++		VisTextButton exitButton = new VisTextButton(LanguagesManager.getString("campui", 1)); // 退出
++		exitButton.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+ 				exit();
+-			else
+-				windows.peek().update(delta);
+-		}
+-		// 注：鼠标轮询由 BaseWindow.update() 处理，栈顶子窗口自己轮询自己的 screenButtons
++			}
++		});
++		table.add(exitButton).growX();
++
++		add(table).grow().pad(12);
+ 	}
+ 
+-	public Rectangle getRectangle() {
+-		return rectangle;
++	private void addMenuButton(VisTable table, String text, ChangeListener listener) {
++		VisTextButton button = new VisTextButton(text);
++		button.addListener(listener);
++		table.add(button).growX();
++		table.row();
+ 	}
+ 
+-	public void setRectangle(Rectangle rectangle) {
+-		this.rectangle = rectangle;
++	/** 显示"功能尚未实现"提示（VisDialog，带确定按钮）。 */
++	private void showNotImplemented() {
++		VisDialog dialog = new VisDialog(LanguagesManager.getString("titles", 1)); // 标题"营地"
++		dialog.text(LanguagesManager.getString("campui", 16)); // "该功能尚未实现。"
++		dialog.button(LanguagesManager.getString("campui", 2), true); // "取消" 兼作确定/关闭
++		dialog.pack();
++		dialog.centerWindow();
++		getStage().addActor(dialog);
+ 	}
+ 
+-	public ArrayDeque<BaseWindow> getWindows() {
+-		return windows;
++	/** 关闭营地对话框自身。 */
++	private void closeSelf() {
++		fadeOut();
++		remove();
+ 	}
+ 
+-	protected void setWindows(ArrayDeque<BaseWindow> windows) {
+-		this.windows = windows;
++	/**
++	 * 退出营地。保留旧 API：子窗口（LoadGameWindow 等）通过
++	 * getCamp().exit() 关闭整个营地。
++	 */
++	public void exit() {
++		closeSelf();
+ 	}
+ 
+ 	public GameScreenBase getGame() {
+ 		return game;
+ 	}
+ 
++	/** 旧 API 兼容：v0.5 起子窗口栈废弃，此方法为空操作。 */
++	public void addWindow(BaseWindow window) {
++		// no-op（旧窗口栈已由内联菜单取代）
++	}
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+index 731d256..3bc240e 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+@@ -1,5 +1,6 @@
+ package com.ntk.darkmoor.engine.graphics;
+ 
++import com.badlogic.gdx.graphics.Color;
+ import com.badlogic.gdx.scenes.scene2d.InputEvent;
+ import com.badlogic.gdx.scenes.scene2d.InputListener;
+ import com.badlogic.gdx.scenes.scene2d.Touchable;
+@@ -63,6 +64,8 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+         private VisTextButton campButton;
+         /** 游戏内设置按钮（点击弹出菜单）。 */
+         private VisTextButton settingsButton;
++        /** 用于遮盖背景图 CAMP 像素的 1x1 深色纹理。 */
++        private com.badlogic.gdx.graphics.Texture campPatchTexture;
+ 
+         @Override
+         public void initialize() {
+@@ -96,19 +99,34 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+                 addActor(directionRight);
+         }
+ 
+-        /** 创建 CAMP 和 Settings 文本按钮（VisUI 样式，i18n 文本，可点击）。
++        /** 创建 CAMP 和 Settings 小按钮（VisUI 样式，i18n 文本，可点击）。
+          * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置。
+-         * CAMP 按钮位置完全覆盖背景图里的 CAMP 像素区域 (578, 354, 62, 42)。 */
++         *
++         * <p>v0.5 第二轮布局调整（用户反馈）：两个按钮从屏幕中部 (560/720, 348)
++         * 移到<b>小地图正下方</b>（小地图占 Y 357..637），尺寸缩小到 132x46。
++         * 背景图中残留的 CAMP 像素区域 (578, 354, 62, 42) 用深色遮块盖住。 */
+         private void initializeActionButtons() {
+-                // CAMP 按钮 — 完全覆盖背景图里的 CAMP 像素区域
++                // 遮盖背景图里残留的 CAMP 像素（按钮移走后会露出来）
++                com.badlogic.gdx.graphics.Pixmap patch = new com.badlogic.gdx.graphics.Pixmap(1, 1,
++                                com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
++                patch.setColor(new Color(0.09f, 0.09f, 0.12f, 1f));
++                patch.fill();
++                campPatchTexture = new com.badlogic.gdx.graphics.Texture(patch);
++                patch.dispose();
++                Image campPixelPatch = new Image(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
++                                new com.badlogic.gdx.graphics.g2d.TextureRegion(campPatchTexture)));
++                campPixelPatch.setBounds(566, 346, 92, 58);
++                addActor(campPixelPatch);
++
++                // 营地按钮 — 小地图下方左侧
+                 campButton = new VisTextButton(LanguagesManager.getString("titles", 1));
+-                campButton.setBounds(560, 348, 160, 60);
++                campButton.setBounds(18, 296, 132, 46);
+                 campButton.setTouchable(Touchable.enabled);
+                 addActor(campButton);
+ 
+-                // Settings 按钮 — 紧邻 CAMP 右侧
++                // 选项按钮 — 小地图下方右侧
+                 settingsButton = new VisTextButton(LanguagesManager.getString("titles", 3));
+-                settingsButton.setBounds(720, 348, 160, 60);
++                settingsButton.setBounds(162, 296, 132, 46);
+                 settingsButton.setTouchable(Touchable.enabled);
+                 addActor(settingsButton);
+         }
+@@ -219,7 +237,7 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+ 
+         /**
+          * updates the compass images
+-         * 
++         *
+          */
+         private void updateCompass() {
+                 // TODO: Cache all SpriteDrawables, as they're used without change all throughout the game.
+@@ -254,5 +272,9 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+ 
+         @Override
+         public void dispose() {
++                if (campPatchTexture != null) {
++                        campPatchTexture.dispose();
++                        campPatchTexture = null;
++                }
+         }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/campwindows/GameOptionsWindow.java b/core/src/com/ntk/darkmoor/engine/gui/campwindows/GameOptionsWindow.java
+index ee05ab2..afc9dd5 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/campwindows/GameOptionsWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/campwindows/GameOptionsWindow.java
+@@ -110,12 +110,14 @@ public class GameOptionsWindow extends BaseWindow {
+ 	}
+ 
+ 	protected boolean saveSelected(Event event) {
+-		getCamp().addWindow(new SaveGameWindow(getCamp(), parent));
++		// v0.5: SaveGameWindow 已迁移为 VisWindow（非 BaseWindow），直接加入 stage
++		parent.getStage().addActor(new SaveGameWindow(getCamp(), parent));
+ 		return false;
+ 	}
+ 
+ 	protected boolean loadSelected(Event event) {
+-		getCamp().addWindow(new LoadGameWindow(getCamp(), parent));
++		// v0.5: LoadGameWindow 已迁移为 VisWindow（非 BaseWindow），直接加入 stage
++		parent.getStage().addActor(new LoadGameWindow(getCamp(), parent));
+ 		return false;
+ 	}
+ 
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/campwindows/LoadGameWindow.java b/core/src/com/ntk/darkmoor/engine/gui/campwindows/LoadGameWindow.java
+index f6e1a2a..168537e 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/campwindows/LoadGameWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/campwindows/LoadGameWindow.java
+@@ -1,98 +1,107 @@
+ package com.ntk.darkmoor.engine.gui.campwindows;
+ 
+ import com.badlogic.gdx.Gdx;
+-import com.badlogic.gdx.scenes.scene2d.Event;
+-import com.badlogic.gdx.scenes.scene2d.InputEvent;
+-import com.badlogic.gdx.scenes.scene2d.InputListener;
+-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisWindow;
+ import com.ntk.darkmoor.GameScreenBase;
+ import com.ntk.darkmoor.config.SaveGameSlot;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.CampDialog;
+-import com.ntk.darkmoor.engine.gui.BaseWindow;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ 
+-public class LoadGameWindow extends BaseWindow {
+-
+-	private int selectedSlot;
+-
+-	public LoadGameWindow(CampDialog camp, GameScreenBase parent) {
+-		super(camp, LanguagesManager.getString("titles", 7), parent);
+-		selectedSlot = -1;
+-		setupWindow();
+-		setupButtons(parent.getSkin());
+-		pack();
+-	}
+-
+-	@Override
+-	protected void setupButtons(Skin uiSkin) {
+-		buttons = new TextButton[Settings.getLastLoadedInstance().getSaveSlots() + 1];
+-
+-		for (int id = 0; id < Settings.getLastLoadedInstance().getSaveSlots(); id++) {
+-			SaveGameSlot slot = null;
+-			if (parent.getGame().getSavedGame() != null)
+-				slot = parent.getGame().getSavedGame().getSlot(id);
+-			final int slotNumber = id;
+-
+-			buttons[id] = new TextButton(
+-					!slot.isEmpty() ? slot.getName()
+-							: String.format(LanguagesManager.getString("campui", 6), id + 1),
+-					uiSkin, "transparent-font64");
+-			buttons[id].addListener(new InputListener() {
+-				public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-					slotSelected(slotNumber, event);
+-					return true;
+-				}
+-			});
+-			add(buttons[id]);
+-			row().minHeight(150).minWidth(300).fillY().fillX().expandX().expandY();
+-
+-		}
+-		buttons[Settings.getLastLoadedInstance().getSaveSlots()] = new TextButton(
+-				LanguagesManager.getString("campui", 2), uiSkin, "transparent-font64");
+-		buttons[Settings.getLastLoadedInstance().getSaveSlots()].addListener(new InputListener() {
+-			public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-				closeAndRemoveFromParent(LoadGameWindow.this);
+-				return true;
+-			}
+-		});
+-		add(buttons[6]);
+-		row().minHeight(150).minWidth(300).fillY().fillX().expandX().expandY();
+-
+-	}
+-
+-	private void setupWindow() {
+-		// getButtonTable().add(new TextButton("X", uiSkin)).height(getPadTop());
+-		setPosition(Gdx.graphics.getWidth() / 2 - 150, 100);
+-		setWidth(Gdx.graphics.getWidth() >> 1);
+-		setHeight(Gdx.graphics.getHeight() - 100);
+-		defaults().space(10);
+-		row().fill().expandX();
+-
+-		// addAction(sequence(fadeIn(5000)));
+-	}
+-
+-	protected boolean cancelSelected(Event event) {
+-		setClosing(true);
+-		return false;
+-	}
+-
+-	protected boolean slotSelected(int slotNumber, Event event) {
+-		selectedSlot = slotNumber;
+-		this.close();
+-		// If ingame, then load the savegame
+-		if (parent.getGame().loadGameSlot(selectedSlot))
+-			parent.setScreen(parent.getGame().getGameScreen());
+-		if (getCamp() != null) {
+-			getCamp().exit();
+-		}
+-
+-		return true;
+-	}
+-
+-	public int getSelectedSlot() {
+-		return selectedSlot;
+-	}
+-
++/**
++ * 读取存档窗口 — VisUI 版。
++ *
++ * <p>v0.5 第二轮重构：从旧 {@code BaseWindow}（透明文本按钮 + 硬编码
++ * buttons[6] 索引 bug）迁移为 {@link VisWindow}：
++ * <ul>
++ *   <li>标准标题栏"读取游戏" + 右上角关闭按钮</li>
++ *   <li>存档槽用 VisTextButton 列出（中文字体来自 UITheme，可读）</li>
++ *   <li>底部"取消"按钮 + 居中显示</li>
++ *   <li>保留旧 API：{@link #getSelectedSlot()}（MainMenu 使用）、
++ *       构造签名 {@code (CampDialog, GameScreenBase)}（MainMenu/GameOptionsWindow 使用）</li>
++ * </ul>
++ *
++ * <p>设计文档：{@code docs/v0.5/12-visui-migration-log.md} §12.9
++ */
++public class LoadGameWindow extends VisWindow {
++
++        private int selectedSlot;
++        /** 营地对话框引用（可能为 null — 主菜单打开时无营地）。 */
++        private final CampDialog camp;
++        /** 父屏幕（主菜单或游戏界面）。 */
++        private final GameScreenBase parent;
++
++        public LoadGameWindow(CampDialog camp, GameScreenBase parent) {
++                super(LanguagesManager.getString("titles", 7)); // "读取游戏"
++                this.camp = camp;
++                this.parent = parent;
++                selectedSlot = -1;
++
++                setModal(true);
++                setMovable(true);
++
++                VisTable table = new VisTable();
++                table.defaults().pad(6).growX();
++
++                for (int id = 0; id < Settings.getLastLoadedInstance().getSaveSlots(); id++) {
++                        final int slotNumber = id;
++                        String label = String.format(LanguagesManager.getString("campui", 6), id + 1); // "空存档位 %d"
++
++                        if (parent.getGame().getSavedGame() != null) {
++                                SaveGameSlot slot = parent.getGame().getSavedGame().getSlot(id);
++                                if (slot != null && !slot.isEmpty())
++                                        label = slot.getName();
++                        }
++
++                        VisTextButton slotButton = new VisTextButton(label);
++                        slotButton.addListener(new ChangeListener() {
++                                @Override
++                                public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++                                        slotSelected(slotNumber);
++                                }
++                        });
++                        table.add(slotButton).growX();
++                        table.row();
++                }
++
++                VisTextButton cancelButton = new VisTextButton(LanguagesManager.getString("campui", 2)); // "取消"
++                cancelButton.addListener(new ChangeListener() {
++                        @Override
++                        public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++                                closeSelf();
++                        }
++                });
++                table.add(cancelButton).growX().padTop(16);
++
++                add(table).grow().pad(12);
++                pack();
++                setSize(Math.min(Gdx.graphics.getWidth() - 80, 520),
++                                Math.min(Gdx.graphics.getHeight() - 80, getHeight()));
++                centerWindow();
++        }
++
++        /** 关闭窗口自身。 */
++        private void closeSelf() {
++                fadeOut();
++                remove();
++        }
++
++        /** 选中存档槽：读取游戏（若在游戏内），切到 GameScreen，关闭营地。 */
++        protected void slotSelected(int slotNumber) {
++                selectedSlot = slotNumber;
++                closeSelf();
++
++                // If ingame, then load the savegame
++                if (parent.getGame().loadGameSlot(selectedSlot))
++                        parent.setScreen(parent.getGame().getGameScreen());
++                if (camp != null)
++                        camp.exit();
++        }
++
++        public int getSelectedSlot() {
++                return selectedSlot;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/gui/campwindows/SaveGameWindow.java b/core/src/com/ntk/darkmoor/engine/gui/campwindows/SaveGameWindow.java
+index 6629d5e..c4c1b78 100644
+--- a/core/src/com/ntk/darkmoor/engine/gui/campwindows/SaveGameWindow.java
++++ b/core/src/com/ntk/darkmoor/engine/gui/campwindows/SaveGameWindow.java
+@@ -2,107 +2,148 @@ package com.ntk.darkmoor.engine.gui.campwindows;
+ 
+ import org.ntk.commons.StringUtils;
+ 
+-import com.badlogic.gdx.math.Rectangle;
+-import com.badlogic.gdx.scenes.scene2d.Event;
+-import com.badlogic.gdx.scenes.scene2d.EventListener;
+-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
++import com.kotcrab.vis.ui.widget.VisDialog;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisWindow;
++import com.ntk.darkmoor.GameScreen;
+ import com.ntk.darkmoor.GameScreenBase;
+ import com.ntk.darkmoor.config.SaveGameSlot;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.CampDialog;
+-import com.ntk.darkmoor.engine.gui.BaseWindow;
+-import com.ntk.darkmoor.engine.gui.MessageBox;
+-import com.ntk.darkmoor.engine.gui.MessageBox.DialogResult;
+-import com.ntk.darkmoor.engine.gui.MessageBox.MessageBoxButtons;
+-import com.ntk.darkmoor.engine.gui.ScreenButton;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ 
+-public class SaveGameWindow extends BaseWindow {
+-
+-	private int selectedSlot;
+-
+-	private Skin skin;
+-
+-	public SaveGameWindow(CampDialog camp, GameScreenBase parent) {
+-		super(camp, LanguagesManager.getString("titles", 8), parent);
+-		parent.getGame().getSavedGame().load();
+-
+-		ScreenButton button;
+-		for (int id = 0; id < Settings.getLastLoadedInstance().getSaveSlots(); id++) {
+-			SaveGameSlot slot = parent.getGame().getSavedGame().getSlot(id);
+-
+-			button = new ScreenButton(slot != null ? slot.getName() : "", new Rectangle(16, 40 + id * 34, 320, 28));
+-			button.addListener(new EventListener() {
+-
+-				@Override
+-				public boolean handle(Event event) {
+-					return slotSelected(event);
+-				}
+-
+-			});
+-			button.setTag(slot == null ? -1 : id);
+-			//getButtons().add(button);
+-		}
+-
+-		button = new ScreenButton(LanguagesManager.getString("campui", 2), new Rectangle(230, 244, 106, 28));
+-		button.addListener(new EventListener() {
+-
+-			@Override
+-			public boolean handle(Event event) {
+-				return cancelSelected(event);
+-			}
+-
+-		});
+-		//getButtons().add(button);
+-
+-		selectedSlot = -1;
+-	}
+-
+-	protected boolean cancelSelected(Event event) {
+-		setClosing(true);
+-		return false;
+-	}
+-
+-	protected boolean slotSelected(Event event) {
+-		// TODO: ntk: do we have a non-null tagret here?
+-		ScreenButton button = (ScreenButton) event.getTarget();
+-
+-		selectedSlot = ((Integer) button.getTag());
+-
+-		// Slot not empty, ask confirmation
+-		if (!StringUtils.isEmpty(button.getText())) {
+-			setMessageBox(new MessageBox("Are you sure you<br />wish to SAVE<br />the game ?", skin,
+-					MessageBoxButtons.YesNo));
+-			getMessageBox().addListener(new EventListener() {
+-
+-				@Override
+-				public boolean handle(Event event) {
+-					return messageBoxSelected(event);
+-				}
+-
+-			});
+-
+-			return true;
+-		}
+-
+-		// If ingame, then load the savegame
+-		if (getCamp() != null) {
+-			parent.getGame().getSavedGame().getSlot(selectedSlot);
+-			getCamp().exit();
+-		}
+-		return true;
+-	}
+-
+-	protected boolean messageBoxSelected(Event event) {
+-		if (((MessageBox) event.getTarget()).getDialogResult() == DialogResult.Yes && getCamp() != null) {
+-			parent.getGame().getSavedGame().getSlot(selectedSlot);
+-			getCamp().exit();
+-		}
+-		return true;
+-	}
+-
+-	public int getSelectedSlot() {
+-		return selectedSlot;
+-	}
+-
++/**
++ * 保存存档窗口 — VisUI 版。
++ *
++ * <p>v0.5 第二轮重构：从旧 {@code BaseWindow}（ScreenButton 从未注册、
++ * 保存逻辑是复制粘贴残留的空操作）迁移为 {@link VisWindow}：
++ * <ul>
++ *   <li>标准标题栏"保存游戏" + 右上角关闭按钮</li>
++ *   <li>存档槽用 VisTextButton 列出，点击即保存到对应槽位</li>
++ *   <li>覆盖已有存档时弹出 VisDialog 确认（是 / 否）</li>
++ *   <li><b>修复了原版 bug</b>：旧实现点击槽位后只关闭营地、从未调用保存；
++ *       现在通过 {@code GameScreen.saveGameSlot(slot)} 真正保存</li>
++ * </ul>
++ *
++ * <p>设计文档：{@code docs/v0.5/12-visui-migration-log.md} §12.9
++ */
++public class SaveGameWindow extends VisWindow {
++
++        private int selectedSlot;
++        /** 营地对话框引用（可能为 null）。 */
++        private final CampDialog camp;
++        /** 父屏幕（游戏界面）。 */
++        private final GameScreenBase parent;
++
++        public SaveGameWindow(CampDialog camp, GameScreenBase parent) {
++                super(LanguagesManager.getString("titles", 8)); // "保存游戏"
++                this.camp = camp;
++                this.parent = parent;
++                selectedSlot = -1;
++
++                if (parent.getGame().getSavedGame() != null)
++                        parent.getGame().getSavedGame().load();
++
++                setModal(true);
++                setMovable(true);
++
++                VisTable table = new VisTable();
++                table.defaults().pad(6).growX();
++
++                for (int id = 0; id < Settings.getLastLoadedInstance().getSaveSlots(); id++) {
++                        final int slotNumber = id;
++                        String label = String.format(LanguagesManager.getString("campui", 6), id + 1); // "空存档位 %d"
++
++                        if (parent.getGame().getSavedGame() != null) {
++                                SaveGameSlot slot = parent.getGame().getSavedGame().getSlot(id);
++                                if (slot != null && !StringUtils.isEmpty(slot.getName()))
++                                        label = slot.getName();
++                        }
++
++                        VisTextButton slotButton = new VisTextButton(label);
++                        slotButton.addListener(new ChangeListener() {
++                                @Override
++                                public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++                                        slotSelected(slotNumber);
++                                }
++                        });
++                        table.add(slotButton).growX();
++                        table.row();
++                }
++
++                VisTextButton cancelButton = new VisTextButton(LanguagesManager.getString("campui", 2)); // "取消"
++                cancelButton.addListener(new ChangeListener() {
++                        @Override
++                        public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++                                closeSelf();
++                        }
++                });
++                table.add(cancelButton).growX().padTop(16);
++
++                add(table).grow().pad(12);
++                pack();
++                setSize(Math.min(Gdx.graphics.getWidth() - 80, 520),
++                                Math.min(Gdx.graphics.getHeight() - 80, getHeight()));
++                centerWindow();
++        }
++
++        /** 关闭窗口自身。 */
++        private void closeSelf() {
++                fadeOut();
++                remove();
++        }
++
++        /** 选中槽位：空槽直接保存；已有存档先确认覆盖。 */
++        protected void slotSelected(int slotNumber) {
++                selectedSlot = slotNumber;
++
++                boolean occupied = false;
++                if (parent.getGame().getSavedGame() != null) {
++                        SaveGameSlot slot = parent.getGame().getSavedGame().getSlot(slotNumber);
++                        occupied = slot != null && !StringUtils.isEmpty(slot.getName());
++                }
++
++                if (occupied) {
++                        // 已有存档 → VisDialog 确认覆盖；重写 result() 接收按钮结果
++                        VisDialog confirm = new VisDialog(LanguagesManager.getString("titles", 8)) {
++                                @Override
++                                protected void result(Object object) {
++                                        SaveGameWindow.this.onConfirm(Boolean.TRUE.equals(object));
++                                }
++                        };
++                        confirm.text(LanguagesManager.getString("campui", 18)); // "确定要覆盖这个存档吗？"
++                        confirm.button(LanguagesManager.getString("campui", 3), Boolean.TRUE); // "是"
++                        confirm.button(LanguagesManager.getString("campui", 4), Boolean.FALSE); // "否"
++                        confirm.pack();
++                        confirm.centerWindow();
++                        getStage().addActor(confirm);
++                        return;
++                }
++
++                doSave();
++        }
++
++        /** 确认结果回调：isYes 为 true 时执行保存。 */
++        private void onConfirm(boolean isYes) {
++                if (isYes)
++                        doSave();
++        }
++
++        /** 执行真正的保存：调用 GameScreen.saveGameSlot（游戏内），然后关闭窗口与营地。 */
++        private void doSave() {
++                if (parent instanceof GameScreen) {
++                        try {
++                                ((GameScreen) parent).saveGameSlot(selectedSlot);
++                        } catch (Exception e) {
++                                com.ntk.darkmoor.config.Log.error("[SaveGameWindow] save failed: %s",
++                                                new Object[] { e.getMessage() });
++                        }
++                }
++                closeSelf();
++                if (camp != null)
++                        camp.exit();
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/resource/Resources.java b/core/src/com/ntk/darkmoor/resource/Resources.java
+index bec3093..e8ceac4 100644
+--- a/core/src/com/ntk/darkmoor/resource/Resources.java
++++ b/core/src/com/ntk/darkmoor/resource/Resources.java
+@@ -171,7 +171,7 @@ public class Resources {
+ 	 * string table (all languages). Keeping this dynamic means newly added
+ 	 * translations are picked up without touching this file.
+ 	 */
+-	private static String buildFontCharacterSet() {
++	public static String buildFontCharacterSet() {
+ 		StringBuilder sb = new StringBuilder(FreeTypeFontGenerator.DEFAULT_CHARS);
+ 		LanguagesManager languages = LanguagesManager.getInstance();
+ 		if (languages != null) {
+@@ -185,6 +185,11 @@ public class Resources {
+ 		return sb.toString();
+ 	}
+ 
++	/** Returns a handle to the bundled CJK TTF font (used by UITheme for VisUI skin). */
++	public static FileHandle getCjkFontFile() {
++		return Gdx.files.internal(FONT_PATH + CJK_FONT_TTF);
++	}
++
+ 	public static void loadGameResources() {
+ 		DarkmoorGame.getInstance().submitTask(
+ 				new DungeonLoadingTask(DarkmoorGame.getInstance().getSavedGame().getDungeonName()));
+diff --git a/core/src/com/ntk/darkmoor/resource/UITheme.java b/core/src/com/ntk/darkmoor/resource/UITheme.java
+new file mode 100644
+index 0000000..bf91bb0
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/resource/UITheme.java
+@@ -0,0 +1,187 @@
++package com.ntk.darkmoor.resource;
++
++import com.badlogic.gdx.Gdx;
++import com.badlogic.gdx.files.FileHandle;
++import com.badlogic.gdx.graphics.g2d.BitmapFont;
++import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
++import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
++import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
++import com.badlogic.gdx.scenes.scene2d.ui.Label;
++import com.badlogic.gdx.scenes.scene2d.ui.List;
++import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
++import com.badlogic.gdx.scenes.scene2d.ui.Skin;
++import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.badlogic.gdx.scenes.scene2d.ui.TextField;
++import com.badlogic.gdx.scenes.scene2d.ui.Tree;
++import com.badlogic.gdx.scenes.scene2d.ui.Window;
++import com.kotcrab.vis.ui.VisUI;
++import com.kotcrab.vis.ui.widget.VisCheckBox;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisTextField;
++import com.ntk.darkmoor.config.Log;
++import com.ntk.darkmoor.config.LanguagesManager;
++
++/**
++ * UI 主题初始化 — 在 VisUI 默认皮肤的基础上注入中文字体。
++ *
++ * <p><b>背景</b>：VisUI 1.5.9 的默认皮肤使用拉丁位图字体（vis-default.fnt），
++ * <b>不含任何 CJK 字形</b>。直接 VisUI.load() 会让所有中文文本渲染为空白/方块。
++ * 本类在 VisUI 加载后用 FreeType 从 NotoSansSC-Regular.ttf 生成包含
++ * "StringTable.xml 全部字符" 的字体，并替换 VisUI 各组件样式的 font 字段。
++ *
++ * <p><b>为什么直接改样式对象而不是 skin.add()</b>：libGDX Skin 的样式在
++ * JSON 解析时就解析了字体引用，之后 skin.add("default-font", ...) 不会更新
++ * 已解析的样式。因此这里直接对样式对象的 font/titleFont 字段赋值，确保
++ * 本方法之后创建的所有组件都使用中文字体。
++ *
++ * <p>设计文档：{@code docs/v0.5/12-visui-migration-log.md} §12.9
++ */
++public class UITheme {
++
++        /** 对话框正文/按钮字体（stage 被纵向压缩 0.5625 后视觉高度约 22px） */
++        private static BitmapFont bodyFont;
++        /** 窗口标题字体 */
++        private static BitmapFont titleFont;
++
++        /** 加载 VisUI 并注入中文字体。必须在创建任何 VisUI 组件之前调用。 */
++        public static void load() {
++                VisUI.load();
++                Skin skin = VisUI.getSkin();
++
++                generateCjkFonts();
++                if (bodyFont == null) {
++                        Log.debug("[UITheme] CJK font unavailable, VisUI keeps its Latin default font.");
++                        return;
++                }
++
++                skin.add("default-font", bodyFont, BitmapFont.class);
++                skin.add("default-font-large", titleFont, BitmapFont.class);
++                restyle(skin);
++                Log.debug("[UITheme] VisUI skin restyled with CJK fonts (body 40px, title 48px).");
++        }
++
++        /** 用 FreeType 生成两档中文字体：正文 40px、标题 48px。 */
++        private static void generateCjkFonts() {
++                try {
++                        FileHandle cjk = Resources.getCjkFontFile();
++                        if (!cjk.exists()) {
++                                Log.debug("[UITheme] CJK font file not found: %s", new Object[] { cjk.path() });
++                                return;
++                        }
++                        FreeTypeFontGenerator gen = new FreeTypeFontGenerator(cjk);
++                        String chars = Resources.buildFontCharacterSet();
++
++                        FreeTypeFontParameter p = new FreeTypeFontParameter();
++                        p.characters = chars;
++                        p.size = 40;
++                        p.magFilter = com.badlogic.gdx.graphics.Texture.TextureFilter.Linear;
++                        p.minFilter = com.badlogic.gdx.graphics.Texture.TextureFilter.Linear;
++                        p.incremental = true; // 运行时遇到缺字自动补绘（如玩家自定义文本）
++                        bodyFont = gen.generateFont(p);
++
++                        p.size = 48;
++                        titleFont = gen.generateFont(p);
++                        gen.dispose();
++                } catch (Throwable t) {
++                        Log.error("[UITheme] Failed to generate CJK fonts: %s", new Object[] { t.getMessage() });
++                        bodyFont = null;
++                        titleFont = null;
++                }
++        }
++
++        /**
++         * 逐个替换样式的字体字段。单个样式缺失不影响其他样式。
++         *
++         * <p>注意 VisUI 1.5.9 的皮肤 JSON 大多把样式注册为 scene2d 样式类
++         * （WindowStyle/LabelStyle/...），只有 VisTextButton/VisCheckBox/VisTextField
++         * 用自己的嵌套样式类。这里按皮肤 JSON 的实际注册类来改。
++         */
++        private static void restyle(Skin skin) {
++                // 窗口标题（VisWindow 用 default，VisDialog 可用 dialog；一并列出全部窗口样式名）
++                String[] windowStyles = {"default", "dialog", "resizable", "noborder"};
++                for (String name : windowStyles) {
++                        try {
++                                Window.WindowStyle ws = skin.get(name, Window.WindowStyle.class);
++                                ws.titleFont = titleFont;
++                        } catch (Throwable t) {
++                                Log.debug("[UITheme] Window style '%s' restyle skipped: %s",
++                                                new Object[] { name, t.getMessage() });
++                        }
++                }
++
++                // VisTextButton（嵌套样式类），兼容 scene2d TextButton
++                String[] buttonStyles = {"default", "toggle", "blue"};
++                for (String name : buttonStyles) {
++                        try {
++                                VisTextButton.VisTextButtonStyle ts =
++                                                skin.get(name, VisTextButton.VisTextButtonStyle.class);
++                                ts.font = bodyFont;
++                        } catch (Throwable t) {
++                                try {
++                                        TextButton.TextButtonStyle ts =
++                                                        skin.get(name, TextButton.TextButtonStyle.class);
++                                        ts.font = bodyFont;
++                                } catch (Throwable t2) {
++                                        Log.debug("[UITheme] TextButton style '%s' restyle skipped: %s",
++                                                        new Object[] { name, t2.getMessage() });
++                                }
++                        }
++                }
++
++                // VisCheckBox（嵌套样式类）
++                try {
++                        VisCheckBox.VisCheckBoxStyle cs = skin.get("default", VisCheckBox.VisCheckBoxStyle.class);
++                        cs.font = bodyFont;
++                } catch (Throwable t) {
++                        Log.debug("[UITheme] VisCheckBox style restyle skipped: %s", new Object[] { t.getMessage() });
++                }
++
++                // VisTextField（嵌套样式类）
++                try {
++                        VisTextField.VisTextFieldStyle ts = skin.get("default", VisTextField.VisTextFieldStyle.class);
++                        ts.font = bodyFont;
++                        if (ts.messageFont != null)
++                                ts.messageFont = bodyFont;
++                } catch (Throwable t) {
++                        Log.debug("[UITheme] VisTextField style restyle skipped: %s", new Object[] { t.getMessage() });
++                }
++
++                // scene2d 样式类：Label / List / SelectBox / Tree / CheckBox 兜底
++                try {
++                        Label.LabelStyle ls = skin.get("default", Label.LabelStyle.class);
++                        ls.font = bodyFont;
++                } catch (Throwable t) {
++                        Log.debug("[UITheme] Label style restyle skipped: %s", new Object[] { t.getMessage() });
++                }
++                try {
++                        List.ListStyle lls = skin.get("default", List.ListStyle.class);
++                        lls.font = bodyFont;
++                } catch (Throwable t) {
++                        Log.debug("[UITheme] List style restyle skipped: %s", new Object[] { t.getMessage() });
++                }
++                try {
++                        SelectBox.SelectBoxStyle ss = skin.get("default", SelectBox.SelectBoxStyle.class);
++                        ss.font = bodyFont;
++                        if (ss.listStyle != null)
++                                ss.listStyle.font = bodyFont;
++                } catch (Throwable t) {
++                        Log.debug("[UITheme] SelectBox style restyle skipped: %s", new Object[] { t.getMessage() });
++                }
++                // 注：TreeStyle 无 font 字段（Tree 用 Label 渲染节点文本），Label 样式已覆盖。
++        }
++
++        /** 释放生成的字体与 VisUI 皮肤。 */
++        public static void dispose() {
++                if (bodyFont != null) {
++                        bodyFont.dispose();
++                        bodyFont = null;
++                }
++                if (titleFont != null) {
++                        titleFont.dispose();
++                        titleFont = null;
++                }
++                if (VisUI.isLoaded()) {
++                        VisUI.dispose();
++                }
++        }
++}
+diff --git a/desktop/resources/data/StringTable.xml b/desktop/resources/data/StringTable.xml
+index 638998c..ee4a724 100644
+--- a/desktop/resources/data/StringTable.xml
++++ b/desktop/resources/data/StringTable.xml
+@@ -286,6 +286,8 @@
+ 			<string id="13">Sound FX are OFF</string>
+ 			<string id="14">Bar Graphs are ON</string>
+ 			<string id="15">Bar Graphs are OFF</string>
++			<string id="16">This feature is not implemented yet.</string>
++			<string id="18">Are you sure you want to overwrite this save slot?</string>
+ 		</language>
+ 		<language name="Francais">
+ 			<string id="1">Sortir</string>
+@@ -303,6 +305,8 @@
+ 			<string id="13">Effets sonores d&#xE9;sactiv&#xE9;s</string>
+ 			<string id="14">Barres activ&#xE9;es</string>
+ 			<string id="15">Barres d&#xE9;sactiv&#xE9;es</string>
++			<string id="16">Cette fonctionnalit&#xE9; n'est pas encore impl&#xE9;ment&#xE9;e.</string>
++			<string id="18">&#xC0;tes-vous s&#xFB;r de vouloir &#xE9;craser cette sauvegarde ?</string>
+ 		</language>
+ 		<language name="Chinese">
+ 			<string id="1">退出</string>
+@@ -320,6 +324,8 @@
+ 			<string id="13">音效：关</string>
+ 			<string id="14">生命条显示：开</string>
+ 			<string id="15">生命条显示：关</string>
++			<string id="16">该功能尚未实现。</string>
++			<string id="18">确定要覆盖这个存档吗？</string>
+ 		</language>
+ 	</stringtable>
+ 	<stringtable name="titles">
+diff --git a/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java b/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
+index dbf475b..cc6a7e6 100644
+--- a/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
++++ b/desktop/src/com/ntk/darkmoor/desktop/DesktopLauncher.java
+@@ -5,15 +5,25 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+ import com.ntk.darkmoor.DarkmoorGame;
+ 
+ public class DesktopLauncher {
+-	public static void main (String[] arg) {
+-		// LWJGL3 backend (libGDX >= 1.11.0). The old `LwjglApplication` /
+-		// `LwjglApplicationConfiguration` classes from the LWJGL2 backend are gone.
+-		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+-		config.setTitle("The Legend of Darkmoor");
+-		config.setWindowedMode(DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_HEIGHT);
+-		config.setForegroundFPS(60);
+-		config.useVsync(true);
+-		// `config.disableAudio(false)` - audio is enabled by default.
+-		new Lwjgl3Application(new DarkmoorGame(), config);
+-	}
++        public static void main (String[] arg) {
++                // LWJGL3 backend (libGDX >= 1.11.0). The old `LwjglApplication` /
++                // `LwjglApplicationConfiguration` classes from the LWJGL2 backend are gone.
++                Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
++                config.setTitle("The Legend of Darkmoor");
++                config.setWindowedMode(DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_HEIGHT);
++                config.setForegroundFPS(60);
++                config.useVsync(true);
++                // `config.disableAudio(false)` - audio is enabled by default.
++
++                // --ui-preview: 打开 UI 预览屏幕（视觉验证所有 VisUI 弹窗），见 UiPreviewScreen
++                if (arg != null) {
++                        for (String a : arg) {
++                                if ("--ui-preview".equals(a)) {
++                                        DarkmoorGame.UI_PREVIEW = true;
++                                }
++                        }
++                }
++
++                new Lwjgl3Application(new DarkmoorGame(), config);
++        }
+ }
+diff --git a/docs/v0.5/12-visui-migration-log.md b/docs/v0.5/12-visui-migration-log.md
+index 33001e2..8a65bad 100644
+--- a/docs/v0.5/12-visui-migration-log.md
++++ b/docs/v0.5/12-visui-migration-log.md
+@@ -295,3 +295,126 @@ VisUI 是**非侵入式**的：它只替换 Skin，不修改 scene2d 内核。
+ - [09-input-system.md](09-input-system.md) — 输入系统（KeyConfigWindow）
+ - [10-camp-system.md](10-camp-system.md) — CAMP 系统（营地子窗口）
+ - [modules/07-engine-gui.md](modules/07-engine-gui.md) — 现有 GUI 模块详解
++
++---
++
++## 12.9 第二轮修复（用户实测反馈，2026-11）
++
++> **背景**：第一轮补丁合入后用户实测发现严重问题 —— 所有 VisUI 组件里的
++> 中文文本**完全不可见**，checkbox 极小；读取存档弹窗、营地弹窗未迁移到
++> VisUI；游戏内"营地/选项"按钮巨大且立在屏幕中央。本节记录根因与第二轮修复。
++
++### 12.9.1 根因分析：中文不可见
++
++**根因**：VisUI 1.5.9 默认皮肤（`vis-default.fnt`）是**拉丁位图字体**，
++**不含任何 CJK 字形**。第一轮补丁只做了 `VisUI.load()`，没有处理字体，
++导致所有 VisUI 组件（VisTextButton/VisCheckBox/VisLabel/VisWindow 标题）里的
++中文渲染为空白。英文正常、中文消失，与用户截图现象完全吻合。
++
++**教训**：引入第三方 UI 库时，字体覆盖面（尤其 CJK）必须在集成阶段验证，
++不能只看 ECJ 编译通过。本轮为此新增了 `--ui-preview` 视觉验证工具（见 12.9.6）。
++
++### 12.9.2 修复：UITheme 中文字体注入（新文件）
++
++新增 `core/src/com/ntk/darkmoor/resource/UITheme.java`：
++
++1. `VisUI.load()` 加载默认皮肤
++2. 用 FreeType 从 `NotoSansSC-Regular.ttf` 生成两档字体：
++   - `bodyFont` 40px（对话框正文/按钮，stage 纵向压缩后视觉约 22px）
++   - `titleFont` 48px（窗口标题）
++   - 字符集 = DEFAULT_CHARS + StringTable.xml 全部字符
++     （复用 `Resources.buildFontCharacterSet()`，新增翻译自动覆盖）
++3. 替换皮肤样式的字体字段。**关键发现**：VisUI 1.5.9 的皮肤 JSON 大多把样式
++   注册为 **scene2d 样式类**（`WindowStyle`/`LabelStyle`/`ListStyle`/
++   `SelectBoxStyle`），只有 `VisTextButton`/`VisCheckBox`/`VisTextField` 用
++   嵌套样式类。第一轮没做这步，本轮按皮肤 JSON 实际注册类逐一替换：
++   - `Window.WindowStyle`（default/dialog/resizable/noborder 四个样式名）
++   - `VisTextButton.VisTextButtonStyle`（default/toggle/blue）
++   - `VisCheckBox.VisCheckBoxStyle`、`VisTextField.VisTextFieldStyle`
++   - `Label.LabelStyle`、`List.ListStyle`、`SelectBox.SelectBoxStyle`
++   - 注：`TreeStyle` 无 font 字段（Tree 用 Label 渲染），已被 Label 覆盖
++4. `DarkmoorGame.create()` 改调 `UITheme.load()`，`dispose()` 改调 `UITheme.dispose()`
++
++**为什么直接改样式对象**：libGDX Skin 的样式在 JSON 解析时就解析了字体引用，
++事后 `skin.add("default-font", ...)` 不会更新已解析的样式。
++
++### 12.9.3 替换清单（本轮新增）
++
++| 文件 | 替换内容 | 布局变化 |
++|---|---|---|
++| `LoadGameWindow.java` | `BaseWindow` → `VisWindow`；存档槽 `TextButton(transparent-font64)` → `VisTextButton`；**修复硬编码 `add(buttons[6])` 索引 bug**；保留 `getSelectedSlot()` API | 520px 宽居中，标题栏"读取游戏"+关闭按钮 |
++| `SaveGameWindow.java` | `BaseWindow` → `VisWindow`；`ScreenButton` → `VisTextButton`；覆盖确认 `MessageBox` → `VisDialog`（重写 `result()` 接收回调）；**修复原版 bug：旧实现从未真正保存，现调 `GameScreen.saveGameSlot()`** | 同上，标题"保存游戏" |
++| `CampDialog.java` | `BaseWindow`（352x288 空壳 + 损坏的 ScreenButton 子窗口栈）→ `VisWindow` **内联菜单**：6 个功能项 + 退出直接列出；"游戏选项"打开 VisUI 版 LoadGameWindow；其余项显示"功能尚未实现"VisDialog（旧营地子窗口的 ScreenButton 仍未注册，打开只会得到空窗口卡死用户） | **520x480 居中**，标题"营地"+关闭按钮 |
++| `GameOptionsWindow.java` | 仅修编译：`getCamp().addWindow(new SaveGameWindow(...))` → `parent.getStage().addActor(...)`（Save/Load 窗口不再是 BaseWindow） | 无 |
++| `NavigationControlsGroup.java` | "营地/选项"按钮从屏幕中部 (560/720, 348, 160x60) 移到**小地图正下方** (18/162, 296, 132x46)；背景图残留 CAMP 像素 (578,354,62,42) 用 1x1 深色 Pixmap 纹理遮块盖住（`SolidColorDrawable` 在 gdx 1.14.2 不存在，用 Pixmap 实现） | 按钮贴小地图底部，不再遮挡画面中央 |
++| `StringTable.xml` ×2 | `campui` 加 id=16"该功能尚未实现。"、id=18"确定要覆盖这个存档吗？"（EN/FR/CN 三语言） | — |
++| `Resources.java` | `buildFontCharacterSet()` 改 public（UITheme 复用）；新增 `getCjkFontFile()` | — |
++
++### 12.9.4 修复后的界面布局
++
++```
++游戏界面（stage 1280 宽，Y 向上）：
++┌──────────────────────────────┬──────────────┐
++│                              │  角色面板     │
++│   第一人称迷宫视图            │  (4 角色)    │
++│                              │              │
++│  ┌──────────┐                │              │
++│  │ 小地图    │                │              │
++│  │ 280x280  │                │              │
++│  └──────────┘                │              │
++│  ┌──────┐┌──────┐           │              │
++│  │ 营地  ││ 选项 │ ← VisTextButton 132x46   │
++│  └──────┘└──────┘           │              │
++└──────────────────────────────┴──────────────┘
++   ↑ 原 nav 操控面板区域（默认隐藏，N 键切换）
++```
++
++### 12.9.5 编译验证升级
++
++本轮在 ECJ classpath 中补齐了 `gdx-freetype`、`ntk-commons`、`gdx-backend-lwjgl3`
++三个 jar（前几轮缺失导致 186 个误报"预存在错误"）。补齐后：
++
++- **core 模块 100% 编译通过（0 错误）**——之前报的 186 个错误全部是
++  classpath 问题，不是代码问题
++- desktop 模块（DesktopLauncher）编译通过
++
++### 12.9.6 UI 视觉验证工具（新文件）
++
++用户问"你有没有编译运行测试过这个界面？"——沙箱环境无显示设备/GPU，
++无法运行游戏。为避免再次"改了但没看到效果"，本轮新增：
++
++`core/src/com/ntk/darkmoor/UiPreviewScreen.java` + `DesktopLauncher` 参数：
++
++```bash
++# 方式一：命令行
++java -cp ... com.ntk.darkmoor.desktop.DesktopLauncher --ui-preview
++
++# 方式二：gradle
++./gradlew :desktop:run --args='--ui-preview'
++```
++
++行为：
++1. 跳过主菜单，直接打开 UiPreviewScreen
++2. **四象限同时铺开 4 个弹窗**：选项（左上）/ 操控配置（右上）/
++   读取存档（左下）/ 营地（右下），一眼对比字体、checkbox、按钮样式
++3. 第 30 帧自动截图 `ui-preview-1-initial.png`
++4. 之后每 5 秒截图 `ui-preview-N.png`（可先点击交互再截）
++5. ESC 退出
++
++**验收标准**（用户执行 --ui-preview 后应看到）：
++- 所有弹窗中文文本清晰可读（40px CJK 字体）
++- checkbox 有明显勾选框 + 中文标签
++- 每个弹窗有标题栏 + 右上角关闭按钮
++- 读取存档列出 6 个槽位 + 取消按钮
++- 营地显示 6 个菜单项 + 退出，尺寸约 520x480
++
++### 12.9.7 遗留问题更新
++
++| 问题 | 影响 | 计划 |
++|---|---|---|
++| 9 个旧营地子窗口（RestPartyWindow/SpellWindow 等）未迁移 | 营地菜单对应项显示"尚未实现" | v0.6 全部迁 VisWindow |
++| `MainWindow.java` 成为死代码（CampDialog 内联菜单取代） | 无害，编译通过 | v0.6 删除 |
++| GameOptionsWindow（含保存入口）不再可达 | 保存功能暂经 SaveGameWindow（v0.6 恢复入口） | v0.6 |
++| 游戏内 HUD（HeroInterfaceGroup 等）未迁移 | 角色面板仍是旧样式 | v0.7 |
++| VisUI 默认皮肤扁平现代风 | 与 EOB2 主题不符 | v0.7 Skin Composer |
++| `Interface.png` CAMP 像素用遮块盖住 | 位置硬编码 (566,346,92,58) | v0.6 裁剪原图 |

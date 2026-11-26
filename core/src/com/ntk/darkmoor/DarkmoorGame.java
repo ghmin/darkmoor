@@ -11,16 +11,20 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.async.AsyncExecutor;
 import com.badlogic.gdx.utils.async.AsyncTask;
-import com.kotcrab.vis.ui.VisUI;
 import com.ntk.darkmoor.config.SaveGame;
 import com.ntk.darkmoor.config.Settings;
 import com.ntk.darkmoor.engine.Dungeon;
 import com.ntk.darkmoor.resource.Resources;
+import com.ntk.darkmoor.resource.UITheme;
 
 public class DarkmoorGame extends Game {
         private static final int MAX_THREADS = 2;
         public static final int GAME_HEIGHT = 400;
         public static final int GAME_WIDTH = 640;
+
+        /** UI 预览模式标志：由 DesktopLauncher 在检测到 --ui-preview 参数时置 true。
+         * 该模式跳过主菜单，直接打开 UiPreviewScreen，展示所有 VisUI 弹窗并定时截图。 */
+        public static boolean UI_PREVIEW = false;
 
         public static final int DISPLAY_HEIGHT = 720;
         public static final int DISPLAY_WIDTH = 1280;
@@ -50,10 +54,15 @@ public class DarkmoorGame extends Game {
 
                 batch = new SpriteBatch();
 
-                // 加载 VisUI 皮肤 — 提供 VisWindow/VisDialog/ButtonBar/VisScrollPane 等标准组件
-                VisUI.load();
+                // 加载 VisUI 皮肤并注入中文字体（VisUI 默认皮肤是拉丁字体，无法渲染中文）
+                UITheme.load();
 
-                setScreen(getMainMenu());
+                if (UI_PREVIEW) {
+                        // UI 预览模式：--ui-preview 启动参数触发，用于界面视觉验证
+                        setScreen(new UiPreviewScreen(this));
+                } else {
+                        setScreen(getMainMenu());
+                }
 //              initMusic();
         }
 
@@ -138,10 +147,8 @@ public class DarkmoorGame extends Game {
 //              theme.dispose();
                 batch.dispose();
 
-                // 释放 VisUI 皮肤
-                if (VisUI.isLoaded()) {
-                        VisUI.dispose();
-                }
+                // 释放 VisUI 皮肤及注入的中文字体
+                UITheme.dispose();
 
                 Resources.unloadResources();
                 super.dispose();

@@ -286,6 +286,8 @@
 			<string id="13">Sound FX are OFF</string>
 			<string id="14">Bar Graphs are ON</string>
 			<string id="15">Bar Graphs are OFF</string>
+			<string id="16">This feature is not implemented yet.</string>
+			<string id="18">Are you sure you want to overwrite this save slot?</string>
 		</language>
 		<language name="Francais">
 			<string id="1">Sortir</string>
@@ -303,6 +305,8 @@
 			<string id="13">Effets sonores d&#xE9;sactiv&#xE9;s</string>
 			<string id="14">Barres activ&#xE9;es</string>
 			<string id="15">Barres d&#xE9;sactiv&#xE9;es</string>
+			<string id="16">Cette fonctionnalit&#xE9; n'est pas encore impl&#xE9;ment&#xE9;e.</string>
+			<string id="18">&#xC0;tes-vous s&#xFB;r de vouloir &#xE9;craser cette sauvegarde ?</string>
 		</language>
 		<language name="Chinese">
 			<string id="1">退出</string>
@@ -320,6 +324,8 @@
 			<string id="13">音效：关</string>
 			<string id="14">生命条显示：开</string>
 			<string id="15">生命条显示：关</string>
+			<string id="16">该功能尚未实现。</string>
+			<string id="18">确定要覆盖这个存档吗？</string>
 		</language>
 	</stringtable>
 	<stringtable name="titles">

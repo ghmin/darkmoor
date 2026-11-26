@@ -295,3 +295,126 @@ VisUI 是**非侵入式**的：它只替换 Skin，不修改 scene2d 内核。�
 - [09-input-system.md](09-input-system.md) — 输入系统（KeyConfigWindow）
 - [10-camp-system.md](10-camp-system.md) — CAMP 系统（营地子窗口）
 - [modules/07-engine-gui.md](modules/07-engine-gui.md) — 现有 GUI 模块详解
+
+---
+
+## 12.9 第二轮修复（用户实测反馈，2026-11）
+
+> **背景**：第一轮补丁合入后用户实测发现严重问题 —— 所有 VisUI 组件里的
+> 中文文本**完全不可见**，checkbox 极小；读取存档弹窗、营地弹窗未迁移到
+> VisUI；游戏内"营地/选项"按钮巨大且立在屏幕中央。本节记录根因与第二轮修复。
+
+### 12.9.1 根因分析：中文不可见
+
+**根因**：VisUI 1.5.9 默认皮肤（`vis-default.fnt`）是**拉丁位图字体**，
+**不含任何 CJK 字形**。第一轮补丁只做了 `VisUI.load()`，没有处理字体，
+导致所有 VisUI 组件（VisTextButton/VisCheckBox/VisLabel/VisWindow 标题）里的
+中文渲染为空白。英文正常、中文消失，与用户截图现象完全吻合。
+
+**教训**：引入第三方 UI 库时，字体覆盖面（尤其 CJK）必须在集成阶段验证，
+不能只看 ECJ 编译通过。本轮为此新增了 `--ui-preview` 视觉验证工具（见 12.9.6）。
+
+### 12.9.2 修复：UITheme 中文字体注入（新文件）
+
+新增 `core/src/com/ntk/darkmoor/resource/UITheme.java`：
+
+1. `VisUI.load()` 加载默认皮肤
+2. 用 FreeType 从 `NotoSansSC-Regular.ttf` 生成两档字体：
+   - `bodyFont` 40px（对话框正文/按钮，stage 纵向压缩后视觉约 22px）
+   - `titleFont` 48px（窗口标题）
+   - 字符集 = DEFAULT_CHARS + StringTable.xml 全部字符
+     （复用 `Resources.buildFontCharacterSet()`，新增翻译自动覆盖）
+3. 替换皮肤样式的字体字段。**关键发现**：VisUI 1.5.9 的皮肤 JSON 大多把样式
+   注册为 **scene2d 样式类**（`WindowStyle`/`LabelStyle`/`ListStyle`/
+   `SelectBoxStyle`），只有 `VisTextButton`/`VisCheckBox`/`VisTextField` 用
+   嵌套样式类。第一轮没做这步，本轮按皮肤 JSON 实际注册类逐一替换：
+   - `Window.WindowStyle`（default/dialog/resizable/noborder 四个样式名）
+   - `VisTextButton.VisTextButtonStyle`（default/toggle/blue）
+   - `VisCheckBox.VisCheckBoxStyle`、`VisTextField.VisTextFieldStyle`
+   - `Label.LabelStyle`、`List.ListStyle`、`SelectBox.SelectBoxStyle`
+   - 注：`TreeStyle` 无 font 字段（Tree 用 Label 渲染），已被 Label 覆盖
+4. `DarkmoorGame.create()` 改调 `UITheme.load()`，`dispose()` 改调 `UITheme.dispose()`
+
+**为什么直接改样式对象**：libGDX Skin 的样式在 JSON 解析时就解析了字体引用，
+事后 `skin.add("default-font", ...)` 不会更新已解析的样式。
+
+### 12.9.3 替换清单（本轮新增）
+
+| 文件 | 替换内容 | 布局变化 |
+|---|---|---|
+| `LoadGameWindow.java` | `BaseWindow` → `VisWindow`；存档槽 `TextButton(transparent-font64)` → `VisTextButton`；**修复硬编码 `add(buttons[6])` 索引 bug**；保留 `getSelectedSlot()` API | 520px 宽居中，标题栏"读取游戏"+关闭按钮 |
+| `SaveGameWindow.java` | `BaseWindow` → `VisWindow`；`ScreenButton` → `VisTextButton`；覆盖确认 `MessageBox` → `VisDialog`（重写 `result()` 接收回调）；**修复原版 bug：旧实现从未真正保存，现调 `GameScreen.saveGameSlot()`** | 同上，标题"保存游戏" |
+| `CampDialog.java` | `BaseWindow`（352x288 空壳 + 损坏的 ScreenButton 子窗口栈）→ `VisWindow` **内联菜单**：6 个功能项 + 退出直接列出；"游戏选项"打开 VisUI 版 LoadGameWindow；其余项显示"功能尚未实现"VisDialog（旧营地子窗口的 ScreenButton 仍未注册，打开只会得到空窗口卡死用户） | **520x480 居中**，标题"营地"+关闭按钮 |
+| `GameOptionsWindow.java` | 仅修编译：`getCamp().addWindow(new SaveGameWindow(...))` → `parent.getStage().addActor(...)`（Save/Load 窗口不再是 BaseWindow） | 无 |
+| `NavigationControlsGroup.java` | "营地/选项"按钮从屏幕中部 (560/720, 348, 160x60) 移到**小地图正下方** (18/162, 296, 132x46)；背景图残留 CAMP 像素 (578,354,62,42) 用 1x1 深色 Pixmap 纹理遮块盖住（`SolidColorDrawable` 在 gdx 1.14.2 不存在，用 Pixmap 实现） | 按钮贴小地图底部，不再遮挡画面中央 |
+| `StringTable.xml` ×2 | `campui` 加 id=16"该功能尚未实现。"、id=18"确定要覆盖这个存档吗？"（EN/FR/CN 三语言） | — |
+| `Resources.java` | `buildFontCharacterSet()` 改 public（UITheme 复用）；新增 `getCjkFontFile()` | — |
+
+### 12.9.4 修复后的界面布局
+
+```
+游戏界面（stage 1280 宽，Y 向上）：
+┌──────────────────────────────┬──────────────┐
+│                              │  角色面板     │
+│   第一人称迷宫视图            │  (4 角色)    │
+│                              │              │
+│  ┌──────────┐                │              │
+│  │ 小地图    │                │              │
+│  │ 280x280  │                │              │
+│  └──────────┘                │              │
+│  ┌──────┐┌──────┐           │              │
+│  │ 营地  ││ 选项 │ ← VisTextButton 132x46   │
+│  └──────┘└──────┘           │              │
+└──────────────────────────────┴──────────────┘
+   ↑ 原 nav 操控面板区域（默认隐藏，N 键切换）
+```
+
+### 12.9.5 编译验证升级
+
+本轮在 ECJ classpath 中补齐了 `gdx-freetype`、`ntk-commons`、`gdx-backend-lwjgl3`
+三个 jar（前几轮缺失导致 186 个误报"预存在错误"）。补齐后：
+
+- **core 模块 100% 编译通过（0 错误）**——之前报的 186 个错误全部是
+  classpath 问题，不是代码问题
+- desktop 模块（DesktopLauncher）编译通过
+
+### 12.9.6 UI 视觉验证工具（新文件）
+
+用户问"你有没有编译运行测试过这个界面？"——沙箱环境无显示设备/GPU，
+无法运行游戏。为避免再次"改了但没看到效果"，本轮新增：
+
+`core/src/com/ntk/darkmoor/UiPreviewScreen.java` + `DesktopLauncher` 参数：
+
+```bash
+# 方式一：命令行
+java -cp ... com.ntk.darkmoor.desktop.DesktopLauncher --ui-preview
+
+# 方式二：gradle
+./gradlew :desktop:run --args='--ui-preview'
+```
+
+行为：
+1. 跳过主菜单，直接打开 UiPreviewScreen
+2. **四象限同时铺开 4 个弹窗**：选项（左上）/ 操控配置（右上）/
+   读取存档（左下）/ 营地（右下），一眼对比字体、checkbox、按钮样式
+3. 第 30 帧自动截图 `ui-preview-1-initial.png`
+4. 之后每 5 秒截图 `ui-preview-N.png`（可先点击交互再截）
+5. ESC 退出
+
+**验收标准**（用户执行 --ui-preview 后应看到）：
+- 所有弹窗中文文本清晰可读（40px CJK 字体）
+- checkbox 有明显勾选框 + 中文标签
+- 每个弹窗有标题栏 + 右上角关闭按钮
+- 读取存档列出 6 个槽位 + 取消按钮
+- 营地显示 6 个菜单项 + 退出，尺寸约 520x480
+
+### 12.9.7 遗留问题更新
+
+| 问题 | 影响 | 计划 |
+|---|---|---|
+| 9 个旧营地子窗口（RestPartyWindow/SpellWindow 等）未迁移 | 营地菜单对应项显示"尚未实现" | v0.6 全部迁 VisWindow |
+| `MainWindow.java` 成为死代码（CampDialog 内联菜单取代） | 无害，编译通过 | v0.6 删除 |
+| GameOptionsWindow（含保存入口）不再可达 | 保存功能暂经 SaveGameWindow（v0.6 恢复入口） | v0.6 |
+| 游戏内 HUD（HeroInterfaceGroup 等）未迁移 | 角色面板仍是旧样式 | v0.7 |
+| VisUI 默认皮肤扁平现代风 | 与 EOB2 主题不符 | v0.7 Skin Composer |
+| `Interface.png` CAMP 像素用遮块盖住 | 位置硬编码 (566,346,92,58) | v0.6 裁剪原图 |
