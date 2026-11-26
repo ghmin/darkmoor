@@ -11,183 +11,192 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.async.AsyncExecutor;
 import com.badlogic.gdx.utils.async.AsyncTask;
+import com.kotcrab.vis.ui.VisUI;
 import com.ntk.darkmoor.config.SaveGame;
 import com.ntk.darkmoor.config.Settings;
 import com.ntk.darkmoor.engine.Dungeon;
 import com.ntk.darkmoor.resource.Resources;
 
 public class DarkmoorGame extends Game {
-	private static final int MAX_THREADS = 2;
-	public static final int GAME_HEIGHT = 400;
-	public static final int GAME_WIDTH = 640;
+        private static final int MAX_THREADS = 2;
+        public static final int GAME_HEIGHT = 400;
+        public static final int GAME_WIDTH = 640;
 
-	public static final int DISPLAY_HEIGHT = 720;
-	public static final int DISPLAY_WIDTH = 1280;
+        public static final int DISPLAY_HEIGHT = 720;
+        public static final int DISPLAY_WIDTH = 1280;
 
-	public static final String DATA_ASSET_FOLDER = "./data";
+        public static final String DATA_ASSET_FOLDER = "./data";
 
-	private static DarkmoorGame instance;
+        private static DarkmoorGame instance;
 
-	private SpriteBatch batch;
-	private OrthographicCamera camera;
-	private MainMenu mainMenu;
-	private GameScreen gameScreen;
-	private Music theme;
-	private AsyncExecutor executor;
+        private SpriteBatch batch;
+        private OrthographicCamera camera;
+        private MainMenu mainMenu;
+        private GameScreen gameScreen;
+        private Music theme;
+        private AsyncExecutor executor;
 
-	public SaveGame savedGame;
-	
+        public SaveGame savedGame;
+        
 
-	@Override
-	public void create() {
-		instance = this;
-		executor = new AsyncExecutor(MAX_THREADS);
-		loadStartupData();
-		camera = new OrthographicCamera();
-		// camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		// camera.update();
+        @Override
+        public void create() {
+                instance = this;
+                executor = new AsyncExecutor(MAX_THREADS);
+                loadStartupData();
+                camera = new OrthographicCamera();
+                // camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                // camera.update();
 
-		batch = new SpriteBatch();
+                batch = new SpriteBatch();
 
-		setScreen(getMainMenu());
-//		initMusic();
-	}
+                // 加载 VisUI 皮肤 — 提供 VisWindow/VisDialog/ButtonBar/VisScrollPane 等标准组件
+                VisUI.load();
 
-	private void initMusic() {
-		theme = Gdx.audio.newMusic(Gdx.files.internal("data/main.ogg"));
-		theme.setLooping(true);
-		theme.play();
-	}
+                setScreen(getMainMenu());
+//              initMusic();
+        }
 
-	public void pauseMusic() {
-		if (theme != null && theme.isPlaying())
-			theme.pause();
-	}
+        private void initMusic() {
+                theme = Gdx.audio.newMusic(Gdx.files.internal("data/main.ogg"));
+                theme.setLooping(true);
+                theme.play();
+        }
 
-	public void stopMusic() {
-		if (theme != null && theme.isPlaying())
-			theme.stop();
-	}
+        public void pauseMusic() {
+                if (theme != null && theme.isPlaying())
+                        theme.pause();
+        }
 
-	public void resumeMusic() {
-		if (theme != null && !theme.isPlaying() && Settings.getLastLoadedInstance().isMusic())
-			theme.play();
-	}
+        public void stopMusic() {
+                if (theme != null && theme.isPlaying())
+                        theme.stop();
+        }
 
-	@Override
-	public void pause() {
-		pauseMusic();
+        public void resumeMusic() {
+                if (theme != null && !theme.isPlaying() && Settings.getLastLoadedInstance().isMusic())
+                        theme.play();
+        }
 
-		super.pause();
-	}
+        @Override
+        public void pause() {
+                pauseMusic();
 
-	@Override
-	public void resume() {
-		resumeMusic();
+                super.pause();
+        }
 
-		super.resume();
-	}
+        @Override
+        public void resume() {
+                resumeMusic();
 
-	private void loadStartupData() {
-		try {
-			Settings.loadSettings(Gdx.files.internal(Resources.getResourcePath() + "settings.properties"));
+                super.resume();
+        }
 
-			loadSaveGameFile(Gdx.files.internal(Resources.getResourcePath() + "/savegame.xml"));
-		} catch (IOException e) {
-			exit();
-		}
+        private void loadStartupData() {
+                try {
+                        Settings.loadSettings(Gdx.files.internal(Resources.getResourcePath() + "settings.properties"));
 
-		Resources.loadGameStartupResources();
-	}
+                        loadSaveGameFile(Gdx.files.internal(Resources.getResourcePath() + "/savegame.xml"));
+                } catch (IOException e) {
+                        exit();
+                }
 
-	private void loadSaveGameFile(FileHandle handle) {
-		savedGame = new SaveGame(handle.path());
-		if (handle.exists())
-			savedGame.load();
-	}
+                Resources.loadGameStartupResources();
+        }
 
-	private void loadInGameData() {
-		Resources.loadGameResources();
-	}
+        private void loadSaveGameFile(FileHandle handle) {
+                savedGame = new SaveGame(handle.path());
+                if (handle.exists())
+                        savedGame.load();
+        }
 
-	// @Override
-	// public void render () {
-	// Gdx.gl.glClearColor(1, 0, 0, 1);
-	// Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-	// batch.begin();
-	// batch.draw(img, 0, 0, 700, 899);
-	// batch.end();
-	// }
+        private void loadInGameData() {
+                Resources.loadGameResources();
+        }
 
-	public static void exit() {
-		instance = null;
-		Gdx.app.exit();
-	}
+        // @Override
+        // public void render () {
+        // Gdx.gl.glClearColor(1, 0, 0, 1);
+        // Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        // batch.begin();
+        // batch.draw(img, 0, 0, 700, 899);
+        // batch.end();
+        // }
 
-	@Override
-	public void dispose() {
-		if (gameScreen != null)
-			gameScreen.dispose();
-		if (mainMenu != null)
-			mainMenu.dispose();
-		stopMusic();
-//		theme.dispose();
-		batch.dispose();
+        public static void exit() {
+                instance = null;
+                Gdx.app.exit();
+        }
 
-		Resources.unloadResources();
-		super.dispose();
-	}
+        @Override
+        public void dispose() {
+                if (gameScreen != null)
+                        gameScreen.dispose();
+                if (mainMenu != null)
+                        mainMenu.dispose();
+                stopMusic();
+//              theme.dispose();
+                batch.dispose();
 
-	public SpriteBatch getBatch() {
-		return batch;
-	}
+                // 释放 VisUI 皮肤
+                if (VisUI.isLoaded()) {
+                        VisUI.dispose();
+                }
 
-	public OrthographicCamera getCamera() {
-		return camera;
-	}
+                Resources.unloadResources();
+                super.dispose();
+        }
 
-	public Vector2 getInputCoordinates(Vector2 position) {
-		position.x = Gdx.input.getX();
-		position.y = DISPLAY_HEIGHT - Gdx.input.getY();
-		return position;
-	}
+        public SpriteBatch getBatch() {
+                return batch;
+        }
 
-	public MainMenu getMainMenu() {
-		if (mainMenu == null) {
-			mainMenu = new MainMenu(this);
-			loadInGameData();
-		}
-		return mainMenu;
-	}
+        public OrthographicCamera getCamera() {
+                return camera;
+        }
 
-	public boolean loadGameSlot(int selectedSlot) {
-		if (savedGame.isSlotEmpty(selectedSlot))
-			return false;
-		getGameScreen().loadGameSlot(selectedSlot);
-		return true;
-	}
-	
-	public void submitTask(AsyncTask<Dungeon> task) {
-//		timer.scheduleTask(task, 1);
-		executor.submit(task);
-	}
+        public Vector2 getInputCoordinates(Vector2 position) {
+                position.x = Gdx.input.getX();
+                position.y = DISPLAY_HEIGHT - Gdx.input.getY();
+                return position;
+        }
 
-	public GameScreen getGameScreen() {
-		if (gameScreen == null) {
-			gameScreen = new GameScreen(this);
-		}
-		return gameScreen;
-	}
+        public MainMenu getMainMenu() {
+                if (mainMenu == null) {
+                        mainMenu = new MainMenu(this);
+                        loadInGameData();
+                }
+                return mainMenu;
+        }
 
-	public static DarkmoorGame getInstance() {
-		return instance;
-	}
+        public boolean loadGameSlot(int selectedSlot) {
+                if (savedGame.isSlotEmpty(selectedSlot))
+                        return false;
+                getGameScreen().loadGameSlot(selectedSlot);
+                return true;
+        }
+        
+        public void submitTask(AsyncTask<Dungeon> task) {
+//              timer.scheduleTask(task, 1);
+                executor.submit(task);
+        }
 
-	public SaveGame getSavedGame() {
-		return savedGame;
-	}
+        public GameScreen getGameScreen() {
+                if (gameScreen == null) {
+                        gameScreen = new GameScreen(this);
+                }
+                return gameScreen;
+        }
 
-	public void setSavedGame(SaveGame savedGame) {
-		this.savedGame = savedGame;
-	}
+        public static DarkmoorGame getInstance() {
+                return instance;
+        }
+
+        public SaveGame getSavedGame() {
+                return savedGame;
+        }
+
+        public void setSavedGame(SaveGame savedGame) {
+                this.savedGame = savedGame;
+        }
 }

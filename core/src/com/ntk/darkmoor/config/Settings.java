@@ -11,210 +11,210 @@ import com.ntk.darkmoor.exception.SaveException;
 
 public class Settings {
 
-	// setting labels in the properties file
-	private static final String SETTING_FULL_SCREEN = "FullScreen";
-	private static final String SETTING_EFFECTS = "Effects";
-	private static final String SETTING_MUSIC = "Music";
-	private static final String SETTING_HP_AS_BAR = "HPAsBar";
-	private static final String SETTING_LANGUAGE = "language";
-	private static final String SETTING_INPUTSCHEME = "inputscheme";
-	private static final String SETTING_SAVE_SLOTS = "saveSlots";
-	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
-	private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
-	
-	// last loaded instance. (almost) a singleton
-	private static Settings instance;
+        // setting labels in the properties file
+        private static final String SETTING_FULL_SCREEN = "FullScreen";
+        private static final String SETTING_EFFECTS = "Effects";
+        private static final String SETTING_MUSIC = "Music";
+        private static final String SETTING_HP_AS_BAR = "HPAsBar";
+        private static final String SETTING_LANGUAGE = "language";
+        private static final String SETTING_INPUTSCHEME = "inputscheme";
+        private static final String SETTING_SAVE_SLOTS = "saveSlots";
+        private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
+        private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
+        
+        // last loaded instance. (almost) a singleton
+        private static Settings instance;
 
-	// private members for the settings
-	private String inputScheme;
-	private String language;
-	private boolean HPAsBar;
-	private boolean music;
-	private boolean effects;
-	private boolean fullScreen;
-	private int saveSlots;
-	private boolean showMinimap;
-	private boolean showNavButtons;
+        // private members for the settings
+        private String inputScheme;
+        private String language;
+        private boolean HPAsBar;
+        private boolean music;
+        private boolean effects;
+        private boolean fullScreen;
+        private int saveSlots;
+        private boolean showMinimap;
+        private boolean showNavButtons;
 
-	// the properties that hold all settings
-	private Properties props;
-	private File settingsFile;
+        // the properties that hold all settings
+        private Properties props;
+        private File settingsFile;
 
-	public static Settings loadSettings(String path, String file) throws IOException {
-		return loadSettings(new FileHandle(new File(path + file)));
-	}
-	
-	public static Settings loadSettings(FileHandle handle) throws IOException {
+        public static Settings loadSettings(String path, String file) throws IOException {
+                return loadSettings(new FileHandle(new File(path + file)));
+        }
+        
+        public static Settings loadSettings(FileHandle handle) throws IOException {
 
 
-		final Properties props = new Properties();
-		
-		props.load(handle.read());
+                final Properties props = new Properties();
+                
+                props.load(handle.read());
 
-		Settings settings = new Settings(props);
-		settings.settingsFile = handle.file();
-		
-		settings.setInputScheme(settings.extractStringProperty(SETTING_INPUTSCHEME, "qwerty", InputType.stringValues()));
-		settings.setLanguage(settings.extractStringProperty(SETTING_LANGUAGE, "English", GameLanguage.stringValues()));
-		settings.setHPAsBar(settings.extractBooleanProperty(SETTING_HP_AS_BAR, false));
-		settings.setMusic(settings.extractBooleanProperty(SETTING_MUSIC, true));
-		settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
-		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
-		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
-		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
-		settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, true));
-		
-		instance = settings;
-		
-		return settings;
+                Settings settings = new Settings(props);
+                settings.settingsFile = handle.file();
+                
+                settings.setInputScheme(settings.extractStringProperty(SETTING_INPUTSCHEME, "qwerty", InputType.stringValues()));
+                settings.setLanguage(settings.extractStringProperty(SETTING_LANGUAGE, "English", GameLanguage.stringValues()));
+                settings.setHPAsBar(settings.extractBooleanProperty(SETTING_HP_AS_BAR, false));
+                settings.setMusic(settings.extractBooleanProperty(SETTING_MUSIC, true));
+                settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
+                settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
+                settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
+                settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
+                settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, false));
+                
+                instance = settings;
+                
+                return settings;
 
-	}
+        }
 
-	public void saveSettings() throws IOException {
-		saveSettings(settingsFile.getPath(), settingsFile.getName());
-	}
-	
-	public void saveSettings(String path, String settingsFile) throws IOException {
-		props.store(new FileOutputStream(path + settingsFile), "");
-	}
+        public void saveSettings() throws IOException {
+                saveSettings(settingsFile.getPath(), settingsFile.getName());
+        }
+        
+        public void saveSettings(String path, String settingsFile) throws IOException {
+                props.store(new FileOutputStream(path + settingsFile), "");
+        }
 
-	public static void save() {
-		try {
-			Settings.getLastLoadedInstance().saveSettings();
-		} catch (IOException e) {
-			throw new SaveException(e);
-		}
-		
-	}
-	
-	public Settings(Properties props) {
-		this.props = props;
-		if (props == null) {
-			throw new InitializationException("Settings file is empty");
-		}
-	}
+        public static void save() {
+                try {
+                        Settings.getLastLoadedInstance().saveSettings();
+                } catch (IOException e) {
+                        throw new SaveException(e);
+                }
+                
+        }
+        
+        public Settings(Properties props) {
+                this.props = props;
+                if (props == null) {
+                        throw new InitializationException("Settings file is empty");
+                }
+        }
 
-	private boolean extractBooleanProperty(String setting, boolean defaultValue) {
-		if (props.get(setting) != null
-				&& ("true".equalsIgnoreCase(props.getProperty(setting)) || "false".equalsIgnoreCase(props
-						.getProperty(setting))))
-			return Boolean.valueOf(props.get(setting).toString());
-		else
-			return defaultValue;
-	}
+        private boolean extractBooleanProperty(String setting, boolean defaultValue) {
+                if (props.get(setting) != null
+                                && ("true".equalsIgnoreCase(props.getProperty(setting)) || "false".equalsIgnoreCase(props
+                                                .getProperty(setting))))
+                        return Boolean.valueOf(props.get(setting).toString());
+                else
+                        return defaultValue;
+        }
 
-	private String extractStringProperty(String setting, String defaultValue, String[] validValues) {
-		if (props.get(setting) != null) {
-			String value = (String) props.get(setting);
-			return validatePropertyValue(validValues, defaultValue, value);
-		}
-		return defaultValue;
-	}
-	
-	private int extractIntProperty(String setting, int defaultValue) {
-		if (props.get(setting) != null) {
-			String value = (String) props.get(setting);
-			try {
-				int parsedInt = Integer.parseInt(value);
-				if (parsedInt >= 0) 
-					return parsedInt;
-			} catch(NumberFormatException e) {
-				return defaultValue;
-			}
-		}
-		return defaultValue;
-	}
+        private String extractStringProperty(String setting, String defaultValue, String[] validValues) {
+                if (props.get(setting) != null) {
+                        String value = (String) props.get(setting);
+                        return validatePropertyValue(validValues, defaultValue, value);
+                }
+                return defaultValue;
+        }
+        
+        private int extractIntProperty(String setting, int defaultValue) {
+                if (props.get(setting) != null) {
+                        String value = (String) props.get(setting);
+                        try {
+                                int parsedInt = Integer.parseInt(value);
+                                if (parsedInt >= 0) 
+                                        return parsedInt;
+                        } catch(NumberFormatException e) {
+                                return defaultValue;
+                        }
+                }
+                return defaultValue;
+        }
 
-	private String validatePropertyValue(String[] validValues, String defaultValue, String value) {
-		for (String s : validValues) {
-			if (value.equals(s))
-				return value;
-		}
-		return defaultValue;
-	}
+        private String validatePropertyValue(String[] validValues, String defaultValue, String value) {
+                for (String s : validValues) {
+                        if (value.equals(s))
+                                return value;
+                }
+                return defaultValue;
+        }
 
-	public String getInputScheme() {
-		return inputScheme;
-	}
+        public String getInputScheme() {
+                return inputScheme;
+        }
 
-	public void setInputScheme(String inputScheme) {
-		this.inputScheme = validatePropertyValue(InputType.stringValues(), InputType.getDefault().value(), inputScheme);
-	}
+        public void setInputScheme(String inputScheme) {
+                this.inputScheme = validatePropertyValue(InputType.stringValues(), InputType.getDefault().value(), inputScheme);
+        }
 
-	public String getLanguage() {
-		return language;
-	}
+        public String getLanguage() {
+                return language;
+        }
 
-	public void setLanguage(String language) {
-		this.language = validatePropertyValue(GameLanguage.stringValues(), GameLanguage.getDefault().value(), language);
-	}
+        public void setLanguage(String language) {
+                this.language = validatePropertyValue(GameLanguage.stringValues(), GameLanguage.getDefault().value(), language);
+        }
 
-	public boolean isHPAsBar() {
-		return HPAsBar;
-	}
+        public boolean isHPAsBar() {
+                return HPAsBar;
+        }
 
-	public void setHPAsBar(boolean hPAsBar) {
-		HPAsBar = hPAsBar;
-	}
+        public void setHPAsBar(boolean hPAsBar) {
+                HPAsBar = hPAsBar;
+        }
 
-	public boolean isMusic() {
-		return music;
-	}
+        public boolean isMusic() {
+                return music;
+        }
 
-	public void setMusic(boolean music) {
-		this.music = music;
-	}
+        public void setMusic(boolean music) {
+                this.music = music;
+        }
 
-	public boolean isEffects() {
-		return effects;
-	}
+        public boolean isEffects() {
+                return effects;
+        }
 
-	public void setEffects(boolean effects) {
-		this.effects = effects;
-	}
+        public void setEffects(boolean effects) {
+                this.effects = effects;
+        }
 
-	public boolean isFullScreen() {
-		return fullScreen;
-	}
+        public boolean isFullScreen() {
+                return fullScreen;
+        }
 
-	public void setFullScreen(boolean fullScreen) {
-		this.fullScreen = fullScreen;
-	}
+        public void setFullScreen(boolean fullScreen) {
+                this.fullScreen = fullScreen;
+        }
 
-	public int getSaveSlots() {
-		return saveSlots;
-	}
+        public int getSaveSlots() {
+                return saveSlots;
+        }
 
-	public void setSaveSlots(int saveSlots) {
-		if (saveSlots >= 0) {
-			this.saveSlots = saveSlots;
-		} else 
-			this.saveSlots = 6;
-	}
+        public void setSaveSlots(int saveSlots) {
+                if (saveSlots >= 0) {
+                        this.saveSlots = saveSlots;
+                } else 
+                        this.saveSlots = 6;
+        }
 
-	public boolean isShowMinimap() {
-		return showMinimap;
-	}
+        public boolean isShowMinimap() {
+                return showMinimap;
+        }
 
-	public void setShowMinimap(boolean showMinimap) {
-		this.showMinimap = showMinimap;
-	}
+        public void setShowMinimap(boolean showMinimap) {
+                this.showMinimap = showMinimap;
+        }
 
-	public boolean isShowNavButtons() {
-		return showNavButtons;
-	}
+        public boolean isShowNavButtons() {
+                return showNavButtons;
+        }
 
-	public void setShowNavButtons(boolean showNavButtons) {
-		this.showNavButtons = showNavButtons;
-	}
+        public void setShowNavButtons(boolean showNavButtons) {
+                this.showNavButtons = showNavButtons;
+        }
 
-	/** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
-	public Properties getProperties() {
-		return props;
-	}
+        /** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
+        public Properties getProperties() {
+                return props;
+        }
 
-	public static Settings getLastLoadedInstance() {
-		return instance;
-	}
+        public static Settings getLastLoadedInstance() {
+                return instance;
+        }
 
 }

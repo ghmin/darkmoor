@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.kotcrab.vis.ui.widget.VisTextButton;
 import com.ntk.darkmoor.config.LanguagesManager;
 import com.ntk.darkmoor.config.Settings;
 import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
@@ -59,9 +60,9 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
         private Image directionTop, directionLeft, directionRight;
 
         /** CAMP 文本按钮（替代背景图里的 CAMP 像素，走 i18n）。 */
-        private TextButton campButton;
+        private VisTextButton campButton;
         /** 游戏内设置按钮（点击弹出菜单）。 */
-        private TextButton settingsButton;
+        private VisTextButton settingsButton;
 
         @Override
         public void initialize() {
@@ -95,30 +96,30 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
                 addActor(directionRight);
         }
 
-        /** 创建 CAMP 和 Settings 文本按钮（i18n 文本，可点击）。
-         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置，
-         * 因为点击需要调用 GameScreen.openCampDialog() 等方法。 */
+        /** 创建 CAMP 和 Settings 文本按钮（VisUI 样式，i18n 文本，可点击）。
+         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置。
+         * CAMP 按钮位置完全覆盖背景图里的 CAMP 像素区域 (578, 354, 62, 42)。 */
         private void initializeActionButtons() {
-                campButton = new TextButton(
-                                LanguagesManager.getString("titles", 1), uiSkin, "transparent-font64");
-                campButton.setBounds(540, 360, 140, 50);
+                // CAMP 按钮 — 完全覆盖背景图里的 CAMP 像素区域
+                campButton = new VisTextButton(LanguagesManager.getString("titles", 1));
+                campButton.setBounds(560, 348, 160, 60);
                 campButton.setTouchable(Touchable.enabled);
                 addActor(campButton);
 
-                settingsButton = new TextButton(
-                                LanguagesManager.getString("titles", 3), uiSkin, "transparent-font64");
-                settingsButton.setBounds(690, 360, 140, 50);
+                // Settings 按钮 — 紧邻 CAMP 右侧
+                settingsButton = new VisTextButton(LanguagesManager.getString("titles", 3));
+                settingsButton.setBounds(720, 348, 160, 60);
                 settingsButton.setTouchable(Touchable.enabled);
                 addActor(settingsButton);
         }
 
         /** 供 GameScreen 设置 CAMP 按钮的点击监听器。 */
-        public TextButton getCampButton() {
+        public VisTextButton getCampButton() {
                 return campButton;
         }
 
         /** 供 GameScreen 设置 Settings 按钮的点击监听器。 */
-        public TextButton getSettingsButton() {
+        public VisTextButton getSettingsButton() {
                 return settingsButton;
         }
 

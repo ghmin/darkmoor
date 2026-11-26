@@ -20,6 +20,8 @@
 | [08-minimap-design.md](08-minimap-design.md) | 小地图模块设计与实现 | 想加地图功能的人 |
 | [09-input-system.md](09-input-system.md) | 键盘输入与操控系统（按键绑定 / 配置 UI） | 想改按键 / 加键盘操控的人 |
 | [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
+| [11-ui-research.md](11-ui-research.md) | 项目界面系统调研报告 + 候选 UI 库评估 | 决定 UI 迁移方案的人 |
+| [12-visui-migration-log.md](12-visui-migration-log.md) | 引入 VisUI 1.5.9 的工作日志 | 接手 UI 迁移的人 |
 
 ### 子模块详细文档（位于 `modules/` 目录）
 

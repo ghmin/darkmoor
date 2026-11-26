@@ -36,6 +36,7 @@ allprojects {
     ext {
         appName     = 'darkmoor'
         gdxVersion  = '1.14.2'   // latest stable libGDX as of 2026-06
+        visuiVersion = '1.5.9'   // VisUI 1.5.9 对应 libGDX 1.14.x，提供标准弹窗/按钮栏/滚动面板
         // Other versions retained for reference / future re-enablement of ios/html modules.
         roboVMVersion       = '1.0.0-beta-03'   // legacy, ios module disabled
         box2DLightsVersion  = '1.5'
@@ -106,6 +107,8 @@ project(':core') {
     dependencies {
         api "com.badlogicgames.gdx:gdx:$gdxVersion"
         api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+        // VisUI — 成熟的 libGDX UI 库，提供标准弹窗/按钮栏/滚动面板
+        api "com.kotcrab.vis:vis-ui:$visuiVersion"
         // Local utility jar (org.ntk.commons.StringUtils) - kept as-is.
         implementation files('../libs/ntk-commons-android-0.1.jar')
     }

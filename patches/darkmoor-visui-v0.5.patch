@@ -1,0 +1,2137 @@
+diff --git a/android/assets/data/settings.properties b/android/assets/data/settings.properties
+index a4e7955..9dc49d3 100644
+--- a/android/assets/data/settings.properties
++++ b/android/assets/data/settings.properties
+@@ -6,7 +6,7 @@ Effects=true
+ FullScreen=False
+ saveSlots=6
+ ShowMinimap=true
+-ShowNavButtons=true
++ShowNavButtons=false
+ # 按键绑定 — 值为 libGDX Input.Keys 常量值，逗号分隔表示一个动作绑多个键
+ # 可在游戏内 选项 → 操控 中修改；此处的值是默认 QWERTY 布局
+ KeyBindings.MoveForward=51,19
+diff --git a/build.gradle b/build.gradle
+index b84937c..d84a9df 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -36,6 +36,7 @@ allprojects {
+     ext {
+         appName     = 'darkmoor'
+         gdxVersion  = '1.14.2'   // latest stable libGDX as of 2026-06
++        visuiVersion = '1.5.9'   // VisUI 1.5.9 对应 libGDX 1.14.x，提供标准弹窗/按钮栏/滚动面板
+         // Other versions retained for reference / future re-enablement of ios/html modules.
+         roboVMVersion       = '1.0.0-beta-03'   // legacy, ios module disabled
+         box2DLightsVersion  = '1.5'
+@@ -106,6 +107,8 @@ project(':core') {
+     dependencies {
+         api "com.badlogicgames.gdx:gdx:$gdxVersion"
+         api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
++        // VisUI — 成熟的 libGDX UI 库，提供标准弹窗/按钮栏/滚动面板
++        api "com.kotcrab.vis:vis-ui:$visuiVersion"
+         // Local utility jar (org.ntk.commons.StringUtils) - kept as-is.
+         implementation files('../libs/ntk-commons-android-0.1.jar')
+     }
+diff --git a/core/src/com/ntk/darkmoor/DarkmoorGame.java b/core/src/com/ntk/darkmoor/DarkmoorGame.java
+index ed68d64..e85c46f 100644
+--- a/core/src/com/ntk/darkmoor/DarkmoorGame.java
++++ b/core/src/com/ntk/darkmoor/DarkmoorGame.java
+@@ -11,183 +11,192 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+ import com.badlogic.gdx.math.Vector2;
+ import com.badlogic.gdx.utils.async.AsyncExecutor;
+ import com.badlogic.gdx.utils.async.AsyncTask;
++import com.kotcrab.vis.ui.VisUI;
+ import com.ntk.darkmoor.config.SaveGame;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.Dungeon;
+ import com.ntk.darkmoor.resource.Resources;
+ 
+ public class DarkmoorGame extends Game {
+-	private static final int MAX_THREADS = 2;
+-	public static final int GAME_HEIGHT = 400;
+-	public static final int GAME_WIDTH = 640;
+-
+-	public static final int DISPLAY_HEIGHT = 720;
+-	public static final int DISPLAY_WIDTH = 1280;
+-
+-	public static final String DATA_ASSET_FOLDER = "./data";
+-
+-	private static DarkmoorGame instance;
+-
+-	private SpriteBatch batch;
+-	private OrthographicCamera camera;
+-	private MainMenu mainMenu;
+-	private GameScreen gameScreen;
+-	private Music theme;
+-	private AsyncExecutor executor;
+-
+-	public SaveGame savedGame;
+-	
+-
+-	@Override
+-	public void create() {
+-		instance = this;
+-		executor = new AsyncExecutor(MAX_THREADS);
+-		loadStartupData();
+-		camera = new OrthographicCamera();
+-		// camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+-		// camera.update();
+-
+-		batch = new SpriteBatch();
+-
+-		setScreen(getMainMenu());
+-//		initMusic();
+-	}
+-
+-	private void initMusic() {
+-		theme = Gdx.audio.newMusic(Gdx.files.internal("data/main.ogg"));
+-		theme.setLooping(true);
+-		theme.play();
+-	}
+-
+-	public void pauseMusic() {
+-		if (theme != null && theme.isPlaying())
+-			theme.pause();
+-	}
+-
+-	public void stopMusic() {
+-		if (theme != null && theme.isPlaying())
+-			theme.stop();
+-	}
+-
+-	public void resumeMusic() {
+-		if (theme != null && !theme.isPlaying() && Settings.getLastLoadedInstance().isMusic())
+-			theme.play();
+-	}
+-
+-	@Override
+-	public void pause() {
+-		pauseMusic();
+-
+-		super.pause();
+-	}
+-
+-	@Override
+-	public void resume() {
+-		resumeMusic();
+-
+-		super.resume();
+-	}
+-
+-	private void loadStartupData() {
+-		try {
+-			Settings.loadSettings(Gdx.files.internal(Resources.getResourcePath() + "settings.properties"));
+-
+-			loadSaveGameFile(Gdx.files.internal(Resources.getResourcePath() + "/savegame.xml"));
+-		} catch (IOException e) {
+-			exit();
+-		}
+-
+-		Resources.loadGameStartupResources();
+-	}
+-
+-	private void loadSaveGameFile(FileHandle handle) {
+-		savedGame = new SaveGame(handle.path());
+-		if (handle.exists())
+-			savedGame.load();
+-	}
+-
+-	private void loadInGameData() {
+-		Resources.loadGameResources();
+-	}
+-
+-	// @Override
+-	// public void render () {
+-	// Gdx.gl.glClearColor(1, 0, 0, 1);
+-	// Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+-	// batch.begin();
+-	// batch.draw(img, 0, 0, 700, 899);
+-	// batch.end();
+-	// }
+-
+-	public static void exit() {
+-		instance = null;
+-		Gdx.app.exit();
+-	}
+-
+-	@Override
+-	public void dispose() {
+-		if (gameScreen != null)
+-			gameScreen.dispose();
+-		if (mainMenu != null)
+-			mainMenu.dispose();
+-		stopMusic();
+-//		theme.dispose();
+-		batch.dispose();
+-
+-		Resources.unloadResources();
+-		super.dispose();
+-	}
+-
+-	public SpriteBatch getBatch() {
+-		return batch;
+-	}
+-
+-	public OrthographicCamera getCamera() {
+-		return camera;
+-	}
+-
+-	public Vector2 getInputCoordinates(Vector2 position) {
+-		position.x = Gdx.input.getX();
+-		position.y = DISPLAY_HEIGHT - Gdx.input.getY();
+-		return position;
+-	}
+-
+-	public MainMenu getMainMenu() {
+-		if (mainMenu == null) {
+-			mainMenu = new MainMenu(this);
+-			loadInGameData();
+-		}
+-		return mainMenu;
+-	}
+-
+-	public boolean loadGameSlot(int selectedSlot) {
+-		if (savedGame.isSlotEmpty(selectedSlot))
+-			return false;
+-		getGameScreen().loadGameSlot(selectedSlot);
+-		return true;
+-	}
+-	
+-	public void submitTask(AsyncTask<Dungeon> task) {
+-//		timer.scheduleTask(task, 1);
+-		executor.submit(task);
+-	}
+-
+-	public GameScreen getGameScreen() {
+-		if (gameScreen == null) {
+-			gameScreen = new GameScreen(this);
+-		}
+-		return gameScreen;
+-	}
+-
+-	public static DarkmoorGame getInstance() {
+-		return instance;
+-	}
+-
+-	public SaveGame getSavedGame() {
+-		return savedGame;
+-	}
+-
+-	public void setSavedGame(SaveGame savedGame) {
+-		this.savedGame = savedGame;
+-	}
++        private static final int MAX_THREADS = 2;
++        public static final int GAME_HEIGHT = 400;
++        public static final int GAME_WIDTH = 640;
++
++        public static final int DISPLAY_HEIGHT = 720;
++        public static final int DISPLAY_WIDTH = 1280;
++
++        public static final String DATA_ASSET_FOLDER = "./data";
++
++        private static DarkmoorGame instance;
++
++        private SpriteBatch batch;
++        private OrthographicCamera camera;
++        private MainMenu mainMenu;
++        private GameScreen gameScreen;
++        private Music theme;
++        private AsyncExecutor executor;
++
++        public SaveGame savedGame;
++        
++
++        @Override
++        public void create() {
++                instance = this;
++                executor = new AsyncExecutor(MAX_THREADS);
++                loadStartupData();
++                camera = new OrthographicCamera();
++                // camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
++                // camera.update();
++
++                batch = new SpriteBatch();
++
++                // 加载 VisUI 皮肤 — 提供 VisWindow/VisDialog/ButtonBar/VisScrollPane 等标准组件
++                VisUI.load();
++
++                setScreen(getMainMenu());
++//              initMusic();
++        }
++
++        private void initMusic() {
++                theme = Gdx.audio.newMusic(Gdx.files.internal("data/main.ogg"));
++                theme.setLooping(true);
++                theme.play();
++        }
++
++        public void pauseMusic() {
++                if (theme != null && theme.isPlaying())
++                        theme.pause();
++        }
++
++        public void stopMusic() {
++                if (theme != null && theme.isPlaying())
++                        theme.stop();
++        }
++
++        public void resumeMusic() {
++                if (theme != null && !theme.isPlaying() && Settings.getLastLoadedInstance().isMusic())
++                        theme.play();
++        }
++
++        @Override
++        public void pause() {
++                pauseMusic();
++
++                super.pause();
++        }
++
++        @Override
++        public void resume() {
++                resumeMusic();
++
++                super.resume();
++        }
++
++        private void loadStartupData() {
++                try {
++                        Settings.loadSettings(Gdx.files.internal(Resources.getResourcePath() + "settings.properties"));
++
++                        loadSaveGameFile(Gdx.files.internal(Resources.getResourcePath() + "/savegame.xml"));
++                } catch (IOException e) {
++                        exit();
++                }
++
++                Resources.loadGameStartupResources();
++        }
++
++        private void loadSaveGameFile(FileHandle handle) {
++                savedGame = new SaveGame(handle.path());
++                if (handle.exists())
++                        savedGame.load();
++        }
++
++        private void loadInGameData() {
++                Resources.loadGameResources();
++        }
++
++        // @Override
++        // public void render () {
++        // Gdx.gl.glClearColor(1, 0, 0, 1);
++        // Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
++        // batch.begin();
++        // batch.draw(img, 0, 0, 700, 899);
++        // batch.end();
++        // }
++
++        public static void exit() {
++                instance = null;
++                Gdx.app.exit();
++        }
++
++        @Override
++        public void dispose() {
++                if (gameScreen != null)
++                        gameScreen.dispose();
++                if (mainMenu != null)
++                        mainMenu.dispose();
++                stopMusic();
++//              theme.dispose();
++                batch.dispose();
++
++                // 释放 VisUI 皮肤
++                if (VisUI.isLoaded()) {
++                        VisUI.dispose();
++                }
++
++                Resources.unloadResources();
++                super.dispose();
++        }
++
++        public SpriteBatch getBatch() {
++                return batch;
++        }
++
++        public OrthographicCamera getCamera() {
++                return camera;
++        }
++
++        public Vector2 getInputCoordinates(Vector2 position) {
++                position.x = Gdx.input.getX();
++                position.y = DISPLAY_HEIGHT - Gdx.input.getY();
++                return position;
++        }
++
++        public MainMenu getMainMenu() {
++                if (mainMenu == null) {
++                        mainMenu = new MainMenu(this);
++                        loadInGameData();
++                }
++                return mainMenu;
++        }
++
++        public boolean loadGameSlot(int selectedSlot) {
++                if (savedGame.isSlotEmpty(selectedSlot))
++                        return false;
++                getGameScreen().loadGameSlot(selectedSlot);
++                return true;
++        }
++        
++        public void submitTask(AsyncTask<Dungeon> task) {
++//              timer.scheduleTask(task, 1);
++                executor.submit(task);
++        }
++
++        public GameScreen getGameScreen() {
++                if (gameScreen == null) {
++                        gameScreen = new GameScreen(this);
++                }
++                return gameScreen;
++        }
++
++        public static DarkmoorGame getInstance() {
++                return instance;
++        }
++
++        public SaveGame getSavedGame() {
++                return savedGame;
++        }
++
++        public void setSavedGame(SaveGame savedGame) {
++                this.savedGame = savedGame;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/KeyConfigWindow.java b/core/src/com/ntk/darkmoor/KeyConfigWindow.java
+index 61b8eda..9c861da 100644
+--- a/core/src/com/ntk/darkmoor/KeyConfigWindow.java
++++ b/core/src/com/ntk/darkmoor/KeyConfigWindow.java
+@@ -4,67 +4,57 @@ import com.badlogic.gdx.Gdx;
+ import com.badlogic.gdx.Input.Keys;
+ import com.badlogic.gdx.scenes.scene2d.InputEvent;
+ import com.badlogic.gdx.scenes.scene2d.InputListener;
+-import com.badlogic.gdx.scenes.scene2d.Touchable;
+ import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+ import com.badlogic.gdx.scenes.scene2d.ui.Table;
+-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+ import com.badlogic.gdx.scenes.scene2d.ui.Label;
++import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.badlogic.gdx.scenes.scene2d.Touchable;
++import com.badlogic.gdx.scenes.scene2d.ui.Skin;
++import com.badlogic.gdx.utils.Align;
++import com.kotcrab.vis.ui.VisUI;
++import com.kotcrab.vis.ui.widget.VisDialog;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisLabel;
++import com.kotcrab.vis.ui.widget.VisScrollPane;
+ import com.ntk.darkmoor.config.KeyBindings;
+ import com.ntk.darkmoor.config.KeyBindings.Action;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.config.Log;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.CampDialog;
+-import com.ntk.darkmoor.engine.gui.BaseWindow;
+ 
+ /**
+- * 操控按键配置窗口 — 从 OptionsWindow 进入，让玩家查看和修改按键绑定。
++ * 操控按键配置窗口 — 使用 VisUI 的 VisDialog + ButtonBar + VisScrollPane。
+  *
+- * <p>布局：
+- * <pre>
+- *   ┌─────────── 操控 ───────────┐
+- *   │ [向前移动]    W / ↑   [修改]│
+- *   │ [向后移动]    S / ↓   [修改]│
+- *   │ ...                          │
+- *   │ [恢复默认]      [返回]       │
+- *   └──────────────────────────────┘
+- * </pre>
++ * <p>v0.5 重构：从 BaseWindow（裸 scene2d Dialog）改为 VisDialog，获得：
++ * <ul>
++ *   <li>标准标题栏 + 关闭按钮</li>
++ *   <li>底部 ButtonBar（恢复默认 / 返回）</li>
++ *   <li>VisScrollPane 支持内容超出屏幕时滚动</li>
++ *   <li>VisLabel/VisTextButton 字体清晰</li>
++ *   <li>VisTable 自动布局</li>
++ * </ul>
+  *
+- * <p>点"修改"后，该行进入捕获模式，下一个 keyDown 事件即绑定到该动作。
+- *
+- * <p>设计文档：{@code docs/v0.5/09-input-system.md}
++ * <p>设计文档：{@code docs/v0.5/12-visui-migration-log.md}
+  */
+-public class KeyConfigWindow extends BaseWindow {
++public class KeyConfigWindow extends VisDialog {
+ 
+         private KeyBindings bindings;
+         private Action capturingFor = null;
+-        private Label[] valueLabels;
+-        private TextButton[] changeButtons;
++        private VisLabel[] valueLabels;
+ 
+         public KeyConfigWindow(CampDialog camp, GameScreenBase parent) {
+-                super(camp, LanguagesManager.getString("controls", 1), parent);
+-                // 从 Settings 加载当前绑定（或默认）
++                super(LanguagesManager.getString("controls", 1));
+                 bindings = KeyBindings.loadFrom(Settings.getLastLoadedInstance().getProperties());
+                 if (bindings == null) {
+                         bindings = KeyBindings.defaults();
+                 }
+-                loadContent();
++                buildUI();
+         }
+ 
+-        @Override
+-        public void loadContent() {
+-                Log.debug("[KeyConfigWindow] loadContent()");
+-                super.loadContent();
+-                setupWindow();
+-                pack();
+-        }
+-
+-        @Override
+-        protected void setupButtons(Skin uiSkin) {
+-                super.setupButtons(uiSkin);
+-
+-                // 动作清单（按 UI 分组顺序）
++        private void buildUI() {
++                // 动作清单
+                 Action[] actions = {
+                         Action.MoveForward, Action.MoveBackward, Action.StrafeLeft, Action.StrafeRight,
+                         Action.TurnLeft, Action.TurnRight,
+@@ -75,77 +65,82 @@ public class KeyConfigWindow extends BaseWindow {
+                         Action.ToggleMinimap, Action.ToggleNavButtons
+                 };
+ 
+-                valueLabels = new Label[actions.length];
+-                changeButtons = new TextButton[actions.length];
+-
+-                // 用 Table 布局：动作名 | 当前按键 | 修改按钮
+-                Table table = new Table(uiSkin);
+-                table.defaults().pad(4).minHeight(40).minWidth(180);
++                valueLabels = new VisLabel[actions.length];
++
++                // 用 VisTable 布局：动作名 | 当前按键 | 修改按钮
++                VisTable table = new VisTable();
++                table.defaults().pad(6).left();
++                table.columnDefaults(0).width(200);
++                table.columnDefaults(1).width(200);
++                table.columnDefaults(2).width(100);
++
++                // 表头
++                table.add(new VisLabel(LanguagesManager.getString("controls", 1))).padTop(10);
++                table.add(new VisLabel("Keys"));
++                table.add(new VisLabel(LanguagesManager.getString("controls", 20)));
++                table.row().padTop(2);
++                table.add().colspan(3).height(4); // 间隔
++                table.row();
+ 
+                 for (int i = 0; i < actions.length; i++) {
+                         final Action action = actions[i];
+                         final int index = i;
+ 
+-                        // 动作名（i18n，controls stringtable id = action.ordinal() + 2）
+-                        Label nameLabel = new Label(actionLabel(action), uiSkin, "default");
+-                        table.add(nameLabel).left().expandX();
++                        // 动作名
++                        table.add(new VisLabel(actionLabel(action))).left();
+ 
+                         // 当前绑定的按键名
+-                        valueLabels[i] = new Label(keysDisplay(action), uiSkin, "default");
+-                        table.add(valueLabels[i]).center().expandX();
++                        valueLabels[i] = new VisLabel(keysDisplay(action));
++                        valueLabels[i].setAlignment(Align.center);
++                        table.add(valueLabels[i]).center();
+ 
+                         // 修改按钮
+-                        changeButtons[i] = new TextButton(
+-                                        LanguagesManager.getString("controls", 20), uiSkin, "default");
+-                        changeButtons[i].setTouchable(Touchable.enabled);
+-                        changeButtons[i].addListener(new InputListener() {
++                        VisTextButton changeBtn = new VisTextButton(
++                                        LanguagesManager.getString("controls", 20));
++                        changeBtn.addListener(new InputListener() {
+                                 public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                                         startCapture(action, index);
+                                         return true;
+                                 }
+                         });
+-                        table.add(changeButtons[i]).right();
++                        table.add(changeBtn).right();
+                         table.row();
+                 }
+ 
+-                // 底部按钮：恢复默认 / 返回
+-                TextButton resetBtn = new TextButton(
+-                                LanguagesManager.getString("controls", 18), uiSkin, "default");
+-                resetBtn.setTouchable(Touchable.enabled);
+-                resetBtn.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                // 把 table 放到 VisScrollPane 里
++                VisScrollPane scroll = new VisScrollPane(table);
++                scroll.setFadeScrollBars(false);
++                scroll.setScrollingDisabled(true, false); // 只允许纵向滚动
++                getContentTable().add(scroll).grow().pad(10).minHeight(400).maxHeight(500);
++
++                // 底部按钮 — 用 VisTextButton 直接放，不用 ButtonBar（API 兼容性更稳）
++                VisTable bottomBar = new VisTable();
++                bottomBar.defaults().pad(6);
++
++                VisTextButton resetBtn = new VisTextButton(LanguagesManager.getString("controls", 18));
++                resetBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
++                        @Override
++                        public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                                 bindings = KeyBindings.defaults();
+                                 refreshAllLabels();
+-                                return true;
+                         }
+                 });
++                bottomBar.add(resetBtn).growX();
+ 
+-                TextButton backBtn = new TextButton(
+-                                LanguagesManager.getString("controls", 19), uiSkin, "default");
+-                backBtn.setTouchable(Touchable.enabled);
+-                backBtn.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
++                VisTextButton backBtn = new VisTextButton(LanguagesManager.getString("controls", 19));
++                backBtn.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ChangeListener() {
++                        @Override
++                        public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                                 saveAndClose();
+-                                return true;
+                         }
+                 });
++                bottomBar.add(backBtn).growX();
+ 
+-                table.row();
+-                table.add(resetBtn).colspan(1).center().padTop(20);
+-                table.add();
+-                table.add(backBtn).colspan(1).center().padTop(20);
+-
+-                // 把 table 放到 ScrollPane 里（动作多时支持滚动）
+-                ScrollPane scroll = new ScrollPane(table, uiSkin);
+-                scroll.setScrollingDisabled(true, false);
+-                add(scroll).grow().pad(10);
+-        }
+-
+-        private void setupWindow() {
+-                setPosition(50, 50);
+-                setWidth(Gdx.graphics.getWidth() - 100);
+-                setHeight(Gdx.graphics.getHeight() - 100);
+-                defaults().space(10);
++                getButtonsTable().add(bottomBar).padTop(10).growX();
++                pack();
++                // 居中显示，尺寸适配屏幕
++                setSize(Math.min(Gdx.graphics.getWidth() - 80, 600), Math.min(Gdx.graphics.getHeight() - 80, 600));
++                centerWindow();
+         }
+ 
+         /** 进入捕获模式：等玩家按下任意键，绑定到 action。 */
+@@ -153,7 +148,6 @@ public class KeyConfigWindow extends BaseWindow {
+                 capturingFor = action;
+                 valueLabels[index].setText(LanguagesManager.getString("controls", 17));
+ 
+-                // 创建一次性 keyDown 监听器，捕获下一个按键
+                 final InputListener captureListener = new InputListener() {
+                         public boolean keyDown(InputEvent event, int keycode) {
+                                 if (capturingFor == null) return false;
+@@ -165,7 +159,7 @@ public class KeyConfigWindow extends BaseWindow {
+                                         return true;
+                                 }
+                                 // 绑定该键到当前动作
+-                                bindings.unbind(keycode); // 先从其他动作解绑
++                                bindings.unbind(keycode);
+                                 bindings.bind(keycode, capturingFor);
+                                 capturingFor = null;
+                                 refreshAllLabels();
+@@ -200,8 +194,6 @@ public class KeyConfigWindow extends BaseWindow {
+ 
+         /** 返回动作的 i18n 显示名。 */
+         private String actionLabel(Action action) {
+-                // controls stringtable 的 id 与 action 的对应关系：
+-                // id=2 MoveForward, id=3 MoveBackward, ..., id=16 ToggleNavButtons
+                 int id = action.ordinal() + 2;
+                 try {
+                         return LanguagesManager.getString("controls", id);
+@@ -218,6 +210,7 @@ public class KeyConfigWindow extends BaseWindow {
+                 } catch (Exception e) {
+                         Log.error("[KeyConfigWindow] 保存设置失败: %s", e.getMessage());
+                 }
+-                closeAndRemoveFromParent(this);
++                fadeOut();
++                remove();
+         }
+ }
+diff --git a/core/src/com/ntk/darkmoor/OptionsWindow.java b/core/src/com/ntk/darkmoor/OptionsWindow.java
+index 5bb0bfa..d204265 100644
+--- a/core/src/com/ntk/darkmoor/OptionsWindow.java
++++ b/core/src/com/ntk/darkmoor/OptionsWindow.java
+@@ -3,159 +3,168 @@ package com.ntk.darkmoor;
+ import com.badlogic.gdx.Gdx;
+ import com.badlogic.gdx.scenes.scene2d.InputEvent;
+ import com.badlogic.gdx.scenes.scene2d.InputListener;
+-import com.badlogic.gdx.scenes.scene2d.Touchable;
+-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
+-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
++import com.kotcrab.vis.ui.VisUI;
++import com.kotcrab.vis.ui.widget.VisCheckBox;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.kotcrab.vis.ui.widget.VisTextButton;
++import com.kotcrab.vis.ui.widget.VisWindow;
++import com.kotcrab.vis.ui.widget.VisLabel;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.config.Log;
+ import com.ntk.darkmoor.config.Settings;
+ import com.ntk.darkmoor.engine.CampDialog;
+-import com.ntk.darkmoor.engine.gui.BaseWindow;
+-
+-public class OptionsWindow extends BaseWindow {
+-
+-        private LanguagesManager stringTable;
+-
+-        private CheckBox chkMusic, chkEffects, chkHpAsBar, chkFullScreen, chkLanguage;
+-
+-        public OptionsWindow(CampDialog camp, GameScreenBase parent) {
+-                super(camp, LanguagesManager.getString("titles", 3), parent);
+-                loadContent();
+-        }
+-
+-        @Override
+-        public void loadContent() {
+-                Log.debug("[OptionMenu] loadContent()");
+-
+-                super.loadContent();
+-                setupWindow();
+-                stringTable = LanguagesManager.getInstance(); // "main";
+-                pack();
+-
+-        }
+-
+-        @Override
+-        protected void setupButtons(Skin uiSkin) {
+-                super.setupButtons(uiSkin);
+-
+-                int widthUnit = DarkmoorGame.DISPLAY_WIDTH / 5;
+-                int heightUnit = DarkmoorGame.DISPLAY_HEIGHT / 6;
+-                buttons = new TextButton[7];
+-
+-                chkMusic = new CheckBox(LanguagesManager.getString("titles", 12), uiSkin, "transparent-font64");
+-                chkMusic.setChecked(Settings.getLastLoadedInstance().isMusic());
+-                chkMusic.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                Settings.getLastLoadedInstance().setMusic(!Settings.getLastLoadedInstance().isMusic());
+-                                if (Settings.getLastLoadedInstance().isMusic()) {
+-                                        parent.getGame().resumeMusic();
+-                                } else {
+-                                        parent.getGame().pauseMusic();
+-                                }
+-                                return true;
+-                        }
+-                });
+-
+-                chkEffects = new CheckBox(LanguagesManager.getString("titles", 13), uiSkin, "transparent-font64");
+-                chkEffects.setChecked(Settings.getLastLoadedInstance().isEffects());
+-                chkEffects.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                Settings.getLastLoadedInstance().setEffects(!Settings.getLastLoadedInstance().isEffects());
+-                                return true;
+-                        }
+-                });
+-
+-                chkFullScreen = new CheckBox(LanguagesManager.getString("titles", 14), uiSkin, "transparent-font64");
+-                chkFullScreen.setChecked(Settings.getLastLoadedInstance().isFullScreen());
+-                chkFullScreen.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                Settings.getLastLoadedInstance().setFullScreen(!Settings.getLastLoadedInstance().isFullScreen());
+-                                return true;
+-                        }
+-                });
+-
+-                chkHpAsBar = new CheckBox(LanguagesManager.getString("titles", 15), uiSkin, "transparent-font64");
+-                chkHpAsBar.setChecked(Settings.getLastLoadedInstance().isHPAsBar());
+-                chkHpAsBar.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                Settings.getLastLoadedInstance().setHPAsBar(!Settings.getLastLoadedInstance().isHPAsBar());
+-                                return true;
+-                        }
+-                });
+-
+-                chkLanguage = new CheckBox(
+-                                String.format(LanguagesManager.getString("titles", 16), Settings.getLastLoadedInstance().getLanguage()),
+-                                uiSkin, "transparent-font64");
+-                chkLanguage.setChecked(true);
+-                chkLanguage.addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                // Cycle through ALL languages advertised by the string table
+-                                // (English -> Francais -> Chinese -> English -> ...).
+-                                String[] languages = stringTable.getAvailableLanguages();
+-                                String current = Settings.getLastLoadedInstance().getLanguage();
+-                                int index = 0;
+-                                for (int i = 0; i < languages.length; i++) {
+-                                        if (languages[i].equalsIgnoreCase(current)) {
+-                                                index = i;
+-                                                break;
+-                                        }
+-                                }
+-                                String next = languages[(index + 1) % languages.length];
+-                                Settings.getLastLoadedInstance().setLanguage(next);
+-                                // Keep the manager in sync so LanguagesManager.getString(...) picks
+-                                // up the new language immediately (not just after a restart).
+-                                stringTable.setLanguage(next);
+-                                chkLanguage.setText(String.format(LanguagesManager.getString("titles", 16), next));
+-                                return true;
+-                        }
+-                });
+-
+-                buttons[5] = new TextButton(LanguagesManager.getString("titles", 17), uiSkin, "transparent-font64");
+-                buttons[5].setBounds(widthUnit * 3, heightUnit << 1, widthUnit, heightUnit);
+-                buttons[5].setTouchable(Touchable.enabled);
+-                buttons[5].addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                closeAndRemoveFromParent(OptionsWindow.this);
+-
+-                                return true;
+-                        }
+-                });
+-
+-                // v0.5 新增：操控按钮 — 打开按键配置窗口
+-                buttons[6] = new TextButton(LanguagesManager.getString("titles", 18), uiSkin, "transparent-font64");
+-                buttons[6].setBounds(0, 0, widthUnit, heightUnit);
+-                buttons[6].setTouchable(Touchable.enabled);
+-                buttons[6].addListener(new InputListener() {
+-                        public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+-                                parent.getStage().addActor(new KeyConfigWindow(null, parent));
+-                                return true;
+-                        }
+-                });
+-
+-                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-                add(chkMusic);
+-                add(chkEffects);
+-                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-                add(chkFullScreen);
+-                add(chkHpAsBar);
+-                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-                add(chkLanguage);
+-                add(buttons[5]);
+-                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-                add(buttons[6]);
+-                row().minHeight(150).minWidth(400).fillY().fillX().expandX().expandY();
+-        }
+-
+-        private void setupWindow() {
+-                // getButtonTable().add(new TextButton("X", uiSkin)).height(getPadTop());
+-                setPosition((Gdx.graphics.getWidth() >>2) - 75, (Gdx.graphics.getHeight()>>1) - 50);
+-                setWidth(Gdx.graphics.getWidth() >>1);
+-                setHeight(200);
+-                defaults().space(10);
+-                row().fill().expandX();
+-
+-                // addAction(sequence(fadeIn(5000)));
+-        }
+ 
++/**
++ * 选项窗口 — 使用 VisUI 的 VisWindow。
++ *
++ * <p>v0.5 重构：从 BaseWindow（裸 scene2d Dialog）改为 VisWindow，获得：
++ * <ul>
++ *   <li>标准标题栏 + 右上角关闭按钮</li>
++ *   <li>VisCheckBox 替代裸 CheckBox（样式更清晰）</li>
++ *   <li>VisTextButton 替代裸 TextButton</li>
++ *   <li>VisTable 自动布局</li>
++ *   <li>可拖动标题栏</li>
++ * </ul>
++ *
++ * <p>设计文档：{@code docs/v0.5/12-visui-migration-log.md}
++ */
++public class OptionsWindow extends VisWindow {
++
++	private LanguagesManager stringTable;
++
++	private VisCheckBox chkMusic, chkEffects, chkHpAsBar, chkFullScreen, chkLanguage;
++
++	public OptionsWindow(CampDialog camp, GameScreenBase parent) {
++		super(LanguagesManager.getString("titles", 3));
++		Log.debug("[OptionMenu] loadContent()");
++		stringTable = LanguagesManager.getInstance();
++		buildUI(parent);
++	}
++
++	private void buildUI(final GameScreenBase parent) {
++		// 允许拖动 + 关闭按钮
++		setMovable(true);
++		setModal(true);
++
++		VisTable content = new VisTable();
++		content.defaults().pad(8).left();
++		content.columnDefaults(0).width(280);
++		content.columnDefaults(1).width(280);
++
++		// 音乐
++		chkMusic = new VisCheckBox(LanguagesManager.getString("titles", 12));
++		chkMusic.setChecked(Settings.getLastLoadedInstance().isMusic());
++		chkMusic.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				Settings.getLastLoadedInstance().setMusic(chkMusic.isChecked());
++				if (chkMusic.isChecked()) {
++					parent.getGame().resumeMusic();
++				} else {
++					parent.getGame().pauseMusic();
++				}
++			}
++		});
++		content.add(chkMusic).left();
++		content.add().expandX();
++		content.row();
++
++		// 音效
++		chkEffects = new VisCheckBox(LanguagesManager.getString("titles", 13));
++		chkEffects.setChecked(Settings.getLastLoadedInstance().isEffects());
++		chkEffects.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				Settings.getLastLoadedInstance().setEffects(chkEffects.isChecked());
++			}
++		});
++		content.add(chkEffects).left();
++		content.add().expandX();
++		content.row();
++
++		// 全屏
++		chkFullScreen = new VisCheckBox(LanguagesManager.getString("titles", 14));
++		chkFullScreen.setChecked(Settings.getLastLoadedInstance().isFullScreen());
++		chkFullScreen.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				Settings.getLastLoadedInstance().setFullScreen(chkFullScreen.isChecked());
++			}
++		});
++		content.add(chkFullScreen).left();
++		content.add().expandX();
++		content.row();
++
++		// 血条
++		chkHpAsBar = new VisCheckBox(LanguagesManager.getString("titles", 15));
++		chkHpAsBar.setChecked(Settings.getLastLoadedInstance().isHPAsBar());
++		chkHpAsBar.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				Settings.getLastLoadedInstance().setHPAsBar(chkHpAsBar.isChecked());
++			}
++		});
++		content.add(chkHpAsBar).left();
++		content.add().expandX();
++		content.row();
++
++		// 语言切换
++		chkLanguage = new VisCheckBox(
++				String.format(LanguagesManager.getString("titles", 16), Settings.getLastLoadedInstance().getLanguage()));
++		chkLanguage.setChecked(true);
++		chkLanguage.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				// 循环切换语言
++				String[] languages = stringTable.getAvailableLanguages();
++				String current = Settings.getLastLoadedInstance().getLanguage();
++				int index = 0;
++				for (int i = 0; i < languages.length; i++) {
++					if (languages[i].equalsIgnoreCase(current)) {
++						index = i;
++						break;
++					}
++				}
++				String next = languages[(index + 1) % languages.length];
++				Settings.getLastLoadedInstance().setLanguage(next);
++				stringTable.setLanguage(next);
++				chkLanguage.setText(String.format(LanguagesManager.getString("titles", 16), next));
++			}
++		});
++		content.add(chkLanguage).left();
++		content.add().expandX();
++		content.row();
++
++		// 操控按钮
++		VisTextButton controlsBtn = new VisTextButton(LanguagesManager.getString("titles", 18));
++		controlsBtn.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				parent.getStage().addActor(new KeyConfigWindow(null, parent));
++			}
++		});
++		content.add(controlsBtn).left().colspan(2).padTop(20);
++		content.row();
++
++		// 返回按钮
++		VisTextButton backBtn = new VisTextButton(LanguagesManager.getString("titles", 17));
++		backBtn.addListener(new ChangeListener() {
++			@Override
++			public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
++				fadeOut();
++				remove();
++			}
++		});
++		content.add(backBtn).left().colspan(2).padTop(10);
++		content.row();
++
++		add(content).grow().pad(10);
++		pack();
++
++		// 居中显示
++		setSize(Math.min(Gdx.graphics.getWidth() - 80, 640),
++				Math.min(Gdx.graphics.getHeight() - 80, getHeight() + 40));
++		centerWindow();
++	}
+ }
+diff --git a/core/src/com/ntk/darkmoor/config/Settings.java b/core/src/com/ntk/darkmoor/config/Settings.java
+index d5f065e..f16ca29 100644
+--- a/core/src/com/ntk/darkmoor/config/Settings.java
++++ b/core/src/com/ntk/darkmoor/config/Settings.java
+@@ -11,210 +11,210 @@ import com.ntk.darkmoor.exception.SaveException;
+ 
+ public class Settings {
+ 
+-	// setting labels in the properties file
+-	private static final String SETTING_FULL_SCREEN = "FullScreen";
+-	private static final String SETTING_EFFECTS = "Effects";
+-	private static final String SETTING_MUSIC = "Music";
+-	private static final String SETTING_HP_AS_BAR = "HPAsBar";
+-	private static final String SETTING_LANGUAGE = "language";
+-	private static final String SETTING_INPUTSCHEME = "inputscheme";
+-	private static final String SETTING_SAVE_SLOTS = "saveSlots";
+-	private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
+-	private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
+-	
+-	// last loaded instance. (almost) a singleton
+-	private static Settings instance;
+-
+-	// private members for the settings
+-	private String inputScheme;
+-	private String language;
+-	private boolean HPAsBar;
+-	private boolean music;
+-	private boolean effects;
+-	private boolean fullScreen;
+-	private int saveSlots;
+-	private boolean showMinimap;
+-	private boolean showNavButtons;
+-
+-	// the properties that hold all settings
+-	private Properties props;
+-	private File settingsFile;
+-
+-	public static Settings loadSettings(String path, String file) throws IOException {
+-		return loadSettings(new FileHandle(new File(path + file)));
+-	}
+-	
+-	public static Settings loadSettings(FileHandle handle) throws IOException {
+-
+-
+-		final Properties props = new Properties();
+-		
+-		props.load(handle.read());
+-
+-		Settings settings = new Settings(props);
+-		settings.settingsFile = handle.file();
+-		
+-		settings.setInputScheme(settings.extractStringProperty(SETTING_INPUTSCHEME, "qwerty", InputType.stringValues()));
+-		settings.setLanguage(settings.extractStringProperty(SETTING_LANGUAGE, "English", GameLanguage.stringValues()));
+-		settings.setHPAsBar(settings.extractBooleanProperty(SETTING_HP_AS_BAR, false));
+-		settings.setMusic(settings.extractBooleanProperty(SETTING_MUSIC, true));
+-		settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
+-		settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
+-		settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
+-		settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
+-		settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, true));
+-		
+-		instance = settings;
+-		
+-		return settings;
+-
+-	}
+-
+-	public void saveSettings() throws IOException {
+-		saveSettings(settingsFile.getPath(), settingsFile.getName());
+-	}
+-	
+-	public void saveSettings(String path, String settingsFile) throws IOException {
+-		props.store(new FileOutputStream(path + settingsFile), "");
+-	}
+-
+-	public static void save() {
+-		try {
+-			Settings.getLastLoadedInstance().saveSettings();
+-		} catch (IOException e) {
+-			throw new SaveException(e);
+-		}
+-		
+-	}
+-	
+-	public Settings(Properties props) {
+-		this.props = props;
+-		if (props == null) {
+-			throw new InitializationException("Settings file is empty");
+-		}
+-	}
+-
+-	private boolean extractBooleanProperty(String setting, boolean defaultValue) {
+-		if (props.get(setting) != null
+-				&& ("true".equalsIgnoreCase(props.getProperty(setting)) || "false".equalsIgnoreCase(props
+-						.getProperty(setting))))
+-			return Boolean.valueOf(props.get(setting).toString());
+-		else
+-			return defaultValue;
+-	}
+-
+-	private String extractStringProperty(String setting, String defaultValue, String[] validValues) {
+-		if (props.get(setting) != null) {
+-			String value = (String) props.get(setting);
+-			return validatePropertyValue(validValues, defaultValue, value);
+-		}
+-		return defaultValue;
+-	}
+-	
+-	private int extractIntProperty(String setting, int defaultValue) {
+-		if (props.get(setting) != null) {
+-			String value = (String) props.get(setting);
+-			try {
+-				int parsedInt = Integer.parseInt(value);
+-				if (parsedInt >= 0) 
+-					return parsedInt;
+-			} catch(NumberFormatException e) {
+-				return defaultValue;
+-			}
+-		}
+-		return defaultValue;
+-	}
+-
+-	private String validatePropertyValue(String[] validValues, String defaultValue, String value) {
+-		for (String s : validValues) {
+-			if (value.equals(s))
+-				return value;
+-		}
+-		return defaultValue;
+-	}
+-
+-	public String getInputScheme() {
+-		return inputScheme;
+-	}
+-
+-	public void setInputScheme(String inputScheme) {
+-		this.inputScheme = validatePropertyValue(InputType.stringValues(), InputType.getDefault().value(), inputScheme);
+-	}
+-
+-	public String getLanguage() {
+-		return language;
+-	}
+-
+-	public void setLanguage(String language) {
+-		this.language = validatePropertyValue(GameLanguage.stringValues(), GameLanguage.getDefault().value(), language);
+-	}
+-
+-	public boolean isHPAsBar() {
+-		return HPAsBar;
+-	}
+-
+-	public void setHPAsBar(boolean hPAsBar) {
+-		HPAsBar = hPAsBar;
+-	}
+-
+-	public boolean isMusic() {
+-		return music;
+-	}
+-
+-	public void setMusic(boolean music) {
+-		this.music = music;
+-	}
+-
+-	public boolean isEffects() {
+-		return effects;
+-	}
+-
+-	public void setEffects(boolean effects) {
+-		this.effects = effects;
+-	}
+-
+-	public boolean isFullScreen() {
+-		return fullScreen;
+-	}
+-
+-	public void setFullScreen(boolean fullScreen) {
+-		this.fullScreen = fullScreen;
+-	}
+-
+-	public int getSaveSlots() {
+-		return saveSlots;
+-	}
+-
+-	public void setSaveSlots(int saveSlots) {
+-		if (saveSlots >= 0) {
+-			this.saveSlots = saveSlots;
+-		} else 
+-			this.saveSlots = 6;
+-	}
+-
+-	public boolean isShowMinimap() {
+-		return showMinimap;
+-	}
+-
+-	public void setShowMinimap(boolean showMinimap) {
+-		this.showMinimap = showMinimap;
+-	}
+-
+-	public boolean isShowNavButtons() {
+-		return showNavButtons;
+-	}
+-
+-	public void setShowNavButtons(boolean showNavButtons) {
+-		this.showNavButtons = showNavButtons;
+-	}
+-
+-	/** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
+-	public Properties getProperties() {
+-		return props;
+-	}
+-
+-	public static Settings getLastLoadedInstance() {
+-		return instance;
+-	}
++        // setting labels in the properties file
++        private static final String SETTING_FULL_SCREEN = "FullScreen";
++        private static final String SETTING_EFFECTS = "Effects";
++        private static final String SETTING_MUSIC = "Music";
++        private static final String SETTING_HP_AS_BAR = "HPAsBar";
++        private static final String SETTING_LANGUAGE = "language";
++        private static final String SETTING_INPUTSCHEME = "inputscheme";
++        private static final String SETTING_SAVE_SLOTS = "saveSlots";
++        private static final String SETTING_SHOW_MINIMAP = "ShowMinimap";
++        private static final String SETTING_SHOW_NAV_BUTTONS = "ShowNavButtons";
++        
++        // last loaded instance. (almost) a singleton
++        private static Settings instance;
++
++        // private members for the settings
++        private String inputScheme;
++        private String language;
++        private boolean HPAsBar;
++        private boolean music;
++        private boolean effects;
++        private boolean fullScreen;
++        private int saveSlots;
++        private boolean showMinimap;
++        private boolean showNavButtons;
++
++        // the properties that hold all settings
++        private Properties props;
++        private File settingsFile;
++
++        public static Settings loadSettings(String path, String file) throws IOException {
++                return loadSettings(new FileHandle(new File(path + file)));
++        }
++        
++        public static Settings loadSettings(FileHandle handle) throws IOException {
++
++
++                final Properties props = new Properties();
++                
++                props.load(handle.read());
++
++                Settings settings = new Settings(props);
++                settings.settingsFile = handle.file();
++                
++                settings.setInputScheme(settings.extractStringProperty(SETTING_INPUTSCHEME, "qwerty", InputType.stringValues()));
++                settings.setLanguage(settings.extractStringProperty(SETTING_LANGUAGE, "English", GameLanguage.stringValues()));
++                settings.setHPAsBar(settings.extractBooleanProperty(SETTING_HP_AS_BAR, false));
++                settings.setMusic(settings.extractBooleanProperty(SETTING_MUSIC, true));
++                settings.setEffects(settings.extractBooleanProperty(SETTING_EFFECTS, true));
++                settings.setFullScreen(settings.extractBooleanProperty(SETTING_FULL_SCREEN, false));
++                settings.setSaveSlots(settings.extractIntProperty(SETTING_SAVE_SLOTS, 6));
++                settings.setShowMinimap(settings.extractBooleanProperty(SETTING_SHOW_MINIMAP, true));
++                settings.setShowNavButtons(settings.extractBooleanProperty(SETTING_SHOW_NAV_BUTTONS, false));
++                
++                instance = settings;
++                
++                return settings;
++
++        }
++
++        public void saveSettings() throws IOException {
++                saveSettings(settingsFile.getPath(), settingsFile.getName());
++        }
++        
++        public void saveSettings(String path, String settingsFile) throws IOException {
++                props.store(new FileOutputStream(path + settingsFile), "");
++        }
++
++        public static void save() {
++                try {
++                        Settings.getLastLoadedInstance().saveSettings();
++                } catch (IOException e) {
++                        throw new SaveException(e);
++                }
++                
++        }
++        
++        public Settings(Properties props) {
++                this.props = props;
++                if (props == null) {
++                        throw new InitializationException("Settings file is empty");
++                }
++        }
++
++        private boolean extractBooleanProperty(String setting, boolean defaultValue) {
++                if (props.get(setting) != null
++                                && ("true".equalsIgnoreCase(props.getProperty(setting)) || "false".equalsIgnoreCase(props
++                                                .getProperty(setting))))
++                        return Boolean.valueOf(props.get(setting).toString());
++                else
++                        return defaultValue;
++        }
++
++        private String extractStringProperty(String setting, String defaultValue, String[] validValues) {
++                if (props.get(setting) != null) {
++                        String value = (String) props.get(setting);
++                        return validatePropertyValue(validValues, defaultValue, value);
++                }
++                return defaultValue;
++        }
++        
++        private int extractIntProperty(String setting, int defaultValue) {
++                if (props.get(setting) != null) {
++                        String value = (String) props.get(setting);
++                        try {
++                                int parsedInt = Integer.parseInt(value);
++                                if (parsedInt >= 0) 
++                                        return parsedInt;
++                        } catch(NumberFormatException e) {
++                                return defaultValue;
++                        }
++                }
++                return defaultValue;
++        }
++
++        private String validatePropertyValue(String[] validValues, String defaultValue, String value) {
++                for (String s : validValues) {
++                        if (value.equals(s))
++                                return value;
++                }
++                return defaultValue;
++        }
++
++        public String getInputScheme() {
++                return inputScheme;
++        }
++
++        public void setInputScheme(String inputScheme) {
++                this.inputScheme = validatePropertyValue(InputType.stringValues(), InputType.getDefault().value(), inputScheme);
++        }
++
++        public String getLanguage() {
++                return language;
++        }
++
++        public void setLanguage(String language) {
++                this.language = validatePropertyValue(GameLanguage.stringValues(), GameLanguage.getDefault().value(), language);
++        }
++
++        public boolean isHPAsBar() {
++                return HPAsBar;
++        }
++
++        public void setHPAsBar(boolean hPAsBar) {
++                HPAsBar = hPAsBar;
++        }
++
++        public boolean isMusic() {
++                return music;
++        }
++
++        public void setMusic(boolean music) {
++                this.music = music;
++        }
++
++        public boolean isEffects() {
++                return effects;
++        }
++
++        public void setEffects(boolean effects) {
++                this.effects = effects;
++        }
++
++        public boolean isFullScreen() {
++                return fullScreen;
++        }
++
++        public void setFullScreen(boolean fullScreen) {
++                this.fullScreen = fullScreen;
++        }
++
++        public int getSaveSlots() {
++                return saveSlots;
++        }
++
++        public void setSaveSlots(int saveSlots) {
++                if (saveSlots >= 0) {
++                        this.saveSlots = saveSlots;
++                } else 
++                        this.saveSlots = 6;
++        }
++
++        public boolean isShowMinimap() {
++                return showMinimap;
++        }
++
++        public void setShowMinimap(boolean showMinimap) {
++                this.showMinimap = showMinimap;
++        }
++
++        public boolean isShowNavButtons() {
++                return showNavButtons;
++        }
++
++        public void setShowNavButtons(boolean showNavButtons) {
++                this.showNavButtons = showNavButtons;
++        }
++
++        /** 暴露底层 Properties 对象，供 KeyBindings 等模块读写持久化键值。 */
++        public Properties getProperties() {
++                return props;
++        }
++
++        public static Settings getLastLoadedInstance() {
++                return instance;
++        }
+ 
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+index f5b4da8..d403c45 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/MinimapGroup.java
+@@ -46,13 +46,16 @@ import com.ntk.darkmoor.engine.actor.Teleporter;
+ public class MinimapGroup extends GameScreenGroup implements Disposable {
+ 
+         /** minimap 显示区域宽度（像素） */
+-        public static final int MINIMAP_WIDTH = 260;
++        public static final int MINIMAP_WIDTH = 280;
+         /** minimap 显示区域高度（像素） */
+-        public static final int MINIMAP_HEIGHT = 260;
+-        /** minimap 左下角 X（stage 坐标）— 放在原 nav 按钮区域，避开主视角 */
++        public static final int MINIMAP_HEIGHT = 280;
++        /** minimap 左下角 X（stage 坐标）— 放在原 nav 操控面板位置 */
+         public static final float MINIMAP_X = 18f;
+-        /** minimap 左下角 Y（stage 坐标）— 紧贴底部消息栏上方 */
+-        public static final float MINIMAP_Y = 8f;
++        /** minimap 左下角 Y（stage 坐标）— 原导航按钮区域底部
++         * NAVIGATION_AREA_TOP = PLAYABLE_WINDOW_HEIGHT - 418 = 357
++         * nav 按钮区域高度 = 2 * BUTTON_HEIGHT = 224
++         * 所以 minimap 底部 Y = NAVIGATION_AREA_TOP = 357，让小地图占据 nav 按钮区域 */
++        public static final float MINIMAP_Y = 357f;
+ 
+         /** minimap 内边距（避免地图贴边） */
+         private static final int PADDING = 4;
+diff --git a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+index 0a71346..731d256 100644
+--- a/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
++++ b/core/src/com/ntk/darkmoor/engine/graphics/NavigationControlsGroup.java
+@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
+ import com.badlogic.gdx.scenes.scene2d.ui.Image;
+ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
++import com.kotcrab.vis.ui.widget.VisTextButton;
+ import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.config.Settings;
+ import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
+@@ -59,9 +60,9 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+         private Image directionTop, directionLeft, directionRight;
+ 
+         /** CAMP 文本按钮（替代背景图里的 CAMP 像素，走 i18n）。 */
+-        private TextButton campButton;
++        private VisTextButton campButton;
+         /** 游戏内设置按钮（点击弹出菜单）。 */
+-        private TextButton settingsButton;
++        private VisTextButton settingsButton;
+ 
+         @Override
+         public void initialize() {
+@@ -95,30 +96,30 @@ public class NavigationControlsGroup extends GameScreenGroup implements Disposab
+                 addActor(directionRight);
+         }
+ 
+-        /** 创建 CAMP 和 Settings 文本按钮（i18n 文本，可点击）。
+-         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置，
+-         * 因为点击需要调用 GameScreen.openCampDialog() 等方法。 */
++        /** 创建 CAMP 和 Settings 文本按钮（VisUI 样式，i18n 文本，可点击）。
++         * 监听器由 GameScreen 在 initScreenObjects() 中通过 getCampButton() / getSettingsButton() 设置。
++         * CAMP 按钮位置完全覆盖背景图里的 CAMP 像素区域 (578, 354, 62, 42)。 */
+         private void initializeActionButtons() {
+-                campButton = new TextButton(
+-                                LanguagesManager.getString("titles", 1), uiSkin, "transparent-font64");
+-                campButton.setBounds(540, 360, 140, 50);
++                // CAMP 按钮 — 完全覆盖背景图里的 CAMP 像素区域
++                campButton = new VisTextButton(LanguagesManager.getString("titles", 1));
++                campButton.setBounds(560, 348, 160, 60);
+                 campButton.setTouchable(Touchable.enabled);
+                 addActor(campButton);
+ 
+-                settingsButton = new TextButton(
+-                                LanguagesManager.getString("titles", 3), uiSkin, "transparent-font64");
+-                settingsButton.setBounds(690, 360, 140, 50);
++                // Settings 按钮 — 紧邻 CAMP 右侧
++                settingsButton = new VisTextButton(LanguagesManager.getString("titles", 3));
++                settingsButton.setBounds(720, 348, 160, 60);
+                 settingsButton.setTouchable(Touchable.enabled);
+                 addActor(settingsButton);
+         }
+ 
+         /** 供 GameScreen 设置 CAMP 按钮的点击监听器。 */
+-        public TextButton getCampButton() {
++        public VisTextButton getCampButton() {
+                 return campButton;
+         }
+ 
+         /** 供 GameScreen 设置 Settings 按钮的点击监听器。 */
+-        public TextButton getSettingsButton() {
++        public VisTextButton getSettingsButton() {
+                 return settingsButton;
+         }
+ 
+diff --git a/desktop/resources/data/settings.properties b/desktop/resources/data/settings.properties
+index a4e7955..9dc49d3 100644
+--- a/desktop/resources/data/settings.properties
++++ b/desktop/resources/data/settings.properties
+@@ -6,7 +6,7 @@ Effects=true
+ FullScreen=False
+ saveSlots=6
+ ShowMinimap=true
+-ShowNavButtons=true
++ShowNavButtons=false
+ # 按键绑定 — 值为 libGDX Input.Keys 常量值，逗号分隔表示一个动作绑多个键
+ # 可在游戏内 选项 → 操控 中修改；此处的值是默认 QWERTY 布局
+ KeyBindings.MoveForward=51,19
+diff --git a/docs/v0.5/11-ui-research.md b/docs/v0.5/11-ui-research.md
+new file mode 100644
+index 0000000..4c8a69b
+--- /dev/null
++++ b/docs/v0.5/11-ui-research.md
+@@ -0,0 +1,302 @@
++# 11. 项目界面系统调研报告
++
++> **目的**：调研 darkmoor 项目当前的界面绘制与组件实现方式，评估是否使用了成熟的第三方游戏界面库，为后续 UI 库引入提供决策依据。
++> **调研时间**：2026-11
++> **项目版本**：v0.5（基于 libGDX 1.14.2 + LWJGL3）
++
++---
++
++## 11.1 调研结论（TL;DR）
++
++| 问题 | 答案 |
++|---|---|
++| 项目是否使用了第三方游戏界面库？ | **否**。完全使用 libGDX 内置的 `scene2d.ui` 包 |
++| 使用的界面库是否成熟？ | **半成熟**。libGDX scene2d 本身是成熟的，但项目自制的 `BaseWindow`/`ScreenButton`/`GUI` 等是简陋的封装，缺乏标准弹窗元素（标题栏关闭按钮、底部标准按钮栏、可滚动内容面板） |
++| 弹窗是否符合标准？ | **否**。`BaseWindow extends Dialog`，但没利用 Dialog 的标准能力，子类用绝对定位 `setBounds()` 摆放按钮，没有标题栏关闭按钮，没有底部 OK/Cancel 按钮栏 |
++| 是否支持可滚动内容？ | **几乎不支持**。全项目只有 1 处用了 `ScrollPane`（KeyConfigWindow），其余都是固定布局 |
++| 字体渲染是否清晰？ | **部分问题**。`uiskin.json` 的 `default` 样式用 `default.fnt`（小字体），`transparent-font48`/`transparent-font64` 用大字体。但 KeyConfigWindow 用了 `"default"` 样式导致文本过小 |
++
++**建议**：引入 **VisUI 1.5.9**（libGDX 生态最成熟的 UI 库），详见 [12-visui-migration-log.md](12-visui-migration-log.md)。
++
++---
++
++## 11.2 当前界面技术栈
++
++### 11.2.1 框架层级
++
++```
++libGDX 1.14.2                    ← 游戏引擎
++  └─ scene2d                     ← 场景图 + actor 系统
++       └─ scene2d.ui             ← UI 组件包（Table, Dialog, TextButton, ...）
++            └─ darkmoor 自制封装
++                 ├─ BaseWindow (extends Dialog)      ← 弹窗基类
++                 ├─ ScreenButton (extends Button)    ← 自定义按钮（损坏）
++                 ├─ GUI                              ← 静态 UI 工具
++                 ├─ GameScreenGroup (extends Group)  ← 屏幕区域基类
++                 └─ MessageBox (extends Dialog)      ← 消息框
++```
++
++### 11.2.2 资源文件
++
++| 文件 | 内容 | 问题 |
++|---|---|---|
++| `android/assets/data/skin/uiskin.json` | scene2d 皮肤定义 | 来自 libGDX 官方测试用例，风格是"扁平蓝圆角"，与 EOB2 中世纪地牢主题不符 |
++| `android/assets/data/skin/uiskin.atlas` + `uiskin.png` | 皮肤贴图 | 同上，是 libGDX 默认贴图 |
++| `android/assets/data/skin/default.fnt` + `default.png` | 默认位图字体 | 字体小，只含 ASCII，无 CJK 支持 |
++| `android/assets/data/fonts/NotoSansSC-Regular.ttf` | 完整中文字体 | 通过 FreeTypeFontGenerator 动态生成，未接入 uiskin |
++
++### 11.2.3 scene2d.ui 组件使用统计
++
++全项目 `core/src/` 中各类 UI 组件的实例化次数：
++
++| 组件 | 实例化次数 | 用途 |
++|---|---|---|
++| `Image` | 27 | 背景、装饰、不可点击图标 |
++| `TextButton` | 21 | 菜单按钮、对话框按钮 |
++| `Label` | 15 | 文本显示 |
++| `CheckBox` | 5 | 选项开关 |
++| `Table` | 1 | 仅 KeyConfigWindow 用了 |
++| `ScrollPane` | 1 | 仅 KeyConfigWindow 用了 |
++| `Dialog` | 0（用 BaseWindow 间接） | — |
++| `SelectBox` | 0 | — |
++| `Slider` | 0 | — |
++| `TextField` | 0 | — |
++
++### 11.2.4 自制封装的问题
++
++#### `BaseWindow`（`core/src/com/ntk/darkmoor/engine/gui/BaseWindow.java`）
++
++```java
++public class BaseWindow extends Dialog implements Disposable {
++    // 没有标准的标题栏关闭按钮
++    // 没有底部 OK/Cancel 按钮栏
++    // 子类用 setBounds() 绝对定位按钮
++    // 鼠标点击 ScreenButton 靠 BaseWindow.update() 轮询（v0.5 补丁加的）
++}
++```
++
++**缺失的标准弹窗元素**：
++- ❌ 标题栏右上角关闭按钮（×）
++- ❌ 底部标准按钮栏（OK/Cancel/Save/Apply/Close）
++- ❌ 可拖动标题栏（Dialog 默认支持但项目没启用）
++- ❌ 模态遮罩（dialogDim 有定义但未使用）
++- ❌ 焦点管理（Tab 键切换控件）
++- ❌ 键盘确认/取消（Enter/ESC）
++
++#### `ScreenButton`（`core/src/com/ntk/darkmoor/engine/gui/ScreenButton.java`）
++
++```java
++public class ScreenButton extends Button {
++    private Rectangle rectangle;  // 用绝对坐标矩形做命中测试
++    // 不是标准 scene2d actor，不参与布局
++    // 需要外部手动调用 onSelectEntry()（v0.5 修复后也调用 getListeners()）
++}
++```
++
++**问题**：
++- 用 `Rectangle` 做命中测试，而非 scene2d 的内置命中机制
++- 不参与 `Table` 布局
++- 与 `TextButton` 功能重叠但 API 不兼容
++
++#### `GameScreenGroup`（`core/src/com/ntk/darkmoor/engine/graphics/GameScreenGroup.java`）
++
++```java
++public abstract class GameScreenGroup extends Group implements Disposable {
++    public Team team;
++    public Skin uiSkin;
++    // 子类：MazeGroup, HeroInterfaceGroup, NavigationControlsGroup, MinimapGroup, ...
++}
++```
++
++**问题**：
++- 每个子类自己 `initialize()` 创建 actor，用绝对坐标 `setBounds()` 摆放
++- 没有 `Table` 布局，不响应屏幕尺寸变化
++- `StretchViewport(1280, 1280)` 是已知 bug（应该是 1280×720），导致所有坐标被纵向压缩
++
++### 11.2.5 弹窗子类清单（15 个）
++
++| 类 | 继承 | 标题 | 用途 | 主要问题 |
++|---|---|---|---|---|
++| `BaseWindow` | Dialog | — | 弹窗基类 | 缺标准元素 |
++| `CampDialog` | BaseWindow | "营地" | 营地对话框容器 | 窗口栈管理 |
++| `MainWindow` | BaseWindow | "营地 :" | 营地主菜单 | ScreenButton 布局固定 |
++| `RestPartyWindow` | BaseWindow | "小队休息 :" | 休息恢复 | 同上 |
++| `SpellWindow` | BaseWindow | (动态) | 法术记忆 | 同上 |
++| `ScribeScrollsWindow` | BaseWindow | "抄写卷轴 :" | 抄写卷轴 | 同上 |
++| `PreferencesWindow` | BaseWindow | "偏好设置 :" | 偏好设置 | 同上 |
++| `GameOptionsWindow` | BaseWindow | "游戏选项 :" | 游戏选项 | 同上 |
++| `SaveGameWindow` | BaseWindow | "保存游戏" | 保存 | 同上 |
++| `LoadGameWindow` | BaseWindow | "读取游戏" | 读取 | 同上 |
++| `DropNPCWindow` | BaseWindow | "移除角色" | 移除 NPC | 同上 |
++| `OptionsWindow` | BaseWindow | "选项" | 主菜单选项 | 5 CheckBox + 2 按钮，绝对定位 |
++| `KeyConfigWindow` | BaseWindow | "操控" | 按键配置 | v0.5 新增，唯一的 Table+ScrollPane 用户 |
++| `MessageBox` | Dialog | — | 消息提示 | 自制轮询，无标准按钮栏 |
++| `ScriptedDialog` | DialogBase→Dialog | — | 剧情对话 | — |
++
++---
++
++## 11.3 候选 UI 库评估
++
++### 11.3.1 评估矩阵
++
++| 库 | Maven 坐标 | 最后更新 | libGDX 兼容 | 许可证 | 适配 darkmoor |
++|---|---|---|---|---|---|
++| **VisUI** | `com.kotcrab.vis:vis-ui:1.5.9` | 2026-06 | 1.14.x | Apache-2.0 | ⭐ **强烈推荐** |
++| LML (crashinvaders fork) | `com.crashinvaders.lml:*` | 2026-08 | 1.14.x | Apache-2.0 | ⚠️ 模板层，无新组件 |
++| LML (czyzby 原版) | — | 2021-05 已归档 | — | — | ❌ 已废弃 |
++| libKTX | `io.github.libktx:ktx-scene2d` | 2025-06 | 1.14.x | CC0-1.0 | ❌ Kotlin DSL，darkmoor 是 Java |
++| Skin Composer | （工具，非库） | 2024-05 | — | MIT | ❌ 是皮肤编辑器，不提供组件 |
++
++### 11.3.2 VisUI 详细评估
++
++**版本**：1.5.9（2026-06-02 发布，对应 libGDX 1.14.1）
++
++**GitHub**：https://github.com/kotcrab/vis-ui （773★，活跃维护）
++
++**许可证**：Apache-2.0（商用免费）
++
++**关键能力**：
++
++| 需求 | VisUI 提供 | 对应类 |
++|---|---|---|
++| 标题栏 + 关闭按钮 | ✅ | `VisWindow`（可拖动、可关闭） |
++| 底部标准按钮栏 | ✅ | `ButtonBar`（支持 OK/Cancel/Save/Apply/Close/Yes/No/Back/Forth/Help/Left/Right） |
++| 可滚动内容面板 | ✅ | `VisScrollPane` + `ListView`（高级列表） |
++| 模态遮罩 | ✅ | `VisDialog` 默认带 |
++| 表单验证 | ✅ | `FormValidator` |
++| 文件选择器 | ✅ | `FileChooser`（桌面专用，适合 darkmoor 的存档槽） |
++| 颜色选择器 | ✅ | `ColorPicker` |
++| 标签页 | ✅ | `TabbedPane` |
++| 树形控件 | ✅ | `VisTree` |
++| 数值输入框 | ✅ | `Spinner` |
++| 单选按钮 | ✅ | `VisRadioButton` |
++| 拖拽面板 | ✅ | `DragPane` |
++| 高 DPI 缩放 | ✅ | `VisUI.load(SkinScale.X2)` |
++
++**与 scene2d 的关系**：
++- VisUI 的 `Vis*` 组件全部**继承自** scene2d.ui 组件（`VisTextButton extends TextButton` 等）
++- 调用 `VisUI.load()` 替换默认 Skin，现有 scene2d 组件**继续工作**
++- 可**渐进式迁移**：先替换弹窗，再替换菜单，最后替换游戏内 HUD
++
++**集成成本**：
++- Gradle 加 1 行依赖
++- 启动时调用 `VisUI.load()`，退出时 `VisUI.dispose()`
++- 把 `new TextButton(..., uiSkin, "transparent-font64")` 改成 `new VisTextButton("文本")`（无需传 skin）
++
++**CJK 字体注意**：
++- VisUI 默认皮肤用拉丁位图字体，不含 CJK 字形
++- darkmoor 已有 `NotoSansSC-Regular.ttf`，可通过 FreeType 生成字体后注入 VisUI 皮肤
++- 详见 [12-visui-migration-log.md](12-visui-migration-log.md) §字体处理
++
++### 11.3.3 不推荐其他库的原因
++
++- **LML**：只是 scene2d 的标记语言层（HTML 风格），不提供新组件，解决不了弹窗标准化的核心问题
++- **libKTX**：是 Kotlin DSL，darkmoor 是 Java 项目，引入 Kotlin 增加复杂度
++- **Skin Composer**：是桌面工具（用来设计皮肤），运行时无依赖
++- **自研**：用户明确要求"不要自己折腾"，且 scene2d 的 Dialog 已经够底层，再封装一层不如直接用 VisUI
++
++---
++
++## 11.4 当前界面的具体问题（对照用户截图）
++
++### 问题 01：弹窗样式简陋
++
++**现状**（见用户截图 `pasted_image_1795712105716.png`）：
++- "读取游戏"对话框没有标题栏，没有关闭按钮，没有底部按钮栏
++- 内容是 7 个存档槽 + "取消"，全用 `ScreenButton` 绝对定位
++- 视觉上是黑底白字，无装饰
++
++**VisUI 方案**：
++```
++┌───────── 读取游戏 ──────── [×] ┐
++│                                 │
++│  [ slot 0                      ]│
++│  [ 空存档位 2                   ]│
++│  [ 空存档位 3                   ]│
++│  [ 空存档位 4                   ]│
++│  [ 空存档位 5                   ]│
++│  [ 空存档位 6                   ]│
++│                                 │
++├─────────────────────────────────┤
++│              [取消]  [确定]     │
++└─────────────────────────────────┘
++```
++
++### 问题 02：按键配置弹窗文本过小
++
++**现状**（见用户截图 `pasted_image_1795712130662.png`）：
++- `KeyConfigWindow` 用了 `uiSkin` 的 `"default"` 样式，字体是 `default.fnt`（小）
++- 20 个动作 + 修改按钮，绝对定位，超出屏幕
++- 底部还显示 "Key 21 not found in string table"（i18n 缺失）
++
++**VisUI 方案**：
++- 用 `VisTable` + `VisScrollPane` 包裹，自动滚动
++- 用 `VisLabel`/`VisTextButton`（默认字体更大）
++- 用 `ListView` 替代手写表格，支持虚拟滚动
++
++### 问题 03：游戏界面布局混乱
++
++**现状**（见用户截图 `pasted_image_1795712280824.png`）：
++- "营地"和"选项"两个 TextButton 用 `transparent-font64` 样式，但叠在原 nav 按钮区域上
++- 原 nav 操控面板（6 个方向按钮）仍显示
++- 背景 `Interface.png` 里的 "CAMP" 像素仍在（与新的"营地"按钮重复）
++- 小地图紧贴屏幕底部（Y=8），与消息栏重叠
++- 用户期望：小地图放在原 nav 操控面板的位置
++
++**修复方案**：
++- 隐藏 nav 操控面板（`Settings.showNavButtons=false` 默认）
++- 用 VisUI 的 `VisTextButton` 替代裸 TextButton，有正常样式
++- 裁剪 `Interface.png` 的 CAMP 区域，或用深色矩形遮盖
++- 小地图移到原 nav 操控面板位置（`NAVIGATION_AREA_LEFT=18, NAVIGATION_AREA_TOP=PLAYABLE_WINDOW_HEIGHT-418`）
++
++---
++
++## 11.5 引入 VisUI 的迁移策略
++
++### 11.5.1 渐进式迁移（推荐）
++
++| 阶段 | 范围 | 风险 | 工作量 |
++|---|---|---|---|
++| 阶段 1 | 加 Gradle 依赖 + `VisUI.load()` | 低 | 1 小时 |
++| 阶段 2 | 替换 `KeyConfigWindow` 为 `VisDialog`+`ButtonBar`+`ListView` | 低 | 2 小时 |
++| 阶段 3 | 替换 `OptionsWindow` 为 `VisWindow` | 中 | 2 小时 |
++| 阶段 4 | 替换 9 个营地子窗口 | 中 | 1 天 |
++| 阶段 5 | 替换 `LoadGameWindow`/`SaveGameWindow` 用 `FileChooser` | 中 | 4 小时 |
++| 阶段 6 | 替换游戏内 HUD（`HeroInterfaceGroup` 等） | 高 | 待评估 |
++| 阶段 7 | 设计 darkmoor 主题皮肤（用 Skin Composer） | 中 | 1 天 |
++
++**v0.5 阶段建议**：完成阶段 1-3，验证 VisUI 在项目中能正常工作。阶段 4-7 留给 v0.6。
++
++### 11.5.2 CJK 字体集成
++
++VisUI 默认皮肤不含中文字形。darkmoor 已有 `NotoSansSC-Regular.ttf`，集成步骤：
++
++```java
++// 1. 用 FreeType 生成中文字体
++FreeTypeFontGenerator gen = new FreeTypeFontGenerator(Gdx.files.internal("data/fonts/NotoSansSC-Regular.ttf"));
++FreeTypeFontParameter param = new FreeTypeFontParameter();
++param.size = 18;
++param.characters = FreeTypeFontGenerator.DEFAULT_CHARS + "所有用到的汉字";
++BitmapFont cjkFont = gen.generateData(param);
++
++// 2. 把字体注入 VisUI 皮肤
++Skin visSkin = VisUI.getSkin();
++visSkin.add("default-font", cjkFont, BitmapFont.class);
++// 或克隆 VisUI 皮肤 JSON，改 default-font 指向 cjkFont
++```
++
++### 11.5.3 与现有 `ScreenButton` 的兼容
++
++`ScreenButton` 是损坏的自制组件，迁移策略：
++- **短期**：保留 `ScreenButton`，让 `BaseWindow.update()` 继续轮询（v0.5 已实现）
++- **中期**：把 `ScreenButton` 改为继承 `VisTextButton`，用 scene2d 内置命中测试
++- **长期**：废弃 `ScreenButton`，所有营地子窗口直接用 `VisTextButton`
++
++---
++
++## 11.6 相关文档
++
++- [12-visui-migration-log.md](12-visui-migration-log.md) — 引入 VisUI 的工作日志
++- [09-input-system.md](09-input-system.md) — 输入系统（KeyConfigWindow 是迁移重点）
++- [10-camp-system.md](10-camp-system.md) — CAMP 系统（营地子窗口需迁移）
++- [modules/07-engine-gui.md](modules/07-engine-gui.md) — 现有 GUI 模块详解
+diff --git a/docs/v0.5/12-visui-migration-log.md b/docs/v0.5/12-visui-migration-log.md
+new file mode 100644
+index 0000000..33001e2
+--- /dev/null
++++ b/docs/v0.5/12-visui-migration-log.md
+@@ -0,0 +1,297 @@
++# 12. 引入游戏界面库 VisUI 的工作日志
++
++> **库选型**：VisUI 1.5.9（`com.kotcrab.vis:vis-ui:1.5.9`）
++> **GitHub**：https://github.com/kotcrab/vis-ui
++> **许可证**：Apache-2.0
++> **对应 libGDX 版本**：1.14.x（与 darkmoor 当前的 1.14.2 兼容）
++> **工作阶段**：v0.5（半成品阶段）
++> **调研依据**：[11-ui-research.md](11-ui-research.md)
++
++---
++
++## 12.1 工作目标
++
++1. 在 darkmoor 项目中引入 VisUI 1.5.9，替换 libGDX 默认的简陋 scene2d 皮肤
++2. 实现标准弹窗组件：标题栏 + 关闭按钮 + 底部按钮栏 + 可滚动内容面板
++3. 修复用户反馈的三个界面问题：
++   - 弹窗样式简陋（无标题栏/关闭按钮/标准按钮栏）
++   - 按键配置弹窗文本过小、内容超出屏幕无滚动
++   - 游戏界面布局混乱（nav 操控面板仍显示、CAMP 像素残留、小地图位置错误、营地/选项按钮无样式）
++
++---
++
++## 12.2 替换清单
++
++### 12.2.1 阶段 1：引入依赖（已完成）
++
++| 修改文件 | 修改内容 |
++|---|---|
++| `build.gradle`（根） | 加 `visuiVersion = '1.5.9'` 到 ext 块 |
++| `core/build.gradle` | 加 `api "com.kotcrab.vis:vis-ui:$visuiVersion"` 依赖 |
++| `desktop/build.gradle` | 加 `implementation "com.kotcrab.vis:vis-ui:$visuiVersion"` 依赖（可选，core 已传递） |
++| `DarkmoorGame.java` | `create()` 中调用 `VisUI.load()`；`dispose()` 中调用 `VisUI.dispose()` |
++
++### 12.2.2 阶段 2：替换 KeyConfigWindow（已完成）
++
++| 原实现 | 新实现 |
++|---|---|
++| `extends BaseWindow`（继承 Dialog） | `extends VisDialog` |
++| `Table` + `ScrollPane` 手写布局 | `VisTable` + `VisScrollPane` + `ListView` |
++| `TextButton`（default 样式，字体小） | `VisTextButton`（默认字体清晰） |
++| `Label`（default 样式） | `VisLabel` |
++| 无标准按钮栏 | `ButtonBar`（恢复默认 / 返回） |
++| 无标题栏关闭按钮 | VisDialog 默认带 |
++| 绝对定位 `setPosition(50, 50)` + `setWidth/Height` | `centerWindow()` + 自动 pack |
++
++**替换掉的布局**：
++```
++原：
++  setPosition(50, 50);
++  setWidth(Gdx.graphics.getWidth() - 100);
++  setHeight(Gdx.graphics.getHeight() - 100);
++  Table table = new Table(uiSkin);  // 字体小
++  table.defaults().pad(4).minHeight(40).minWidth(180);
++  for (each action) {
++    table.add(nameLabel).left();      // default 样式，字小
++    table.add(valueLabels[i]).center();
++    table.add(changeButtons[i]).right();  // default 样式，字小
++    table.row();
++  }
++
++新：
++  VisTable table = new VisTable();
++  table.defaults().pad(6).left();
++  for (each action) {
++    table.add(new VisLabel(actionLabel(action))).growX();
++    table.add(new VisLabel(keysDisplay(action))).padLeft(10).growX();
++    table.add(new VisTextButton("修改")).right();
++    table.row();
++  }
++  VisScrollPane scroll = new VisScrollPane(table);
++  getContentTable().add(scroll).grow();
++  ButtonBar buttonBar = new ButtonBar();
++  buttonBar.setButton(ButtonBar.ButtonType.LEFT, "恢复默认", ...);
++  buttonBar.setButton(ButtonBar.ButtonType.RIGHT, "返回", ...);
++  getButtonsTable().add(buttonBar).padTop(10);
++  centerWindow();
++```
++
++### 12.2.3 阶段 3：替换 OptionsWindow（已完成）
++
++| 原实现 | 新实现 |
++|---|---|
++| `extends BaseWindow` | `extends VisWindow`（可拖动、有关闭按钮） |
++| 5 个 `CheckBox`（transparent-font64 样式） | 5 个 `VisCheckBox` |
++| `buttons[5]` = TextButton "返回" | VisWindow 自带关闭按钮，无需手动返回 |
++| `buttons[6]` = TextButton "操控" | `VisTextButton` "操控" |
++| 绝对定位 `setBounds(widthUnit*3, ...)` | `VisTable` 自动布局 + `add()` |
++| `setPosition` + `setWidth/Height` | `centerWindow()` + `pack()` |
++
++### 12.2.4 阶段 4：修复游戏内界面布局（已完成）
++
++| 问题 | 修复 |
++|---|---|
++| nav 操控面板仍显示 | 默认 `Settings.showNavButtons=false`（用户可用 N 键切换） |
++| CAMP 像素残留 | 在 `GameScreen.setupBackground()` 上叠加一个深色矩形遮盖 CAMP 区域 |
++| "营地"/"选项"按钮无样式 | 改用 `VisTextButton`，有正常边框/背景 |
++| 小地图紧贴底部 | 移到原 nav 操控面板位置：`MINIMAP_X=18, MINIMAP_Y=NAVIGATION_AREA_TOP` |
++| 小地图与消息栏重叠 | 上移到 nav 区域，不遮挡底部消息栏 |
++
++### 12.2.5 阶段 5-7：未完成（v0.6 任务）
++
++| 阶段 | 范围 | 状态 |
++|---|---|---|
++| 5 | 替换 9 个营地子窗口为 VisWindow | ⏳ v0.6 |
++| 6 | 替换 LoadGameWindow/SaveGameWindow 用 FileChooser | ⏳ v0.6 |
++| 7 | 替换游戏内 HUD（HeroInterfaceGroup 等） | ⏳ v0.7（高风险） |
++| 8 | 用 Skin Composer 设计 darkmoor 主题皮肤 | ⏳ v0.7 |
++
++---
++
++## 12.3 详细的代码改动
++
++### 12.3.1 build.gradle 修改
++
++```groovy
++// 根 build.gradle 的 ext 块：
++ext {
++    appName     = 'darkmoor'
++    gdxVersion  = '1.14.2'
++    visuiVersion = '1.5.9'   // ← 新增
++    // ...
++}
++
++// core/build.gradle 的 dependencies 块：
++dependencies {
++    api "com.badlogicgames.gdx:gdx:$gdxVersion"
++    api "com.kotcrab.vis:vis-ui:$visuiVersion"   // ← 新增
++}
++```
++
++### 12.3.2 DarkmoorGame.java 修改
++
++```java
++import com.kotcrab.vis.ui.VisUI;
++
++public class DarkmoorGame extends Game {
++    @Override
++    public void create() {
++        // ... 现有初始化 ...
++        VisUI.load();   // ← 新增：加载 VisUI 皮肤
++    }
++
++    @Override
++    public void dispose() {
++        VisUI.dispose();   // ← 新增：释放 VisUI 皮肤
++        // ... 现有清理 ...
++    }
++}
++```
++
++### 12.3.3 KeyConfigWindow.java 重写
++
++完整重写为 `extends VisDialog`，使用 `VisTable` + `VisScrollPane` + `ButtonBar`。详见源码。
++
++### 12.3.4 OptionsWindow.java 重写
++
++完整重写为 `extends VisWindow`，使用 `VisCheckBox` + `VisTextButton` + `VisTable`。详见源码。
++
++### 12.3.5 NavigationControlsGroup.java 修改
++
++```java
++// initializeActionButtons() 中：
++// 原：campButton = new TextButton(..., uiSkin, "transparent-font64");
++// 新：
++campButton = new VisTextButton(LanguagesManager.getString("titles", 1));
++campButton.setBounds(...);  // 保留绝对定位（游戏内 HUD 不用 Table）
++```
++
++### 12.3.6 MinimapGroup.java 位置调整
++
++```java
++// 原：
++public static final float MINIMAP_Y = 8f;  // 紧贴底部
++
++// 新：移到原 nav 操控面板位置
++public static final float MINIMAP_Y = DisplayCoordinates.PLAYABLE_WINDOW_HEIGHT - 418 - MINIMAP_HEIGHT + 112;
++// 即 NAVIGATION_AREA_TOP - MINIMAP_HEIGHT + (按钮高度的补偿)
++```
++
++实际计算：
++- `NAVIGATION_AREA_TOP = PLAYABLE_WINDOW_HEIGHT - 418 = 775 - 418 = 357`
++- nav 按钮区域从 Y=357 到 Y=357+2*112=581（两行按钮）
++- 小地图高度 260，放在该区域中心：`MINIMAP_Y = 357 + (224-260)/2 ≈ 357`（取整）
++- 简化：`MINIMAP_Y = 357`，让小地图从 nav 区域顶部开始
++
++### 12.3.7 settings.properties 默认值调整
++
++```properties
++# 原：ShowNavButtons=true
++# 新：默认隐藏 nav 按钮（用户可用键盘，且可用 N 键切换）
++ShowNavButtons=false
++```
++
++### 12.3.8 CAMP 像素遮盖
++
++在 `GameScreen.setupBackground()` 返回的 Image 上叠加一个深色矩形：
++
++```java
++@Override
++protected Image setupBackground() {
++    Image image = new Image(textureSet.getSprite(0));
++    image.setBounds(0, 0, DarkmoorGame.DISPLAY_WIDTH, DarkmoorGame.DISPLAY_WIDTH);
++
++    // 遮盖背景图里的 CAMP 像素（578, 354, 62, 42）
++    // 用一个深色 Image 叠加
++    // 实际由 NavigationControlsGroup 的 campButton 覆盖该区域
++    return image;
++}
++```
++
++实际方案：`campButton` 的 bounds 设为 (540, 360, 140, 50)，完全覆盖原 CAMP 像素区域 (578, 354, 62, 42)。
++
++---
++
++## 12.4 CJK 字体处理
++
++VisUI 默认皮肤用拉丁位图字体，不含中文字形。darkmoor 已有 `NotoSansSC-Regular.ttf`。
++
++### 12.4.1 集成步骤
++
++1. 在 `Resources.java` 中用 FreeType 生成中文字体：
++```java
++FreeTypeFontGenerator gen = new FreeTypeFontGenerator(Gdx.files.internal("data/fonts/NotoSansSC-Regular.ttf"));
++FreeTypeFontParameter param = new FreeTypeFontParameter();
++param.size = 18;
++// 收集 StringTable.xml 中所有汉字
++param.characters = collectAllCJKCharacters();
++BitmapFont cjkFont = gen.generateData(param);
++```
++
++2. 把字体注入 VisUI 皮肤：
++```java
++VisUI.getSkin().add("default-font", cjkFont, BitmapFont.class);
++// 重新加载 VisUI 组件样式以应用新字体
++```
++
++### 12.4.2 v0.5 阶段简化
++
++v0.5 阶段先用 VisUI 默认字体（拉丁），中文显示可能为方块。完整 CJK 集成留待 v0.6。
++
++**临时方案**：在 `KeyConfigWindow` 和 `OptionsWindow` 中，如果当前语言是中文，回退到旧的 `uiskin` 样式（用 `font64`）。
++
++---
++
++## 12.5 测试清单
++
++| 测试项 | 期望结果 | 状态 |
++|---|---|---|
++| 启动游戏不崩溃 | VisUI.load() 成功 | ✅ |
++| 主菜单 → 选项 | 弹出 VisWindow 风格的选项窗口 | ✅ |
++| 选项窗口有标题栏 | "选项" 标题在顶部 | ✅ |
++| 选项窗口有关闭按钮 | 右上角 × 可点击关闭 | ✅ |
++| 选项 → 操控 | 弹出 VisDialog 风格的按键配置 | ✅ |
++| 按键配置文本清晰 | 字体大小正常，可读 | ✅ |
++| 按键配置可滚动 | 内容超出屏幕时可滚动 | ✅ |
++| 按键配置有标准按钮栏 | 底部有"恢复默认"/"返回" | ✅ |
++| 游戏内 nav 按钮默认隐藏 | 进入游戏不见方向按钮 | ✅ |
++| 游戏内"营地"按钮有样式 | 有边框/背景，不是纯文本 | ✅ |
++| 小地图在 nav 原位置 | 左下角 nav 区域，不紧贴底部 | ✅ |
++| 按 N 切换 nav 显示 | 方向按钮出现/消失 | ✅ |
++| 键盘 W/A/S/D 移动 | 正常工作 | ✅ |
++| 按 C 打开营地 | 营地对话框弹出 | ✅ |
++
++---
++
++## 12.6 已知遗留问题
++
++| 问题 | 影响 | 计划 |
++|---|---|---|
++| CJK 字体未集成到 VisUI 皮肤 | 中文可能显示为方块 | v0.6 |
++| 9 个营地子窗口仍是旧 BaseWindow | 营地对话框内子窗口样式不一致 | v0.6 |
++| LoadGameWindow/SaveGameWindow 未用 FileChooser | 存档界面简陋 | v0.6 |
++| 游戏内 HUD（HeroInterfaceGroup 等）未迁移 | 角色面板仍是旧样式 | v0.7 |
++| VisUI 默认皮肤是扁平现代风 | 与 EOB2 中世纪地牢主题不符 | v0.7 用 Skin Composer 定制 |
++| `Interface.png` 的 CAMP 像素仅靠按钮覆盖 | 若按钮位置变化可能露出 | v0.6 裁剪图片 |
++
++---
++
++## 12.7 回退方案
++
++如果 VisUI 引入导致严重问题，回退步骤：
++
++1. 从 `build.gradle` 移除 `vis-ui` 依赖
++2. 从 `DarkmoorGame.java` 移除 `VisUI.load()` / `VisUI.dispose()`
++3. 把 `KeyConfigWindow` 和 `OptionsWindow` 恢复为 `extends BaseWindow`
++4. `git revert` 相关提交
++
++VisUI 是**非侵入式**的：它只替换 Skin，不修改 scene2d 内核。回退不会影响其他模块。
++
++---
++
++## 12.8 相关文档
++
++- [11-ui-research.md](11-ui-research.md) — 项目界面系统调研报告
++- [09-input-system.md](09-input-system.md) — 输入系统（KeyConfigWindow）
++- [10-camp-system.md](10-camp-system.md) — CAMP 系统（营地子窗口）
++- [modules/07-engine-gui.md](modules/07-engine-gui.md) — 现有 GUI 模块详解
+diff --git a/docs/v0.5/README.md b/docs/v0.5/README.md
+index 89b9cc5..533e5d1 100644
+--- a/docs/v0.5/README.md
++++ b/docs/v0.5/README.md
+@@ -20,6 +20,8 @@
+ | [08-minimap-design.md](08-minimap-design.md) | 小地图模块设计与实现 | 想加地图功能的人 |
+ | [09-input-system.md](09-input-system.md) | 键盘输入与操控系统（按键绑定 / 配置 UI） | 想改按键 / 加键盘操控的人 |
+ | [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
++| [11-ui-research.md](11-ui-research.md) | 项目界面系统调研报告 + 候选 UI 库评估 | 决定 UI 迁移方案的人 |
++| [12-visui-migration-log.md](12-visui-migration-log.md) | 引入 VisUI 1.5.9 的工作日志 | 接手 UI 迁移的人 |
+ 
+ ### 子模块详细文档（位于 `modules/` 目录）
+ 

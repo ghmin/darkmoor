@@ -46,13 +46,16 @@ import com.ntk.darkmoor.engine.actor.Teleporter;
 public class MinimapGroup extends GameScreenGroup implements Disposable {
 
         /** minimap 显示区域宽度（像素） */
-        public static final int MINIMAP_WIDTH = 260;
+        public static final int MINIMAP_WIDTH = 280;
         /** minimap 显示区域高度（像素） */
-        public static final int MINIMAP_HEIGHT = 260;
-        /** minimap 左下角 X（stage 坐标）— 放在原 nav 按钮区域，避开主视角 */
+        public static final int MINIMAP_HEIGHT = 280;
+        /** minimap 左下角 X（stage 坐标）— 放在原 nav 操控面板位置 */
         public static final float MINIMAP_X = 18f;
-        /** minimap 左下角 Y（stage 坐标）— 紧贴底部消息栏上方 */
-        public static final float MINIMAP_Y = 8f;
+        /** minimap 左下角 Y（stage 坐标）— 原导航按钮区域底部
+         * NAVIGATION_AREA_TOP = PLAYABLE_WINDOW_HEIGHT - 418 = 357
+         * nav 按钮区域高度 = 2 * BUTTON_HEIGHT = 224
+         * 所以 minimap 底部 Y = NAVIGATION_AREA_TOP = 357，让小地图占据 nav 按钮区域 */
+        public static final float MINIMAP_Y = 357f;
 
         /** minimap 内边距（避免地图贴边） */
         private static final int PADDING = 4;
