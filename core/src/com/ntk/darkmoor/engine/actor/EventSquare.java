@@ -75,8 +75,11 @@ public class EventSquare extends SquareActor {
 			GameMessage.addMessage(hero.getName() + ": " + message, messageColor);
 
 		// Create the scripted dialog if there's a picture to show
-		if (!StringUtils.isEmpty(pictureName))
-			DarkmoorGame.getInstance().getGameScreen().setDialog(new ScriptedDialog(getSquare(), this));
+		if (!StringUtils.isEmpty(pictureName)) {
+			Square sqActor=getSquare();
+			ScriptedDialog dlg = new ScriptedDialog(sqActor,this);
+			DarkmoorGame.getInstance().getGameScreen().setDialog(dlg);
+		}
 
 		// Decrement usage
 		if (remaining > 0)

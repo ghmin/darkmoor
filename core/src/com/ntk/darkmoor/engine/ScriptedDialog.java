@@ -32,11 +32,12 @@ public class ScriptedDialog extends DialogBase {
 
 		event = evt;
 		this.square = square;
-
-		picture = new Texture(event.getPictureName());
+		System.out.println("evt text:"+evt.getText());
+		System.out.println("msg:"+evt.getMessage());
+		picture = new Texture("data/"+event.getPictureName());
 
 		if (event.isDisplayBorder()) {
-			border = new Texture("border.png");
+			border = new Texture("data/border.png");
 		}
 
 		// HACK: Hard coded maximum button for ScriptDialog

@@ -59,7 +59,11 @@ public class UITheme {
                 restyle(skin);
                 Log.debug("[UITheme] VisUI skin restyled with CJK fonts (body 40px, title 48px).");
         }
-
+        public static Window.WindowStyle getDefaultWinStyle(){
+                Window.WindowStyle ws =new Window.WindowStyle();
+                ws.titleFont = getTitleFont();
+                return ws;
+        }
         /** 用 FreeType 生成两档中文字体：正文 40px、标题 48px。 */
         private static void generateCjkFonts() {
                 try {
@@ -89,6 +93,9 @@ public class UITheme {
                 }
         }
 
+        public static BitmapFont getTitleFont(){
+                return titleFont;
+        }
         /**
          * 逐个替换样式的字体字段。单个样式缺失不影响其他样式。
          *

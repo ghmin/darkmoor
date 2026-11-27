@@ -4,13 +4,14 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.ntk.darkmoor.resource.UITheme;
+//import com.ntk.darkmoor.resource.UITheme;
 
 public class DialogBase extends Dialog {
 
 	public DialogBase() {
-		super("", new WindowStyle());
+		super("", UITheme.getDefaultWinStyle());
 	}
-	
 	public DialogBase(String title, Skin skin) {
 		super(title, skin);
 	}
