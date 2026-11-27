@@ -1,0 +1,1535 @@
+diff --git a/android/assets/data/StringTable.xml b/android/assets/data/StringTable.xml
+index ee4a724..472ea65 100644
+--- a/android/assets/data/StringTable.xml
++++ b/android/assets/data/StringTable.xml
+@@ -460,4 +460,22 @@
+ 			<string id="20">修改</string>
+ 		</language>
+ 	</stringtable>
++	<stringtable name="events">
++		<default name="English" />
++		<language name="English">
++			<string id="1">This feature is still under construction.</string>
++			<string id="2">Event</string>
++			<string id="3">OK</string>
++		</language>
++		<language name="Francais">
++			<string id="1">Cette fonctionnalit&#233; est en cours de r&#233;alisation.</string>
++			<string id="2">&#201;v&#233;nement</string>
++			<string id="3">OK</string>
++		</language>
++		<language name="Chinese">
++			<string id="1">该功能尚在制作中，敬请期待后续版本。</string>
++			<string id="2">事件</string>
++			<string id="3">确定</string>
++		</language>
++	</stringtable>
+ </bank>
+diff --git a/core/src/com/ntk/darkmoor/GameScreen.java b/core/src/com/ntk/darkmoor/GameScreen.java
+index 997d20c..086a9cb 100644
+--- a/core/src/com/ntk/darkmoor/GameScreen.java
++++ b/core/src/com/ntk/darkmoor/GameScreen.java
+@@ -17,6 +17,9 @@ import com.ntk.darkmoor.engine.DisplayCoordinates;
+ import com.ntk.darkmoor.engine.GameColors;
+ import com.ntk.darkmoor.engine.GameMessage;
+ import com.ntk.darkmoor.engine.ScriptedDialog;
++import com.ntk.darkmoor.engine.event.RandomEventBus;
++import com.ntk.darkmoor.engine.feedback.Feedback;
++import com.ntk.darkmoor.engine.feedback.NotificationToast;
+ import com.ntk.darkmoor.engine.SpellBook;
+ import com.ntk.darkmoor.engine.Team;
+ import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
+@@ -24,6 +27,7 @@ import com.ntk.darkmoor.engine.graphics.InventoryGroup;
+ import com.ntk.darkmoor.engine.graphics.MazeGroup;
+ import com.ntk.darkmoor.engine.graphics.MinimapGroup;
+ import com.ntk.darkmoor.config.KeyBindings;
++import com.ntk.darkmoor.config.LanguagesManager;
+ import com.ntk.darkmoor.engine.CampDialog;
+ import com.ntk.darkmoor.engine.KeyboardInputProcessor;
+ import com.badlogic.gdx.InputMultiplexer;
+@@ -56,6 +60,9 @@ public class GameScreen extends GameScreenBase {
+         private NavigationControlsGroup navControlsGroup;
+         private MinimapGroup minimapGroup;
+ 
++        /** 撞墙/事件短消息通知横幅。 */
++        private NotificationToast toast;
++
+         public GameScreen(Game game) {
+                 super(game);
+         }
+@@ -126,6 +133,12 @@ public class GameScreen extends GameScreenBase {
+                         dialog.dispose();
+                 dialog = null;
+ 
++                Feedback.setListener(null);
++                RandomEventBus.unbind();
++                if (toast != null)
++                        toast.dispose();
++                toast = null;
++
+                 // if (inputScheme != null)
+                 // inputScheme.dispose();
+                 // inputScheme = null;
+@@ -201,6 +214,37 @@ public class GameScreen extends GameScreenBase {
+                 mux.addProcessor(stage);
+                 Gdx.input.setInputProcessor(mux);
+ 
++                // 统一随机事件总线：绑定本屏 stage（EventSquare 等触发源经总线弹窗）
++                RandomEventBus.bind(stage);
++
++                // 玩家反馈层：撞墙 toast + 迷宫画面震动；事件短消息 toast
++                toast = new NotificationToast(com.ntk.darkmoor.DarkmoorGame.DISPLAY_WIDTH,
++                        com.ntk.darkmoor.DarkmoorGame.DISPLAY_HEIGHT);
++                stage.addActor(toast);
++                Feedback.setListener(new Feedback.Listener() {
++                        @Override
++                        public void onMoveBlocked() {
++                                if (toast != null)
++                                        toast.show(LanguagesManager.getString("game", 1), // "那个方向走不通！"
++                                                new com.badlogic.gdx.graphics.Color(0.55f, 0.12f, 0.12f, 0.85f));
++                                if (mazeGroup != null) {
++                                        // 迷宫视图轻微前后震动（EOB 式撞击感）
++                                        mazeGroup.clearActions();
++                                        mazeGroup.addAction(com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
++                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, -6, 0.05f),
++                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, 6, 0.05f),
++                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, -3, 0.04f),
++                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, 3, 0.04f)));
++                        }
++                        }
++
++                        @Override
++                        public void onMessage(String text) {
++                                if (toast != null)
++                                        toast.show(text,
++                                                new com.badlogic.gdx.graphics.Color(0.10f, 0.25f, 0.45f, 0.85f));
++                }
++                });
+         }
+ 
+         public boolean loadGameSlot(int slotid) {
+diff --git a/core/src/com/ntk/darkmoor/engine/ScriptedDialog.java b/core/src/com/ntk/darkmoor/engine/ScriptedDialog.java
+index 6c1bcbd..4ea0306 100644
+--- a/core/src/com/ntk/darkmoor/engine/ScriptedDialog.java
++++ b/core/src/com/ntk/darkmoor/engine/ScriptedDialog.java
+@@ -1,251 +1,123 @@
+ package com.ntk.darkmoor.engine;
+ 
+-import com.badlogic.gdx.Gdx;
+-import com.badlogic.gdx.Input.Buttons;
++import java.util.ArrayList;
++import java.util.List;
++
+ import com.badlogic.gdx.graphics.Texture;
+-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+-import com.badlogic.gdx.scenes.scene2d.InputEvent;
+-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+-import com.ntk.darkmoor.engine.actor.EventSquare;
+-import com.ntk.darkmoor.engine.gui.GUI;
+-import com.ntk.darkmoor.engine.script.gui.GUIScriptButton;
++import com.badlogic.gdx.scenes.scene2d.Action;
++import com.badlogic.gdx.scenes.scene2d.ui.Image;
++import com.kotcrab.vis.ui.widget.VisDialog;
++import com.kotcrab.vis.ui.widget.VisLabel;
++import com.kotcrab.vis.ui.widget.VisTable;
++import com.ntk.darkmoor.config.LanguagesManager;
++import com.ntk.darkmoor.config.Log;
++import com.ntk.darkmoor.engine.event.RandomEvent;
++import com.ntk.darkmoor.engine.event.RandomEventBus;
+ import com.ntk.darkmoor.engine.script.gui.ScriptChoice;
+-import com.ntk.darkmoor.stub.GameTime;
+-
+-public class ScriptedDialog extends DialogBase {
+-
+-	private EventSquare event;
+-	private Square square;
+-	private Texture picture;
+-	private int maxButtonCount = 3;
+-	private Texture border;
+-	private ScriptChoice[] choices;
+-	private GUIScriptButton[] buttons;
+-	private boolean quit;
+-
+-	public ScriptedDialog(Square square, EventSquare evt) {
+-		if (square == null)
+-			throw new IllegalArgumentException("Square is null");
+-
+-		if (evt == null)
+-			throw new IllegalArgumentException("EventSquare is null");
+-
+-		event = evt;
+-		this.square = square;
+-		System.out.println("evt text:"+evt.getText());
+-		System.out.println("msg:"+evt.getMessage());
+-		picture = new Texture("data/"+event.getPictureName());
+-
+-		if (event.isDisplayBorder()) {
+-			border = new Texture("data/border.png");
+-		}
+-
+-		// HACK: Hard coded maximum button for ScriptDialog
+-		choices = new ScriptChoice[maxButtonCount];
+-		buttons = new GUIScriptButton[maxButtonCount];
+-		for (int i = 0; i < maxButtonCount; i++) {
+-			buttons[i] = new GUIScriptButton();
+-			buttons[i].addListener(new ClickListener() {
+-				@Override
+-				public void clicked(InputEvent event, float f1, float f2) {
+-					buttonClick((GUIScriptButton) event.getListenerActor());
+-				}
+-			});
+-		}
+-	}
+-
+-	@Override
+-	public void dispose() {
+-		if (picture != null)
+-			picture.dispose();
+-		picture = null;
+-
+-		if (border != null)
+-			border.dispose();
+-		border = null;
+-	}
+-
+-	@Override
+-	public void update(float delta) {
+-		// Debug
+-		if (Gdx.input.isButtonPressed(Buttons.MIDDLE))
+-			exit();
+-
+-		// Rebuild button list
+-		int id = 0;
+-		choices[0] = null;
+-		choices[1] = null;
+-		choices[2] = null;
+-		for (ScriptChoice choice : event.getChoices()) {
+-			// choice disabled
+-			if (!choice.isEnabled())
+-				continue;
+-
+-			// Add choice
+-			choices[id++] = choice;
+-
+-			// Maximum reached
+-			if (id >= maxButtonCount)
+-				break;
+-		}
+-
+-		// Compute button rectangles
+-		setChoice(choices[0], choices[1], choices[2]);
+-
+-		// Update each choice button
+-		for (id = 0; id < maxButtonCount; id++) {
+-			if (choices[id] == null)
+-				break;
+-
+-			buttons[id].update(delta);
+-		}
+-
+-	}
+-
+-	@Override
+-	public void draw(SpriteBatch batch, float parentAlpha) {
+-		// Border
+-		if (event.isDisplayBorder())
+-			batch.draw(border, 0, 0);// , Color.WHITE);
+-
+-		// Picture
+-		batch.draw(picture, 16, 16);// , Color.WHITE);
+-
+-		// Text
+-		GUI.drawSimpleBevel(batch, DisplayCoordinates.getScriptedDialog());
+-		GUI.getDialogFont().setColor(GameColors.White);
+-		GUI.getDialogFont().draw(batch, event.getText(), 4, 250);
+-
+-		// Choices
+-		for (int id = 0; id < maxButtonCount; id++) {
+-			if (choices[id] == null || !choices[id].isEnabled())
+-				continue;
+-
+-			buttons[id].draw(batch);
+-		}
+-
+-	}
+-
+-	void buttonClick(GUIScriptButton button) {
+-
+-		if (button.getTag() != null && button.getTag() instanceof ScriptChoice) {
+-			ScriptChoice choice = (ScriptChoice) button.getTag();
+-			choice.run();
+-
+-			// Time to quit
+-			if (quit)
+-				return;
+-		}
+-	}
+-
+-	public void SetChoices(int id, ScriptChoice choice) {
+-		if (id < 1 || id > 3)
+-			return;
+-
+-		choices[id] = choice;
+-
+-		buttons[id].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[0]);
+-		buttons[id].setText(choice.getName());
+-		buttons[id].setTag(choice);
+-	}
+-
+-	public void SetChoices(ScriptChoice choice) {
+-		choices[0] = choice;
+-		choices[1] = null;
+-		choices[2] = null;
+-
+-		buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[0]);
+-		buttons[0].setText(choice.getName());
+-		buttons[0].setTag(choice);
+-	}
+-
+-	public void SetChoices(ScriptChoice choice1, ScriptChoice choice2) {
+-		choices[0] = choice1;
+-		choices[1] = choice2;
+-		choices[2] = null;
+-
+-		buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[3]);
+-		buttons[0].setText(choice1.getName());
+-		buttons[0].setTag(choice1);
+-
+-		buttons[1].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[4]);
+-		buttons[1].setText(choice2.getName());
+-		buttons[1].setTag(choice2);
+-	}
+-
+-	private void setChoice(ScriptChoice choice1, ScriptChoice choice2, ScriptChoice choice3) {
+-		choices[0] = choice1;
+-		choices[1] = choice2;
+-		choices[2] = choice3;
+-
+-		if (choice1 != null) {
+-			buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[6]);
+-			buttons[0].setText(choice1.getName());
+-			buttons[0].setTag(choice1);
+-		}
+-
+-		if (choice2 != null) {
+-			buttons[1].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[7]);
+-			buttons[1].setText(choice2.getName());
+-			buttons[1].setTag(choice2);
+-		}
+-
+-		if (choice3 != null) {
+-			buttons[2].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[8]);
+-			buttons[2].setText(choice3.getName());
+-			buttons[2].setTag(choice3);
+-		}
+-	}
+-
+-	public boolean setPicture(String name) {
+-		if (picture != null)
+-			picture.dispose();
+-
+-		picture = new Texture(name);
+-
+-		return picture != null;
+-	}
+-
+-	public void setPicture(Texture handle) {
+-		if (picture != null)
+-			picture.dispose();
+-
+-		picture = handle;
+-	}
+-
+-	public EventSquare getEvent() {
+-		return event;
+-	}
+-
+-	public Square getSquare() {
+-		return square;
+-	}
+-
+-	public int getMaxButtonCount() {
+-		return maxButtonCount;
+-	}
+-
+-	public Texture getBorder() {
+-		return border;
+-	}
+-
+-	public ScriptChoice[] getChoices() {
+-		return choices;
+-	}
+-
+-	public void setChoices(ScriptChoice[] choices) {
+-		this.choices = choices;
+-	}
+-
+-	public GUIScriptButton[] getButtons() {
+-		return buttons;
+-	}
+-
+-	public boolean isQuit() {
+-		return quit;
+-	}
+-	public Texture getPicture() {
+-		return picture;
+-	}
+ 
++/**
++ * 随机事件弹窗 — 由 {@link RandomEventBus} 创建并显示，玩家阅读事件正文后
++ * 点选选项（或"确定"关闭）。
++ *
++ * <p><b>v0.5 第三轮重构（修复"事件弹窗永不显示"）</b>：旧版继承
++ * {@code DialogBase}（scene2d Dialog）却沿用原版 C# 的手绘管线
++ * （{@code draw(SpriteBatch, float)} / {@code update(float)}）。这两个方法
++ * 一个是错误签名（scene2d 的绘制入口是 {@code draw(Batch, float)}，永远不会
++ * 被调用），另一个从未被 GameScreen 主循环调用——因此弹窗被 setDialog 后
++ * 什么也不会发生。现改为 VisDialog（VisUI），走 stage 标准渲染，自动获得
++ * 模态、中文标题栏、按钮布局；选项点击通过 scene2d result 机制回调总线。
++ *
++ * <p>关闭链路：{@code hide(Action)} → {@link RandomEventBus#onDialogClosed()}
++ * → 展示队列中的下一个事件；脚本动作 EndDialog 调用 {@link #exit()} 走同一链路。
++ */
++public class ScriptedDialog extends VisDialog {
++
++        private static final String TAG = "[ScriptedDialog]";
++
++        /** 正文/配图区域的最大宽度。 */
++        private static final float BODY_WIDTH = 520f;
++
++        private final RandomEvent event;
++        private Texture picture;
++
++        public ScriptedDialog(RandomEvent event) {
++                super(LanguagesManager.getString("events", 2)); // 标题"事件"
++                if (event == null)
++                        throw new IllegalArgumentException("RandomEvent is null");
++                this.event = event;
++                setModal(true);
++                setMovable(true);
++
++                VisTable content = new VisTable();
++
++                // 事件配图（等比缩放，宽上限 BODY_WIDTH）
++                String pictureName = event.getPictureName();
++                if (pictureName != null && !pictureName.isEmpty()) {
++                        try {
++                                picture = new Texture("data/" + pictureName);
++                        } catch (Throwable t) {
++                                Log.error(TAG + " picture not found: %s", new Object[] { pictureName });
++                                picture = null;
++                        }
++                        if (picture != null) {
++                                Image image = new Image(picture);
++                                float scale = Math.min(1f, BODY_WIDTH / picture.getWidth());
++                                image.setSize(picture.getWidth() * scale, picture.getHeight() * scale);
++                                content.add(image).row();
++                        }
++                }
++
++                // 正文（兼容数据中的 <br /> 换行标记）
++                String text = event.getText();
++                if (text != null && !text.isEmpty()) {
++                        text = text.replaceAll("(?i)<br\\s*/?>", "\n").trim();
++                        VisLabel label = new VisLabel(text);
++                        label.setWrap(true);
++                        content.add(label).width(BODY_WIDTH).padTop(12).row();
++                }
++
++                getContentTable().add(content).pad(8);
++
++                // 选项按钮：无可用选项时显示"确定"（纯信息弹窗）
++                List<ScriptChoice> enabled = new ArrayList<ScriptChoice>();
++                if (event.getChoices() != null)
++                        for (ScriptChoice choice : event.getChoices())
++                                if (choice != null && choice.isEnabled())
++                                        enabled.add(choice);
++
++                if (enabled.isEmpty()) {
++                        button(LanguagesManager.getString("events", 3), null); // "确定"
++                } else {
++                        for (ScriptChoice choice : enabled)
++                                button(choice.getName(), (Object) choice);
++                }
++        }
++
++        @Override
++        protected void result(Object object) {
++                if (object instanceof ScriptChoice)
++                        RandomEventBus.runChoice((ScriptChoice) object);
++        }
++
++        @Override
++        public void hide(Action action) {
++                super.hide(action);
++                RandomEventBus.onDialogClosed();
++        }
++
++        /** 兼容 EndDialog / EndChoice 脚本动作的退出入口。 */
++        public void exit() {
++                hide();
++        }
++
++        public RandomEvent getEvent() {
++                return event;
++        }
++
++        /** 释放配图纹理。由 GameScreen（setDialog 替换时 / unloadContent）调用。 */
++        public void dispose() {
++                if (picture != null)
++                        picture.dispose();
++                picture = null;
++        }
+ }
+diff --git a/core/src/com/ntk/darkmoor/engine/Team.java b/core/src/com/ntk/darkmoor/engine/Team.java
+index 70a7bfb..086a27b 100644
+--- a/core/src/com/ntk/darkmoor/engine/Team.java
++++ b/core/src/com/ntk/darkmoor/engine/Team.java
+@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.XmlWriter;
+ import com.ntk.darkmoor.engine.Compass.CardinalPoint;
+ import com.ntk.darkmoor.engine.Square.SquarePosition;
+ import com.ntk.darkmoor.engine.Square.SquareType;
++import com.ntk.darkmoor.engine.feedback.Feedback;
+ import com.ntk.darkmoor.resource.Resources;
+ import com.ntk.darkmoor.stub.Mouse;
+ 
+@@ -410,6 +411,7 @@ public class Team implements Disposable {
+ 		// If can't pass through
+ 		if (!state) {
+ 			GameMessage.buildMessage(1);
++			Feedback.moveBlocked(); // 撞墙/怪物挡路 -> 玩家反馈（toast + 画面震动）
+ 			return false;
+ 		}
+ 
+diff --git a/core/src/com/ntk/darkmoor/engine/actor/EventSquare.java b/core/src/com/ntk/darkmoor/engine/actor/EventSquare.java
+index cb4fc33..b51547b 100644
+--- a/core/src/com/ntk/darkmoor/engine/actor/EventSquare.java
++++ b/core/src/com/ntk/darkmoor/engine/actor/EventSquare.java
+@@ -13,6 +13,9 @@ import com.ntk.darkmoor.DarkmoorGame;
+ import com.ntk.darkmoor.GameScreen;
+ import com.ntk.darkmoor.engine.Compass.CardinalPoint;
+ import com.ntk.darkmoor.engine.GameMessage;
++import com.ntk.darkmoor.engine.feedback.Feedback;
++import com.ntk.darkmoor.engine.event.RandomEvent;
++import com.ntk.darkmoor.engine.event.RandomEventBus;
+ import com.ntk.darkmoor.engine.Hero;
+ import com.ntk.darkmoor.engine.SavingThrowType;
+ import com.ntk.darkmoor.engine.ScriptedDialog;
+@@ -70,16 +73,19 @@ public class EventSquare extends SquareActor {
+ 		if (hero == null)
+ 			return false;
+ 
+-		// Display message
+-		if (!StringUtils.isEmpty(message))
++		// Display message（GameMessage 为遗留链路；toast 负责实际可见性）
++		if (!StringUtils.isEmpty(message)) {
+ 			GameMessage.addMessage(hero.getName() + ": " + message, messageColor);
++			Feedback.message(hero.getName() + ": " + message);
++		}
+ 
+-		// Create the scripted dialog if there's a picture to show
++		// 统一随机事件总线：有配图 -> 弹窗事件；仅有正文 -> toast 短消息
+ 		if (!StringUtils.isEmpty(pictureName)) {
+-			Square sqActor=getSquare();
+-			ScriptedDialog dlg = new ScriptedDialog(sqActor,this);
+-			DarkmoorGame.getInstance().getGameScreen().setDialog(dlg);
+-		}
++			RandomEvent event = new RandomEvent(getEventSource(), text, pictureName, choices);
++			RandomEventBus.post(event);
++		} else if (!StringUtils.isEmpty(text)) {
++			Feedback.message(text);
++			}
+ 
+ 		// Decrement usage
+ 		if (remaining > 0)
+@@ -266,6 +272,14 @@ public class EventSquare extends SquareActor {
+ 		return choices;
+ 	}
+ 
++	/** 事件来源描述（用于总线日志定位）。 */
++	private String getEventSource() {
++		Square sq = getSquare();
++		if (sq == null)
++			return "eventsquare";
++		return "eventsquare@" + sq.getLocation().x + "," + sq.getLocation().y;
++	}
++
+ 	public void setChoices(List<ScriptChoice> choices) {
+ 		this.choices = choices;
+ 	}
+diff --git a/core/src/com/ntk/darkmoor/engine/event/RandomEvent.java b/core/src/com/ntk/darkmoor/engine/event/RandomEvent.java
+new file mode 100644
+index 0000000..9ff1439
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/event/RandomEvent.java
+@@ -0,0 +1,79 @@
++package com.ntk.darkmoor.engine.event;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.ntk.darkmoor.engine.script.gui.ScriptChoice;
++
++/**
++ * 随机事件封装 — 由各触发源（{@code EventSquare}、未来的 MazeZone 区域脚本、
++ * 怪物触发器等）构造，统一提交给 {@link RandomEventBus} 分发。
++ *
++ * <p>一个事件包含可选的正文（text）、可选的配图（pictureName）以及可选的
++ * 选项列表（choices）。总线的展示规则：
++ * <ul>
++ *   <li>choices 非空 → 显示为带选项按钮的模态弹窗，玩家点选后执行对应动作</li>
++ *   <li>choices 为空 → 显示为带"确定"按钮的信息弹窗</li>
++ * </ul>
++ */
++public class RandomEvent {
++
++        /** 事件来源描述（仅用于日志定位，例如 "Forest@10,12 eventsquare"）。 */
++        private String source;
++
++        /** 弹窗正文，支持 \n 换行；数据中的 {@code <br />} 会在展示层转换。 */
++        private String text;
++
++        /** 配图文件名（相对 data/ 目录），可为 null。 */
++        private String pictureName;
++
++        /** 可选项，可为 null 或空（空表示纯信息弹窗）。 */
++        private List<ScriptChoice> choices;
++
++        public RandomEvent() {
++                this.choices = new ArrayList<ScriptChoice>();
++        }
++
++        public RandomEvent(String source, String text, String pictureName, List<ScriptChoice> choices) {
++                this.source = source;
++                this.text = text;
++                this.pictureName = pictureName;
++                this.choices = (choices == null) ? new ArrayList<ScriptChoice>() : choices;
++        }
++
++        public boolean hasChoices() {
++                return choices != null && !choices.isEmpty();
++        }
++
++        public String getSource() {
++                return source;
++        }
++
++        public void setSource(String source) {
++                this.source = source;
++        }
++
++        public String getText() {
++                return text;
++        }
++
++        public void setText(String text) {
++                this.text = text;
++        }
++
++        public String getPictureName() {
++                return pictureName;
++        }
++
++        public void setPictureName(String pictureName) {
++                this.pictureName = pictureName;
++        }
++
++        public List<ScriptChoice> getChoices() {
++                return choices;
++        }
++
++        public void setChoices(List<ScriptChoice> choices) {
++                this.choices = choices;
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/event/RandomEventBus.java b/core/src/com/ntk/darkmoor/engine/event/RandomEventBus.java
+new file mode 100644
+index 0000000..3793f23
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/event/RandomEventBus.java
+@@ -0,0 +1,191 @@
++package com.ntk.darkmoor.engine.event;
++
++import java.util.ArrayDeque;
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.Set;
++
++import com.badlogic.gdx.scenes.scene2d.Stage;
++import com.kotcrab.vis.ui.widget.VisDialog;
++import com.ntk.darkmoor.DarkmoorGame;
++import com.ntk.darkmoor.config.Log;
++import com.ntk.darkmoor.engine.ScriptedDialog;
++import com.ntk.darkmoor.engine.feedback.Feedback;
++import com.ntk.darkmoor.engine.script.actions.ActionBase;
++import com.ntk.darkmoor.engine.script.actions.DisplayMessage;
++import com.ntk.darkmoor.engine.script.gui.ScriptChoice;
++import com.ntk.darkmoor.config.LanguagesManager;
++
++/**
++ * 统一随机事件总线 — 本项目所有随机事件的唯一入口与分发中心。
++ *
++ * <p><b>设计目标</b>（docs/v0.5/13-random-event-system.md）：随机事件的触发
++ * 逻辑散落在各 SquareActor / 未来各系统之中，展示层（弹窗）与触发层耦合。
++ * 本总线把"触发 → 排队 → 弹窗展示 → 选项执行 → 未完成功能提示"收拢为一条链路：
++ * <ol>
++ *   <li>触发源调用 {@link #post(RandomEvent)} 提交事件（任何线程安全考虑：
++ *       当前触发均发生在 GL 线程，故不做同步）</li>
++ *   <li>总线维护 FIFO 队列，一次只显示一个弹窗（VisUI ScriptedDialog），
++ *       避免一次移动触发多个事件时弹窗互相覆盖</li>
++ *   <li>玩家点选选项后 {@link #runChoice(ScriptChoice)} 逐个执行脚本动作：
++ *       已实现的动作直接执行；未实现的动作弹出"功能尚在制作中"提示窗</li>
++ *   <li>弹窗关闭（含 EndDialog/EndChoice 动作触发）后自动展示队列中的下一个事件</li>
++ * </ol>
++ *
++ * <p><b>接入方式</b>：GameScreen.initScreenObjects() 中调用 {@link #bind(Stage)}，
++ * unloadContent() 中调用 {@link #unbind()}。
++ */
++public class RandomEventBus {
++
++        private static final String TAG = "[RandomEventBus]";
++
++        /** 待展示事件队列（FIFO）。 */
++        private static final ArrayDeque<RandomEvent> queue = new ArrayDeque<RandomEvent>();
++
++        /** 事件弹窗挂载的 stage（GameScreen 的主 stage）。 */
++        private static Stage stage;
++
++        /** 当前是否有事件弹窗正在展示。 */
++        private static boolean showing;
++
++        /**
++         * 已实现、可由总线直接执行的脚本动作白名单（类的 simpleName）。
++         * 名单之外的动作一律视为"功能尚在制作中"。
++         *
++         * <p>依据 2026-11 解构结论（docs/v0.5/13-random-event-system.md §3.2）：
++         * GiveItem/Healing/PlaySound/JoinCharacter/ChangePicture/ChangeText/
++         * EnableChoice/DisableChoice 的 run() 均为空壳；EndChoice 有独立语义，
++         * 由 runChoice() 特判处理，不在此列。
++         */
++        private static final Set<String> IMPLEMENTED_ACTIONS = new HashSet<String>(Arrays.asList(
++                        "Teleport", "SpawnMonster", "GiveExperience", "DisplayMessage",
++                        "ActivateTarget", "DeactivateTarget", "EnableTarget",
++                        "DisableTarget", "ToggleTarget", "EndDialog"));
++
++        /** 绑定 GameScreen 主 stage。重复绑定以最后一次为准。 */
++        public static void bind(Stage gameStage) {
++                stage = gameStage;
++        }
++
++        /** 解绑（切换屏幕时调用），丢弃未展示的事件。 */
++        public static void unbind() {
++                stage = null;
++                showing = false;
++                queue.clear();
++        }
++
++        public static boolean isBound() {
++                return stage != null;
++        }
++
++        public static int getQueueSize() {
++                return queue.size();
++        }
++
++        /** 提交一个随机事件；若当前没有弹窗在展示则立即弹出。 */
++        public static void post(RandomEvent event) {
++                if (event == null)
++                        return;
++
++                queue.addLast(event);
++                Log.debug(TAG + " post() from %s, queue=%d",
++                                new Object[] { event.getSource(), queue.size() });
++
++                if (!showing)
++                        showNext();
++        }
++
++        /** 事件弹窗关闭时由 ScriptedDialog 回调：展示队列中的下一个事件。 */
++        public static void onDialogClosed() {
++                showing = false;
++                showNext();
++        }
++
++        /** 弹出队列中的下一个事件（内部）。 */
++        private static void showNext() {
++                if (stage == null) {
++                        queue.clear();
++                        showing = false;
++                        return;
++                }
++
++                RandomEvent evt = queue.pollFirst();
++                if (evt == null)
++                        return;
++
++                try {
++                        ScriptedDialog dialog = new ScriptedDialog(evt);
++                        DarkmoorGame.getInstance().getGameScreen().setDialog(dialog);
++                        dialog.pack();
++                        dialog.centerWindow();
++                        stage.addActor(dialog);
++                        showing = true;
++                        Log.debug(TAG + " showing event from %s", new Object[] { evt.getSource() });
++                } catch (Throwable t) {
++                        // 配图缺失等异常不让事件系统卡死：记日志、跳过该事件
++                        Log.error(TAG + " failed to show event (%s): %s",
++                                        new Object[] { evt.getSource(), t.getMessage() });
++                        showing = false;
++                }
++        }
++
++        /**
++         * 执行某个选项的全部脚本动作。
++         * 已实现动作直接执行；DisplayMessage 转为 toast 消息（GameMessage
++         * 渲染层尚未接入主循环）；其余弹出"功能尚在制作中"提示窗。
++         */
++        public static void runChoice(ScriptChoice choice) {
++                if (choice == null)
++                        return;
++
++                for (ActionBase action : choice.getActions()) {
++                        if (action == null)
++                                continue;
++
++                        String name = action.getClass().getSimpleName();
++
++                        if ("EndChoice".equals(name)) {
++                                // EndChoice 语义 = 结束当前选项分支：关闭当前事件弹窗
++                                ScriptedDialog current = DarkmoorGame.getInstance().getGameScreen().getDialog();
++                                if (current != null)
++                                        current.exit();
++                                continue;
++                        }
++
++                        if (isImplemented(name)) {
++                                try {
++                                        if (action instanceof DisplayMessage) {
++                                                // GameMessage 系统尚未接入渲染循环，转 toast 保证可见
++                                                String msg = ((DisplayMessage) action).getMessage();
++                                                Feedback.message(msg);
++                                        } else {
++                                                action.run();
++                                        }
++                                } catch (Throwable t) {
++                                        Log.error(TAG + " action %s failed: %s",
++                                                        new Object[] { name, t.getMessage() });
++                                }
++                        } else {
++                                Log.debug(TAG + " action not implemented yet: " + name);
++                                notImplemented();
++                        }
++                }
++        }
++
++        /** 弹出"功能尚在制作中"模态提示窗（VisUI）。 */
++        public static void notImplemented() {
++                if (stage == null)
++                        return;
++
++                VisDialog dialog = new VisDialog(LanguagesManager.getString("titles", 3)); // "选项"
++                dialog.text(LanguagesManager.getString("events", 1)); // "该功能尚在制作中……"
++                dialog.button(LanguagesManager.getString("events", 3), null); // "确定"
++                dialog.pack();
++                dialog.centerWindow();
++                stage.addActor(dialog);
++        }
++
++        private static boolean isImplemented(String actionSimpleName) {
++                return IMPLEMENTED_ACTIONS.contains(actionSimpleName);
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/feedback/Feedback.java b/core/src/com/ntk/darkmoor/engine/feedback/Feedback.java
+new file mode 100644
+index 0000000..a9a180c
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/feedback/Feedback.java
+@@ -0,0 +1,43 @@
++package com.ntk.darkmoor.engine.feedback;
++
++/**
++ * 玩家反馈层静态入口 — 引擎逻辑（Team / 脚本动作）通过它发出
++ * "需要给玩家看到"的反馈，UI 侧（GameScreen）注册实现。
++ *
++ * <p><b>为什么经此中转而不是直接弹 UI</b>：Team 等引擎类位于 engine 包，
++ * 不应反向依赖 scene2d / VisUI；且反馈的具体形式（toast、震动、音效）
++ * 由 UI 层决定，引擎层只声明"发生了什么"。
++ *
++ * <p>设计文档：docs/v0.5/14-move-blocked-feedback.md
++ */
++public class Feedback {
++
++        /** UI 侧反馈实现（由 GameScreen 注册）。 */
++        public interface Listener {
++                /** 移动被阻挡（撞墙 / 怪物挡路）。 */
++                void onMoveBlocked();
++
++                /** 一般短消息（英雄喊话、旁白、发现提示等）。 */
++                void onMessage(String text);
++        }
++
++        private static Listener listener;
++
++        /** 注册/替换反馈实现；传 null 注销。 */
++        public static void setListener(Listener feedbackListener) {
++                listener = feedbackListener;
++        }
++
++        /** 引擎侧：报告移动被阻挡。未注册 UI 时静默。 */
++        public static void moveBlocked() {
++                if (listener != null)
++                        listener.onMoveBlocked();
++        }
++
++        /** 引擎侧：报告一条短消息。未注册 UI 时静默。 */
++        public static void message(String text) {
++                if (listener == null || text == null || text.isEmpty())
++                        return;
++                listener.onMessage(text);
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/feedback/NotificationToast.java b/core/src/com/ntk/darkmoor/engine/feedback/NotificationToast.java
+new file mode 100644
+index 0000000..efed745
+--- /dev/null
++++ b/core/src/com/ntk/darkmoor/engine/feedback/NotificationToast.java
+@@ -0,0 +1,103 @@
++package com.ntk.darkmoor.engine.feedback;
++
++import com.badlogic.gdx.graphics.Color;
++import com.badlogic.gdx.graphics.Pixmap;
++import com.badlogic.gdx.graphics.Texture;
++import com.badlogic.gdx.graphics.g2d.TextureRegion;
++import com.badlogic.gdx.scenes.scene2d.Group;
++import com.badlogic.gdx.scenes.scene2d.actions.Actions;
++import com.badlogic.gdx.scenes.scene2d.ui.Image;
++import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
++import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
++import com.badlogic.gdx.utils.Align;
++import com.badlogic.gdx.utils.Disposable;
++import com.kotcrab.vis.ui.widget.VisLabel;
++
++/**
++ * 通知横幅（toast） — 屏幕中部上方短暂显示一条消息后自动淡出。
++ *
++ * <p>用于两类反馈（docs/v0.5/14-move-blocked-feedback.md）：
++ * <ul>
++ *   <li>撞墙提示（红色底）：展示 game#1 "那个方向走不通！"</li>
++ *   <li>事件短消息（深蓝底）：英雄喊话 / 旁白 / 发现提示</li>
++ * </ul>
++ *
++ * <p>实现说明：1x1 白色纹理 + {@code setColor} 着色做背景；文字用
++ * VisLabel（默认样式已被 UITheme 换成中文字体）。淡入-停留-淡出用
++ * scene2d Action 序列驱动，重复调用 show() 会重置动画（快速连撞不叠加）。
++ */
++public class NotificationToast extends Group implements Disposable {
++
++        private static final float LABEL_MAX_WIDTH = 640f;
++        private static final float PAD_X = 28f;
++        private static final float PAD_Y = 16f;
++
++        private final Texture pixelTexture;
++        private final Image background;
++        private final VisLabel label;
++
++        private final float stageWidth;
++        private final float stageHeight;
++
++        public NotificationToast(float stageWidth, float stageHeight) {
++                this.stageWidth = stageWidth;
++                this.stageHeight = stageHeight;
++
++                setTransform(false);
++                setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
++
++                Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
++                pixmap.setColor(Color.WHITE);
++                pixmap.fill();
++                pixelTexture = new Texture(pixmap);
++                pixmap.dispose();
++
++                Drawable drawable = new TextureRegionDrawable(new TextureRegion(pixelTexture));
++                background = new Image(drawable);
++                addActor(background);
++
++                label = new VisLabel("");
++                label.setWrap(true);
++                label.setAlignment(Align.center);
++                addActor(label);
++
++                setVisible(false);
++        }
++
++        /** 显示一条通知；若正在显示则重置内容与计时（节流，不叠加）。 */
++        public void show(String text, Color backgroundColor) {
++                if (text == null || text.isEmpty())
++                        return;
++
++                label.setText(text);
++                label.setWidth(Math.min(LABEL_MAX_WIDTH, stageWidth * 0.5f));
++                label.pack();
++
++                float width = label.getWidth() + PAD_X * 2;
++                float height = label.getHeight() + PAD_Y * 2;
++
++                background.setColor(backgroundColor);
++                background.setSize(width, height);
++                label.setPosition(PAD_X, PAD_Y);
++                setSize(width, height);
++                // 屏幕水平居中，垂直位于迷宫视图下半部（约 54% 高度处）
++                setPosition((stageWidth - width) / 2f, stageHeight * 0.54f);
++
++                toFront();
++                setVisible(true);
++                getColor().a = 0f;
++                clearActions();
++                addAction(Actions.sequence(
++                                Actions.fadeIn(0.12f),
++                                Actions.delay(1.4f),
++                                Actions.fadeOut(0.4f),
++                                Actions.hide()));
++        }
++
++        @Override
++        public void dispose() {
++                if (pixelTexture != null) {
++                        pixelTexture.dispose();
++                }
++        }
++}
+diff --git a/core/src/com/ntk/darkmoor/engine/script/actions/EndDialog.java b/core/src/com/ntk/darkmoor/engine/script/actions/EndDialog.java
+index 589f3ee..3b4252f 100644
+--- a/core/src/com/ntk/darkmoor/engine/script/actions/EndDialog.java
++++ b/core/src/com/ntk/darkmoor/engine/script/actions/EndDialog.java
+@@ -5,6 +5,7 @@ import java.io.IOException;
+ import com.badlogic.gdx.utils.XmlReader;
+ import com.badlogic.gdx.utils.XmlWriter;
+ import com.ntk.darkmoor.DarkmoorGame;
++import com.ntk.darkmoor.engine.ScriptedDialog;
+ 
+ public class EndDialog extends ActionBase {
+ 
+@@ -16,10 +17,14 @@ public class EndDialog extends ActionBase {
+ 
+ 	@Override
+ 	public boolean run() {
+-		if (target == null)
++		// 修正：EndDialog 在事件数据中不带 target，旧代码在此直接 return false
++		// 导致弹窗永不退出。改为防御式获取并关闭当前事件弹窗。
++		if (DarkmoorGame.getInstance() == null)
+ 			return false;
+ 
+-		DarkmoorGame.getInstance().getGameScreen().getDialog().exit();
++		ScriptedDialog dialog = DarkmoorGame.getInstance().getGameScreen().getDialog();
++		if (dialog != null)
++			dialog.exit();
+ 
+ 		return true;
+ 	}
+diff --git a/desktop/resources/data/StringTable.xml b/desktop/resources/data/StringTable.xml
+index ccedad7..136c03a 100644
+--- a/desktop/resources/data/StringTable.xml
++++ b/desktop/resources/data/StringTable.xml
+@@ -460,4 +460,22 @@
+ 			<string id="20">修改</string>
+ 		</language>
+ 	</stringtable>
++	<stringtable name="events">
++		<default name="English" />
++		<language name="English">
++			<string id="1">This feature is still under construction.</string>
++			<string id="2">Event</string>
++			<string id="3">OK</string>
++		</language>
++		<language name="Francais">
++			<string id="1">Cette fonctionnalit&#233; est en cours de r&#233;alisation.</string>
++			<string id="2">&#201;v&#233;nement</string>
++			<string id="3">OK</string>
++		</language>
++		<language name="Chinese">
++			<string id="1">该功能尚在制作中，敬请期待后续版本。</string>
++			<string id="2">事件</string>
++			<string id="3">确定</string>
++		</language>
++	</stringtable>
+ </bank>
+diff --git a/docs/v0.5/13-random-event-system.md b/docs/v0.5/13-random-event-system.md
+new file mode 100644
+index 0000000..bcfe732
+--- /dev/null
++++ b/docs/v0.5/13-random-event-system.md
+@@ -0,0 +1,312 @@
++# 13 · 随机事件系统解构与 RandomEventBus 统一总线
++
++> 轮次：v0.5 第十轮（2026-11-27）
++> 关联代码：`engine/event/RandomEventBus.java`、`engine/event/RandomEvent.java`、
++> `engine/ScriptedDialog.java`、`engine/actor/EventSquare.java`、`engine/script/**`
++> 关联文档：`11-ui-research.md`（弹窗选型）、`12-visui-migration-log.md`（VisUI 迁移）、`14-move-blocked-feedback.md`
++
++---
++
++## 1. 结论速览
++
++**用户判断正确：随机事件系统在本项目里是一个"数据完备、执行断裂"的半成品。**
++10 轮排查后，我们把它的真实完成度量化如下：
++
++| 层 | 组件 | 完成度 | 说明 |
++| --- | --- | --- | --- |
++| 数据层 | dungeon.xml 事件节点 | **≈95%** | 24 个 eventsquare + 8 类机关 actor 全部有数据定义 |
++| 触发层 | SquareActor.onTeamEnter() | **≈70%** | 8 类 actor 已实现触发分发；saving throw 判定可用 |
++| 动作层 | ScriptChoice → ActionBase | **≈45%** | 21 个动作类只有 9 个真正可执行，其余 run() 为空壳 |
++| 展示层 | ScriptedDialog 弹窗 | **0% → 已修复** | 旧渲染链路根本不会执行，弹窗从未显示过（§3.1） |
++| 消息层 | GameMessage | **0% → 旁路** | draw()/update() 无人调用，是死代码（§3.2） |
++| 区域脚本 | MazeZone.onTeamEnterScript | **0%** | 字段加载/保存了，但没有任何执行点（§3.4） |
++
++本轮交付 **RandomEventBus 统一随机事件总线**，把断裂的链路重新接通：
++触发源 → 总线排队 → VisUI 弹窗 → 选项执行 → 未完成动作弹"功能尚在制作中"。
++
++---
++
++## 2. 系统全链路解剖
++
++### 2.1 数据层：事件定义在哪里
++
++全部游戏内容打包在 `android/assets/data/dungeon.zip` → `dungeon.xml`（单文件）。
++事件相关节点统计（全库）：
++
++| 节点 | 数量 | 说明 |
++| --- | --- | --- |
++| `door` | 349 | 门（开/关/锁定状态机） |
++| `stair` | 112 | 楼梯（大部分是可见楼梯，直接 onTeamEnter 换层） |
++| `wallswitch` | 76 | 墙上机关（拉杆/按钮，联动 target） |
++| `alcove` | 50 | 壁龛（放置物品触发） |
++| `pit` | 42 | 陷阱坑 |
++| `eventsquare` | 24 | **随机事件方块（本文主角）** |
++| `teleporter` | 18 | 传送格 |
++| `forcefield` | 16 | 力场 |
++| `pressureplate` | 14 | 压力板（6 种条件脚本） |
++
++其中带配图、会弹窗的 eventsquare 只有 **2 个**：
++
++1. **发现隐藏楼梯**（Forest 迷宫，Illusion 类型格子）——就是用户截图里触发的那一个：
++
++```xml
++<square>
++    <type value="Illusion" />
++    <eventsquare>
++        <remaining value="-1" />          <!-- -1 = 无限次 -->
++        <intelligence value="0" />        <!-- 感知难度：意志豁免 > 0 即触发 -->
++        <displayborder value="True" />
++        <text>Behind the brush you discover a hidden stairway.&lt;br /&gt;
++Do you wish to go down the stairs ?</text>
++        <picturename value="forest-hidden_stairs.png" />
++        <choice name="Yes">
++            <actions>
++                <Teleport>
++                    <target maze="Catacomb - 01" x="8" y="2" direction="West" ... />
++                </Teleport>
++                <EndDialog />
++            </actions>
++        </choice>
++        <choice name="No">
++            <actions>
++                <Teleport> <target maze="Forest" x="10" y="12" .../> </Teleport>
++                <EndDialog />
++            </actions>
++        </choice>
++    </eventsquare>
++</square>
++```
++
++2. **Darkmoon 入口**（"Do you wish to enter Darkmoon ?" + `darkmoon.png`）。
++
++其余 22 个 eventsquare 只配了 `message`（英雄喊话）或空 text，不弹窗。
++
++> 注意：`text` 节点用 `getText()` 读取（节点内文本），`message` 是 `value` 属性——
++> 这是两套读取方式，解析代码 `EventSquare.load()` 已正确区分。
++> 正文里 `&lt;br /&gt;` 经 XmlReader 反转义后变成 `<br />`，展示层需转回 `\n`（已在 ScriptedDialog 处理）。
++
++### 2.2 触发层：事件如何被踩到
++
++```
++玩家输入（键盘 W / 屏幕方向钮 / 撞墙反馈链路见 doc-14）
++  └─ Team.walk(front, strafe)                 [Team.java]
++       └─ Team.move(offset)
++            ├─ canMove()                       移动冷却 150ms，冷却中直接 false（不反馈）
++            ├─ dst.isBlocking() / getMonsterCount()>0
++            │    └─ 阻挡 → GameMessage.buildMessage(1) + Feedback.moveBlocked() → return false
++            ├─ square.onTeamLeave()            离开旧格
++            ├─ 坐标更新、lastMove/hasMoved
++            └─ square.onTeamEnter()            进入新格
++                 └─ Square.onTeamEnter() → actor.onTeamEnter()   [Square.java:462]
++```
++
++`SquareActor.onTeamEnter()` 的 8 个实现（每个都是一种"事件源"）：
++
++| Actor | onTeamEnter 行为 | 状态 |
++| --- | --- | --- |
++| `EventSquare` | 意志豁免判定 → 消息/弹窗 | **本轮接入总线** |
++| `Stair` | 换层 teleport | 可用 |
++| `Teleporter` | 传送 | 可用 |
++| `PressurePlate` | 6 种条件跑 PressurePlateScript | 脚本可跑，动作受动作层完成度限制 |
++| `ForceField` | 挡路/穿越判定 | 可用 |
++| `Door` | 开门/关门 | 可用 |
++| `Pit` | 掉坑伤害 | 可用（伤害走 Hero.damage） |
++| `WallSwitch` / `AlcoveActor` / `Launcher` / `Generator` | 交互/发射/生成 | 依赖动作层 |
++
++EventSquare 的触发判定保留了原版规则：**队伍中任一英雄意志豁免 roll > intelligence 才感知到事件**；
++没人感知则 return false，`remaining` 不消耗，下次进格再判。
++
++### 2.3 动作层：21 个动作的真实完成度
++
++选项（`ScriptChoice`）点击后依次执行 `ActionBase.run()`。逐个核对源码的结论：
++
++| 动作 | run() 状态 | 说明 |
++| --- | --- | --- |
++| `Teleport` | **可用** | 队伍 teleport 到 target，支持 changeDirection |
++| `SpawnMonster` | **可用*** | 依赖 Monster 资源加载（Resources.createAsset）；怪物 AI/战斗未完成 |
++| `GiveExperience` | **可用** | 队伍平分经验 |
++| `DisplayMessage` | **可用**（旁路） | 消息写入 GameMessage（死代码）；总线拦截后走 toast 显示 |
++| `ActivateTarget` / `DeactivateTarget` | **可用** | 激活/停用目标格 actor |
++| `EnableTarget` / `DisableTarget` / `ToggleTarget` | **可用** | 启用/禁用/翻转目标 actor |
++| `EndDialog` | 可用（**已修 bug**） | 关闭事件弹窗；旧代码 target==null 直接 return false，而数据里 EndDialog 从不带 target → 弹窗永不关闭（§3.3） |
++| `EndChoice` | 空壳 | 总线特判：语义为结束分支 → 关闭当前弹窗 |
++| `GiveItem` | 空壳 | 物品系统未完成 → 弹"功能尚在制作中" |
++| `Healing` | 空壳 | 同上 |
++| `PlaySound` | 空壳 | 音频未接入 → 同上 |
++| `JoinCharacter` | 空壳 | NPC 加入队伍未实现 → 同上 |
++| `ChangePicture` / `ChangeText` | 空壳 | 修改弹窗内容（脚本对话用）→ 同上 |
++| `EnableChoice` / `DisableChoice` | 空壳 | 动态启停选项 → 同上 |
++| `SetTo` | 仅注册 | ScriptBase 可加载但 run 未验证 |
++
++\* SpawnMonster 标记"可用"指代码完整，但生成出来的怪物没有战斗 AI（见 doc-06 路线图），
++实际效果等于"凭空站着一只怪物"。
++
++### 2.4 展示层：为什么弹窗从未显示过（本次修复的核心）
++
++旧版链路在两个环节同时断裂：
++
++1. **GameScreen 只存不画**。`EventSquare.onTeamEnter()` 里
++   `getGameScreen().setDialog(new ScriptedDialog(...))` 只把弹窗存进字段；
++   GameScreen 的 update()/draw()（继承 GameScreenBase，走 scene2d
++   `stage.act()+stage.draw()`）**没有任何一行代码调用 dialog.update()/dialog.draw()**。
++2. **ScriptedDialog 的绘制方法是错误签名**。`DialogBase extends Dialog`（scene2d Actor），
++   但 override 写的是 `draw(SpriteBatch batch, float parentAlpha)`——scene2d 的绘制入口是
++   `draw(Batch batch, float parentAlpha)`（`Batch` 是 `SpriteBatch` 的父接口）。
++   **参数类型不同 = 重载而非覆盖**，即便有人调 stage 渲染也不会走到这段代码；
++   `update(float)` 同样从未被调用。按钮用的 `GUIScriptButton` 是自绘伪按钮
++   （非 Actor，`addListener` 收不到任何输入事件）。
++
++这是原版 C#（XNA 即时渲染管线）移植到 scene2d 时遗留的架构断层：
++C# 版 GameScreen.Draw() 每帧手绘 dialog，Java 版渲染改成 stage 之后这段被丢了。
++
++**修复方案**：ScriptedDialog 整体重写为 **VisDialog 子类**（不保留旧渲染代码）：
++内容（配图 + 正文）进 `getContentTable()`，选项转成 `button(name, choice)`，
++点选走 scene2d Dialog 的 `result(Object)` 回调 → `RandomEventBus.runChoice()`。
++GameScreen 的 `dialog` 字段与 `getDialog().exit()` 链路保留（EndDialog 动作依赖）。
++
++---
++
++## 3. 排查中发现的全部问题清单
++
++| # | 问题 | 严重度 | 状态 |
++| --- | --- | --- | --- |
++| 3.1 | ScriptedDialog 从不被渲染（§2.4） | 致命 | ✅ 本轮修复（VisDialog 重写） |
++| 3.2 | GameMessage.draw()/update() 零调用，消息系统是死代码 | 致命 | ⚠️ 旁路（DisplayMessage/事件 message 改走 toast；GameMessage 保留原样） |
++| 3.3 | EndDialog.run() 的 `target==null` 检查使弹窗永不退出 | 致命 | ✅ 本轮修复（防御式获取 dialog） |
++| 3.4 | MazeZone 的 7 个区域脚本字段（onteamenter 等）从未被执行 | 高 | 📌 未修（见 §6 路线） |
++| 3.5 | 12 个脚本动作 run() 空壳 | 高 | ✅ 总线统一弹"功能尚在制作中" |
++| 3.6 | EventSquare 配图路径缺少 `data/` 前缀（用户上轮已修） | 高 | ✅ 已修（8c189b3） |
++| 3.7 | GUIScriptButton 非 Actor、监听器永远收不到点击 | 高 | ✅ 随 VisDialog 重写一并消亡 |
++| 3.8 | GameTime stub 的 getElapsedGameTime() 恒为 0，即使接入 GameMessage.update 消息也永不过期 | 中 | 📌 未修（旁路已绕开） |
++
++---
++
++## 4. RandomEventBus 统一随机事件总线
++
++### 4.1 架构
++
++```
++触发源（任意多个）                     展示层（唯一）
++┌──────────────────────┐    post()   ┌─────────────────────────────────┐
++│ EventSquare          │──────────▶  │        RandomEventBus           │
++│ MazeZone 脚本(未来)   │             │  queue: Deque<RandomEvent>      │
++│ 怪物触发器(未来)      │             │  stage: GameScreen 主 stage     │
++│ PressurePlate(可选)  │             │  showing: 一次只弹一个          │
++└──────────────────────┘             └───────┬─────────────────────────┘
++                                             │ showNext()
++                                             ▼
++                                  ┌─────────────────────────┐
++                                  │ ScriptedDialog(VisDialog)│
++                                  │  配图 + 正文 + 选项按钮   │
++                                  └───────┬─────────────────┘
++                              result(choice)│
++                                            ▼
++                                  RandomEventBus.runChoice()
++                                  ├─ 白名单动作 → action.run()
++                                  ├─ DisplayMessage → Feedback.message() (toast)
++                                  ├─ EndChoice → 关闭当前弹窗
++                                  └─ 其余 → notImplemented() 弹窗
++                                            「该功能尚在制作中」
++```
++
++### 4.2 公开 API
++
++```java
++RandomEventBus.bind(Stage)          // GameScreen.initScreenObjects() 时绑定
++RandomEventBus.unbind()             // unloadContent() 时解绑并清队列
++RandomEventBus.post(RandomEvent)    // 唯一提交入口；无弹窗在展示时立即弹出
++RandomEventBus.runChoice(ScriptChoice)  // 执行选项动作（白名单 + 未实现提示）
++RandomEventBus.notImplemented()     // 弹「该功能尚在制作中」VisDialog
++RandomEventBus.onDialogClosed()     // ScriptedDialog.hide() 回调，驱动队列
++```
++
++提交侧只需要构造一个 `RandomEvent`（source/text/pictureName/choices 四个字段）并 post，
++**不再需要知道弹窗怎么画、stage 是谁、选项怎么执行**——这就是"统一总线"的意义。
++
++### 4.3 关键时序：选项执行与弹窗切换不冲突
++
++以"发现隐藏楼梯 → 点 Yes"为例：
++
++1. 玩家点 `Yes` → scene2d Dialog 触发 `result(choice)` → `runChoice()`
++2. `Teleport.run()` → `Team.teleport()` → 新格 `onTeamEnter()` →（若新格也有事件）
++   `post(新事件)`——此时旧弹窗尚未 hide，`showing==true`，新事件**只入队不弹窗** ✅
++3. `EndDialog.run()` → `getDialog().exit()` → `hide()`
++4. `hide(Action)` 回调 `onDialogClosed()` → `showing=false` → `showNext()` 弹出队列中的新事件 ✅
++
++递归触发、连环事件、传送落点事件全部自然有序，不会弹窗互相覆盖。
++
++### 4.4 白名单机制（"已完成拿过来用，没完成的弹提示"）
++
++`IMPLEMENTED_ACTIONS`（字符串集合，按类 simpleName 匹配）：
++
++```
++Teleport / SpawnMonster / GiveExperience / DisplayMessage /
++ActivateTarget / DeactivateTarget / EnableTarget / DisableTarget /
++ToggleTarget / EndDialog
++```
++
++- 在名单内 → 直接 `action.run()`（异常吞掉记日志，不让单个动作卡死弹窗链）；
++- `EndChoice` 特判：关闭当前弹窗（原 run() 是空壳，按语义补齐）；
++- 名单外 → `notImplemented()` 弹 **VisUI 模态提示窗**「该功能尚在制作中，敬请期待后续版本。」，
++  玩家点"确定"后事件弹窗仍在，可继续选择其他选项。
++
++字符串表新增 `events` 段（三语）：id1=制作中提示、id2=弹窗标题"事件"、id3="确定"。
++
++---
++
++## 5. 本轮改动清单与测试指南
++
++### 5.1 改动文件
++
++| 文件 | 改动 |
++| --- | --- |
++| `engine/event/RandomEvent.java` | **新增**：事件封装（source/text/pictureName/choices） |
++| `engine/event/RandomEventBus.java` | **新增**：统一总线（队列/白名单/未实现提示） |
++| `engine/feedback/Feedback.java` | **新增**：非模态反馈静态入口（撞墙/短消息） |
++| `engine/feedback/NotificationToast.java` | **新增**：toast 横幅（淡入-停留-淡出） |
++| `engine/ScriptedDialog.java` | **重写**：DialogBase 手绘版 → VisDialog 版 |
++| `engine/actor/EventSquare.java` | onTeamEnter 改走总线；message 走 toast；新增 getEventSource() |
++| `engine/Team.java` | move() 阻挡分支增加 `Feedback.moveBlocked()`（见 doc-14） |
++| `engine/script/actions/EndDialog.java` | 修复 target==null 提前返回 bug |
++| `GameScreen.java` | 绑定/解绑总线；挂 toast；注册 Feedback.Listener（含迷宫震动） |
++| `android+desktop StringTable.xml` | 新增 events 三语字符串段 |
++
++### 5.2 编译验证
++
++ECJ 3.37.0 + gdx-1.14.2 + vis-ui-1.5.9 + gdx-freetype-1.14.2 全量编译：
++错误总数 175，**全部为预存在的 `org.ntk.commons.StringUtils` 缺失**
++（用户机器 libs/ntk-commons-*.jar 提供，Gradle 构建不受影响）；
++本轮新增/修改文件 0 错误。
++
++### 5.3 手工测试步骤
++
++1. `desktop` 启动，载入存档或新开局（Forest）。
++2. 走到 Forest (10,13) 附近的 Illusion 格（触发"发现隐藏楼梯"）：
++   - 预期：弹出 VisUI 事件窗，标题"事件"，配图 forest-hidden_stairs.png，
++     正文两行英文（"Behind the brush..."），下方 `Yes` / `No` 两个按钮。
++   - 点 `Yes`：传送到 Catacomb - 01 (8,2)。
++   - 点 `No`：传送到 Forest (10,12)（原版行为：No 也传送，把队伍从幻墙格挪出来）。
++3. 撞墙（对着墙按 W）：红色横幅"那个方向走不通！"显示约 1.5 秒 + 迷宫画面轻微震动。
++4. 任何未完成动作的事件（后续补充内容）会弹「该功能尚在制作中……」。
++
++### 5.4 回归风险
++
++- `ScriptedDialog` 构造签名从 `(Square, EventSquare)` 改为 `(RandomEvent)`——
++  全库检索确认无外部调用者（只有 EventSquare 与新总线使用）。
++- `DialogBase` 成为无子类的遗留类，保留未删（避免牵动 DialogBase(String, Skin) 二参构造的潜在引用）。
++- `GameScreen.getDialog().exit()` 链路不变，EndDialog 动作照常工作。
++
++---
++
++## 6. 后续路线（把随机事件系统做完）
++
++1. **MazeZone 区域脚本接线**：Team.move/onTeamEnter 时检查所在 zone 的
++   onTeamEnterScript 等字段，经 RandomEventBus 触发（总线已就位，只差触发点）。
++2. **GameMessage 正式接入**：GameScreen.update() 调 update(真实 delta)，
++   GameScreen.draw() 调 draw(batch)（坐标需从 640x400 旧坐标系映射到 1280x720 stage）。
++   完成后 DisplayMessage 可切回原链路。
++3. **空壳动作逐个补齐**：优先级 GiveItem > Healing > PlaySound > EnableChoice/DisableChoice
++   > ChangePicture/ChangeText > JoinCharacter。每补一个就把它加入总线白名单。
++4. **SpawnMonster 联动战斗系统**：战斗完成后事件才能完整（怪物遭遇、伏击）。
++5. **随机遭遇表**：原版 EOB2 的"随机遇敌"可建模为 MazeZone onUpdate 脚本 + Dice roll，
++   走同一个总线弹出遭遇事件。
+diff --git a/docs/v0.5/14-move-blocked-feedback.md b/docs/v0.5/14-move-blocked-feedback.md
+new file mode 100644
+index 0000000..6ba0f3d
+--- /dev/null
++++ b/docs/v0.5/14-move-blocked-feedback.md
+@@ -0,0 +1,143 @@
++# 14 · 移动受阻（撞墙）玩家反馈系统
++
++> 轮次：v0.5 第十轮（2026-11-27）
++> 关联代码：`engine/feedback/Feedback.java`、`engine/feedback/NotificationToast.java`、
++> `engine/Team.java`、`GameScreen.java`
++> 关联文档：`13-random-event-system.md`（同一轮次的随机事件总线）
++
++---
++
++## 1. 问题与根因
++
++**现象**：向墙壁按移动键，队伍不动，屏幕上没有任何反馈——玩家不知道是撞墙了、
++有怪物挡路，还是游戏卡了。连续多按几次也没有任何变化，体验很差。
++
++**根因**（两条链路同时断裂）：
++
++1. `Team.move()` 被阻挡时确实调用了 `GameMessage.buildMessage(1)`
++   （stringtable game#1，中文表里就是"那个方向走不通！"——**文案早就翻译好了**）。
++   但 `GameMessage.draw()` / `GameMessage.update()` 在整个工程里**零调用点**
++   （详见 doc-13 §3.2），消息进了队列永远不会被画出来。
++2. `walk()` 的返回值（移动是否成功）在键盘处理器和屏幕按钮里都被忽略，
++   没有任何 UI 层机会做额外反馈。
++
++---
++
++## 2. 方案设计
++
++### 2.1 反馈形式选型
++
++结合本项目现状（EOB 式第一人称格子移动、v0.5 有 VisUI 中文字体、无音频接入）：
++
++| 方案 | 观感 | 实现成本 | 决定 |
++| --- | --- | --- | --- |
++| **A. 消息横幅（toast）** | 文字直达："那个方向走不通！" | 低 | ✅ 采纳 |
++| **B. 迷宫视图震动** | 拟真撞击感，EOB 原版就"哐"一下 | 低（scene2d Action） | ✅ 采纳（叠加 A） |
++| C. 专用音效 | 最拟真 | 需要音频管线 + 合适素材（资源库里没有撞墙音效，door/hit/miss 语义都不对） | 📌 留给后续 |
++| D. 屏幕红闪 / vignette | 醒目 | 需要全屏 shader/贴图，v0.5 过重 | ❌ 暂不做 |
++
++A + B 的组合：**红色半透明横幅显示"那个方向走不通！"约 1.5 秒后淡出，
++同时迷宫画面做一次 18px 幅度的前后轻震**。文字讲清楚原因，震动提供身体记忆。
++
++### 2.2 挂点选择：为什么在 Team.move() 而不是输入层
++
++移动失败有三种起因，都汇聚在 `Team.move()`：
++
++1. 目标格 `isBlocking()`（墙/幻墙）；
++2. 目标格有怪物（`getMonsterCount() > 0`）；
++3. ——而 `canMove()` 冷却失败（150ms 移动间隔内连按）**不算撞墙**，不该反馈，
++   否则按住前进键会误报。
++
++因此反馈点精确放在 `move()` 内部"确实被阻挡"的分支（1/2 两种），
++`canMove()` 冷静期不触发。键盘/屏幕按钮共 8 个调用点完全不用改。
++
++### 2.3 引擎层与 UI 层解耦
++
++`Team` 在 engine 包，不能反向依赖 scene2d/VisUI。新增静态反馈入口：
++
++```java
++public class Feedback {
++    public interface Listener {
++        void onMoveBlocked();          // 移动被阻挡
++        void onMessage(String text);   // 一般短消息（事件喊话等）
++    }
++    public static void setListener(Listener l);
++    public static void moveBlocked();
++    public static void message(String text);
++}
++```
++
++- 引擎侧（Team、EventSquare、脚本动作）只调 `Feedback.xxx()`；
++- UI 侧（GameScreen.initScreenObjects）注册 Listener 实现；
++- 未注册（如单元测试、菜单屏）时静默 no-op。
++
++这条通道同时服务于随机事件系统的短消息（doc-13 §4.4 的 DisplayMessage 旁路），
++一个通道两个用途，避免再开静态口子。
++
++---
++
++## 3. 实现
++
++### 3.1 NotificationToast（通知横幅）
++
++`engine/feedback/NotificationToast.java`，scene2d Group：
++
++- 背景：1x1 白纹理着色（红色 `rgba(0.55,0.12,0.12,0.85)` 撞墙 / 深蓝 `rgba(0.10,0.25,0.45,0.85)` 消息）；
++- 文本：VisLabel（默认样式已由 UITheme 注入中文字体，"那个方向走不通！"直接可显）；
++- 位置：屏幕水平居中、高度 54% 处（迷宫视图下半部，不挡小地图与按钮区）；
++- 动画：`fadeIn(0.12s) → delay(1.4s) → fadeOut(0.4s) → hide()`；
++- **节流**：显示期间再次触发会重置内容与计时（clearActions + 重新来），
++  快速连撞不会叠加多条横幅；
++- `setTouchable(disabled)`：纯展示，不挡任何点击。
++
++### 3.2 震动
++
++GameScreen 的 Listener 里对 `mazeGroup` 施加 scene2d Action 序列：
++
++```java
++mazeGroup.clearActions();
++mazeGroup.addAction(Actions.sequence(
++    Actions.moveBy(0, -6, 0.05f), Actions.moveBy(0, 6, 0.05f),
++    Actions.moveBy(0, -3, 0.04f), Actions.moveBy(0, 3, 0.04f)));
++```
++
++纵向（前后）两段递减抖动模拟"撞一下弹回来"，全程 180ms，结束后回到原位。
++`clearActions()` 防止连按时动作序列堆叠。
++
++### 3.3 引擎侧挂点（Team.move）
++
++```java
++// If can't pass through
++if (!state) {
++    GameMessage.buildMessage(1);   // 遗留链路保留（未来 GameMessage 接入后自然生效）
++    Feedback.moveBlocked();        // 本轮新增：toast + 震动
++    return false;
++}
++```
++
++---
++
++## 4. 参数调整速查
++
++| 想改什么 | 位置 |
++| --- | --- |
++| 横幅停留时长 | `NotificationToast.show()` 里 `Actions.delay(1.4f)` |
++| 横幅位置（高度） | `show()` 里 `stageHeight * 0.54f` |
++| 横幅最大宽度 | `LABEL_MAX_WIDTH`（640） |
++| 撞墙横幅颜色 | `GameScreen` Listener `onMoveBlocked` 里 Color(0.55f,0.12f,0.12f,0.85f) |
++| 震动幅度/时长 | `GameScreen` Listener 里四个 moveBy 的位移与时长 |
++| 撞墙文案 | StringTable.xml `game` 段 id=1（三语都有） |
++
++---
++
++## 5. 测试与后续
++
++**测试**：向任意墙面按键（W/A/S/D 或屏幕方向钮）→ 红色横幅"那个方向走不通！"
++约 1.5 秒淡出 + 迷宫画面轻震；对着已确认的怪物格移动同样触发；
++150ms 内疯狂连按不会刷横幅（冷却失败不反馈，横幅自身也节流）。
++
++**后续增强（v0.6 候选）**：
++1. 加一个专用 `bump.ogg` 撞墙音效（资源库目前没有语义合适的音效）；
++2. GameMessage 消息系统正式接入渲染循环后，把本 toast 升级为"消息堆栈"
++   （最多 3 条并存，见 GameMessage 原始设计）；
++3. 怪物挡路与撞墙可区分文案（"有东西挡住了去路！"）。
+diff --git a/docs/v0.5/README.md b/docs/v0.5/README.md
+index 533e5d1..3d9b304 100644
+--- a/docs/v0.5/README.md
++++ b/docs/v0.5/README.md
+@@ -22,6 +22,8 @@
+ | [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
+ | [11-ui-research.md](11-ui-research.md) | 项目界面系统调研报告 + 候选 UI 库评估 | 决定 UI 迁移方案的人 |
+ | [12-visui-migration-log.md](12-visui-migration-log.md) | 引入 VisUI 1.5.9 的工作日志 | 接手 UI 迁移的人 |
++| [13-random-event-system.md](13-random-event-system.md) | 随机事件系统解构 + RandomEventBus 统一总线 | 维护事件/脚本系统的人 |
++| [14-move-blocked-feedback.md](14-move-blocked-feedback.md) | 撞墙（移动受阻）玩家反馈系统设计与实现 | 调整手感反馈的人 |
+ 
+ ### 子模块详细文档（位于 `modules/` 目录）
+ 

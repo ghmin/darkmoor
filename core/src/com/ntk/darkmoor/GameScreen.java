@@ -17,6 +17,9 @@ import com.ntk.darkmoor.engine.DisplayCoordinates;
 import com.ntk.darkmoor.engine.GameColors;
 import com.ntk.darkmoor.engine.GameMessage;
 import com.ntk.darkmoor.engine.ScriptedDialog;
+import com.ntk.darkmoor.engine.event.RandomEventBus;
+import com.ntk.darkmoor.engine.feedback.Feedback;
+import com.ntk.darkmoor.engine.feedback.NotificationToast;
 import com.ntk.darkmoor.engine.SpellBook;
 import com.ntk.darkmoor.engine.Team;
 import com.ntk.darkmoor.engine.graphics.HeroInterfaceGroup;
@@ -24,6 +27,7 @@ import com.ntk.darkmoor.engine.graphics.InventoryGroup;
 import com.ntk.darkmoor.engine.graphics.MazeGroup;
 import com.ntk.darkmoor.engine.graphics.MinimapGroup;
 import com.ntk.darkmoor.config.KeyBindings;
+import com.ntk.darkmoor.config.LanguagesManager;
 import com.ntk.darkmoor.engine.CampDialog;
 import com.ntk.darkmoor.engine.KeyboardInputProcessor;
 import com.badlogic.gdx.InputMultiplexer;
@@ -55,6 +59,9 @@ public class GameScreen extends GameScreenBase {
         private StatisticsGroup statisticsGroup;
         private NavigationControlsGroup navControlsGroup;
         private MinimapGroup minimapGroup;
+
+        /** 撞墙/事件短消息通知横幅。 */
+        private NotificationToast toast;
 
         public GameScreen(Game game) {
                 super(game);
@@ -125,6 +132,12 @@ public class GameScreen extends GameScreenBase {
                 if (dialog != null)
                         dialog.dispose();
                 dialog = null;
+
+                Feedback.setListener(null);
+                RandomEventBus.unbind();
+                if (toast != null)
+                        toast.dispose();
+                toast = null;
 
                 // if (inputScheme != null)
                 // inputScheme.dispose();
@@ -201,6 +214,37 @@ public class GameScreen extends GameScreenBase {
                 mux.addProcessor(stage);
                 Gdx.input.setInputProcessor(mux);
 
+                // 统一随机事件总线：绑定本屏 stage（EventSquare 等触发源经总线弹窗）
+                RandomEventBus.bind(stage);
+
+                // 玩家反馈层：撞墙 toast + 迷宫画面震动；事件短消息 toast
+                toast = new NotificationToast(com.ntk.darkmoor.DarkmoorGame.DISPLAY_WIDTH,
+                        com.ntk.darkmoor.DarkmoorGame.DISPLAY_HEIGHT);
+                stage.addActor(toast);
+                Feedback.setListener(new Feedback.Listener() {
+                        @Override
+                        public void onMoveBlocked() {
+                                if (toast != null)
+                                        toast.show(LanguagesManager.getString("game", 1), // "那个方向走不通！"
+                                                new com.badlogic.gdx.graphics.Color(0.55f, 0.12f, 0.12f, 0.85f));
+                                if (mazeGroup != null) {
+                                        // 迷宫视图轻微前后震动（EOB 式撞击感）
+                                        mazeGroup.clearActions();
+                                        mazeGroup.addAction(com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
+                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, -6, 0.05f),
+                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, 6, 0.05f),
+                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, -3, 0.04f),
+                                                com.badlogic.gdx.scenes.scene2d.actions.Actions.moveBy(0, 3, 0.04f)));
+                        }
+                        }
+
+                        @Override
+                        public void onMessage(String text) {
+                                if (toast != null)
+                                        toast.show(text,
+                                                new com.badlogic.gdx.graphics.Color(0.10f, 0.25f, 0.45f, 0.85f));
+                }
+                });
         }
 
         public boolean loadGameSlot(int slotid) {

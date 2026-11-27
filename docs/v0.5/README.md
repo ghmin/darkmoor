@@ -22,6 +22,8 @@
 | [10-camp-system.md](10-camp-system.md) | CAMP 按钮与营地对话框系统 | 想修 CAMP / 加营地功能的人 |
 | [11-ui-research.md](11-ui-research.md) | 项目界面系统调研报告 + 候选 UI 库评估 | 决定 UI 迁移方案的人 |
 | [12-visui-migration-log.md](12-visui-migration-log.md) | 引入 VisUI 1.5.9 的工作日志 | 接手 UI 迁移的人 |
+| [13-random-event-system.md](13-random-event-system.md) | 随机事件系统解构 + RandomEventBus 统一总线 | 维护事件/脚本系统的人 |
+| [14-move-blocked-feedback.md](14-move-blocked-feedback.md) | 撞墙（移动受阻）玩家反馈系统设计与实现 | 调整手感反馈的人 |
 
 ### 子模块详细文档（位于 `modules/` 目录）
 

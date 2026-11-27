@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.XmlWriter;
 import com.ntk.darkmoor.engine.Compass.CardinalPoint;
 import com.ntk.darkmoor.engine.Square.SquarePosition;
 import com.ntk.darkmoor.engine.Square.SquareType;
+import com.ntk.darkmoor.engine.feedback.Feedback;
 import com.ntk.darkmoor.resource.Resources;
 import com.ntk.darkmoor.stub.Mouse;
 
@@ -410,6 +411,7 @@ public class Team implements Disposable {
 		// If can't pass through
 		if (!state) {
 			GameMessage.buildMessage(1);
+			Feedback.moveBlocked(); // 撞墙/怪物挡路 -> 玩家反馈（toast + 画面震动）
 			return false;
 		}
 

@@ -1,251 +1,123 @@
 package com.ntk.darkmoor.engine;
 
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input.Buttons;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.ntk.darkmoor.engine.actor.EventSquare;
-import com.ntk.darkmoor.engine.gui.GUI;
-import com.ntk.darkmoor.engine.script.gui.GUIScriptButton;
+import com.badlogic.gdx.scenes.scene2d.Action;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.kotcrab.vis.ui.widget.VisDialog;
+import com.kotcrab.vis.ui.widget.VisLabel;
+import com.kotcrab.vis.ui.widget.VisTable;
+import com.ntk.darkmoor.config.LanguagesManager;
+import com.ntk.darkmoor.config.Log;
+import com.ntk.darkmoor.engine.event.RandomEvent;
+import com.ntk.darkmoor.engine.event.RandomEventBus;
 import com.ntk.darkmoor.engine.script.gui.ScriptChoice;
-import com.ntk.darkmoor.stub.GameTime;
 
-public class ScriptedDialog extends DialogBase {
+/**
+ * 随机事件弹窗 — 由 {@link RandomEventBus} 创建并显示，玩家阅读事件正文后
+ * 点选选项（或"确定"关闭）。
+ *
+ * <p><b>v0.5 第三轮重构（修复"事件弹窗永不显示"）</b>：旧版继承
+ * {@code DialogBase}（scene2d Dialog）却沿用原版 C# 的手绘管线
+ * （{@code draw(SpriteBatch, float)} / {@code update(float)}）。这两个方法
+ * 一个是错误签名（scene2d 的绘制入口是 {@code draw(Batch, float)}，永远不会
+ * 被调用），另一个从未被 GameScreen 主循环调用——因此弹窗被 setDialog 后
+ * 什么也不会发生。现改为 VisDialog（VisUI），走 stage 标准渲染，自动获得
+ * 模态、中文标题栏、按钮布局；选项点击通过 scene2d result 机制回调总线。
+ *
+ * <p>关闭链路：{@code hide(Action)} → {@link RandomEventBus#onDialogClosed()}
+ * → 展示队列中的下一个事件；脚本动作 EndDialog 调用 {@link #exit()} 走同一链路。
+ */
+public class ScriptedDialog extends VisDialog {
 
-	private EventSquare event;
-	private Square square;
-	private Texture picture;
-	private int maxButtonCount = 3;
-	private Texture border;
-	private ScriptChoice[] choices;
-	private GUIScriptButton[] buttons;
-	private boolean quit;
+        private static final String TAG = "[ScriptedDialog]";
 
-	public ScriptedDialog(Square square, EventSquare evt) {
-		if (square == null)
-			throw new IllegalArgumentException("Square is null");
+        /** 正文/配图区域的最大宽度。 */
+        private static final float BODY_WIDTH = 520f;
 
-		if (evt == null)
-			throw new IllegalArgumentException("EventSquare is null");
+        private final RandomEvent event;
+        private Texture picture;
 
-		event = evt;
-		this.square = square;
-		System.out.println("evt text:"+evt.getText());
-		System.out.println("msg:"+evt.getMessage());
-		picture = new Texture("data/"+event.getPictureName());
+        public ScriptedDialog(RandomEvent event) {
+                super(LanguagesManager.getString("events", 2)); // 标题"事件"
+                if (event == null)
+                        throw new IllegalArgumentException("RandomEvent is null");
+                this.event = event;
+                setModal(true);
+                setMovable(true);
 
-		if (event.isDisplayBorder()) {
-			border = new Texture("data/border.png");
-		}
+                VisTable content = new VisTable();
 
-		// HACK: Hard coded maximum button for ScriptDialog
-		choices = new ScriptChoice[maxButtonCount];
-		buttons = new GUIScriptButton[maxButtonCount];
-		for (int i = 0; i < maxButtonCount; i++) {
-			buttons[i] = new GUIScriptButton();
-			buttons[i].addListener(new ClickListener() {
-				@Override
-				public void clicked(InputEvent event, float f1, float f2) {
-					buttonClick((GUIScriptButton) event.getListenerActor());
-				}
-			});
-		}
-	}
+                // 事件配图（等比缩放，宽上限 BODY_WIDTH）
+                String pictureName = event.getPictureName();
+                if (pictureName != null && !pictureName.isEmpty()) {
+                        try {
+                                picture = new Texture("data/" + pictureName);
+                        } catch (Throwable t) {
+                                Log.error(TAG + " picture not found: %s", new Object[] { pictureName });
+                                picture = null;
+                        }
+                        if (picture != null) {
+                                Image image = new Image(picture);
+                                float scale = Math.min(1f, BODY_WIDTH / picture.getWidth());
+                                image.setSize(picture.getWidth() * scale, picture.getHeight() * scale);
+                                content.add(image).row();
+                        }
+                }
 
-	@Override
-	public void dispose() {
-		if (picture != null)
-			picture.dispose();
-		picture = null;
+                // 正文（兼容数据中的 <br /> 换行标记）
+                String text = event.getText();
+                if (text != null && !text.isEmpty()) {
+                        text = text.replaceAll("(?i)<br\\s*/?>", "\n").trim();
+                        VisLabel label = new VisLabel(text);
+                        label.setWrap(true);
+                        content.add(label).width(BODY_WIDTH).padTop(12).row();
+                }
 
-		if (border != null)
-			border.dispose();
-		border = null;
-	}
+                getContentTable().add(content).pad(8);
 
-	@Override
-	public void update(float delta) {
-		// Debug
-		if (Gdx.input.isButtonPressed(Buttons.MIDDLE))
-			exit();
+                // 选项按钮：无可用选项时显示"确定"（纯信息弹窗）
+                List<ScriptChoice> enabled = new ArrayList<ScriptChoice>();
+                if (event.getChoices() != null)
+                        for (ScriptChoice choice : event.getChoices())
+                                if (choice != null && choice.isEnabled())
+                                        enabled.add(choice);
 
-		// Rebuild button list
-		int id = 0;
-		choices[0] = null;
-		choices[1] = null;
-		choices[2] = null;
-		for (ScriptChoice choice : event.getChoices()) {
-			// choice disabled
-			if (!choice.isEnabled())
-				continue;
+                if (enabled.isEmpty()) {
+                        button(LanguagesManager.getString("events", 3), null); // "确定"
+                } else {
+                        for (ScriptChoice choice : enabled)
+                                button(choice.getName(), (Object) choice);
+                }
+        }
 
-			// Add choice
-			choices[id++] = choice;
+        @Override
+        protected void result(Object object) {
+                if (object instanceof ScriptChoice)
+                        RandomEventBus.runChoice((ScriptChoice) object);
+        }
 
-			// Maximum reached
-			if (id >= maxButtonCount)
-				break;
-		}
+        @Override
+        public void hide(Action action) {
+                super.hide(action);
+                RandomEventBus.onDialogClosed();
+        }
 
-		// Compute button rectangles
-		setChoice(choices[0], choices[1], choices[2]);
+        /** 兼容 EndDialog / EndChoice 脚本动作的退出入口。 */
+        public void exit() {
+                hide();
+        }
 
-		// Update each choice button
-		for (id = 0; id < maxButtonCount; id++) {
-			if (choices[id] == null)
-				break;
+        public RandomEvent getEvent() {
+                return event;
+        }
 
-			buttons[id].update(delta);
-		}
-
-	}
-
-	@Override
-	public void draw(SpriteBatch batch, float parentAlpha) {
-		// Border
-		if (event.isDisplayBorder())
-			batch.draw(border, 0, 0);// , Color.WHITE);
-
-		// Picture
-		batch.draw(picture, 16, 16);// , Color.WHITE);
-
-		// Text
-		GUI.drawSimpleBevel(batch, DisplayCoordinates.getScriptedDialog());
-		GUI.getDialogFont().setColor(GameColors.White);
-		GUI.getDialogFont().draw(batch, event.getText(), 4, 250);
-
-		// Choices
-		for (int id = 0; id < maxButtonCount; id++) {
-			if (choices[id] == null || !choices[id].isEnabled())
-				continue;
-
-			buttons[id].draw(batch);
-		}
-
-	}
-
-	void buttonClick(GUIScriptButton button) {
-
-		if (button.getTag() != null && button.getTag() instanceof ScriptChoice) {
-			ScriptChoice choice = (ScriptChoice) button.getTag();
-			choice.run();
-
-			// Time to quit
-			if (quit)
-				return;
-		}
-	}
-
-	public void SetChoices(int id, ScriptChoice choice) {
-		if (id < 1 || id > 3)
-			return;
-
-		choices[id] = choice;
-
-		buttons[id].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[0]);
-		buttons[id].setText(choice.getName());
-		buttons[id].setTag(choice);
-	}
-
-	public void SetChoices(ScriptChoice choice) {
-		choices[0] = choice;
-		choices[1] = null;
-		choices[2] = null;
-
-		buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[0]);
-		buttons[0].setText(choice.getName());
-		buttons[0].setTag(choice);
-	}
-
-	public void SetChoices(ScriptChoice choice1, ScriptChoice choice2) {
-		choices[0] = choice1;
-		choices[1] = choice2;
-		choices[2] = null;
-
-		buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[3]);
-		buttons[0].setText(choice1.getName());
-		buttons[0].setTag(choice1);
-
-		buttons[1].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[4]);
-		buttons[1].setText(choice2.getName());
-		buttons[1].setTag(choice2);
-	}
-
-	private void setChoice(ScriptChoice choice1, ScriptChoice choice2, ScriptChoice choice3) {
-		choices[0] = choice1;
-		choices[1] = choice2;
-		choices[2] = choice3;
-
-		if (choice1 != null) {
-			buttons[0].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[6]);
-			buttons[0].setText(choice1.getName());
-			buttons[0].setTag(choice1);
-		}
-
-		if (choice2 != null) {
-			buttons[1].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[7]);
-			buttons[1].setText(choice2.getName());
-			buttons[1].setTag(choice2);
-		}
-
-		if (choice3 != null) {
-			buttons[2].setRectangle(DisplayCoordinates.getScriptedDialogChoices()[8]);
-			buttons[2].setText(choice3.getName());
-			buttons[2].setTag(choice3);
-		}
-	}
-
-	public boolean setPicture(String name) {
-		if (picture != null)
-			picture.dispose();
-
-		picture = new Texture(name);
-
-		return picture != null;
-	}
-
-	public void setPicture(Texture handle) {
-		if (picture != null)
-			picture.dispose();
-
-		picture = handle;
-	}
-
-	public EventSquare getEvent() {
-		return event;
-	}
-
-	public Square getSquare() {
-		return square;
-	}
-
-	public int getMaxButtonCount() {
-		return maxButtonCount;
-	}
-
-	public Texture getBorder() {
-		return border;
-	}
-
-	public ScriptChoice[] getChoices() {
-		return choices;
-	}
-
-	public void setChoices(ScriptChoice[] choices) {
-		this.choices = choices;
-	}
-
-	public GUIScriptButton[] getButtons() {
-		return buttons;
-	}
-
-	public boolean isQuit() {
-		return quit;
-	}
-	public Texture getPicture() {
-		return picture;
-	}
-
+        /** 释放配图纹理。由 GameScreen（setDialog 替换时 / unloadContent）调用。 */
+        public void dispose() {
+                if (picture != null)
+                        picture.dispose();
+                picture = null;
+        }
 }

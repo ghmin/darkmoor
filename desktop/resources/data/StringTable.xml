@@ -460,4 +460,22 @@
 			<string id="20">修改</string>
 		</language>
 	</stringtable>
+	<stringtable name="events">
+		<default name="English" />
+		<language name="English">
+			<string id="1">This feature is still under construction.</string>
+			<string id="2">Event</string>
+			<string id="3">OK</string>
+		</language>
+		<language name="Francais">
+			<string id="1">Cette fonctionnalit&#233; est en cours de r&#233;alisation.</string>
+			<string id="2">&#201;v&#233;nement</string>
+			<string id="3">OK</string>
+		</language>
+		<language name="Chinese">
+			<string id="1">该功能尚在制作中，敬请期待后续版本。</string>
+			<string id="2">事件</string>
+			<string id="3">确定</string>
+		</language>
+	</stringtable>
 </bank>

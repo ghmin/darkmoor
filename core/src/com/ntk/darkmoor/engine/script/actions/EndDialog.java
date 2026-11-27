@@ -5,6 +5,7 @@ import java.io.IOException;
 import com.badlogic.gdx.utils.XmlReader;
 import com.badlogic.gdx.utils.XmlWriter;
 import com.ntk.darkmoor.DarkmoorGame;
+import com.ntk.darkmoor.engine.ScriptedDialog;
 
 public class EndDialog extends ActionBase {
 
@@ -16,10 +17,14 @@ public class EndDialog extends ActionBase {
 
 	@Override
 	public boolean run() {
-		if (target == null)
+		// 修正：EndDialog 在事件数据中不带 target，旧代码在此直接 return false
+		// 导致弹窗永不退出。改为防御式获取并关闭当前事件弹窗。
+		if (DarkmoorGame.getInstance() == null)
 			return false;
 
-		DarkmoorGame.getInstance().getGameScreen().getDialog().exit();
+		ScriptedDialog dialog = DarkmoorGame.getInstance().getGameScreen().getDialog();
+		if (dialog != null)
+			dialog.exit();
 
 		return true;
 	}

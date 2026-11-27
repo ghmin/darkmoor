@@ -13,6 +13,9 @@ import com.ntk.darkmoor.DarkmoorGame;
 import com.ntk.darkmoor.GameScreen;
 import com.ntk.darkmoor.engine.Compass.CardinalPoint;
 import com.ntk.darkmoor.engine.GameMessage;
+import com.ntk.darkmoor.engine.feedback.Feedback;
+import com.ntk.darkmoor.engine.event.RandomEvent;
+import com.ntk.darkmoor.engine.event.RandomEventBus;
 import com.ntk.darkmoor.engine.Hero;
 import com.ntk.darkmoor.engine.SavingThrowType;
 import com.ntk.darkmoor.engine.ScriptedDialog;
@@ -70,16 +73,19 @@ public class EventSquare extends SquareActor {
 		if (hero == null)
 			return false;
 
-		// Display message
-		if (!StringUtils.isEmpty(message))
+		// Display message（GameMessage 为遗留链路；toast 负责实际可见性）
+		if (!StringUtils.isEmpty(message)) {
 			GameMessage.addMessage(hero.getName() + ": " + message, messageColor);
-
-		// Create the scripted dialog if there's a picture to show
-		if (!StringUtils.isEmpty(pictureName)) {
-			Square sqActor=getSquare();
-			ScriptedDialog dlg = new ScriptedDialog(sqActor,this);
-			DarkmoorGame.getInstance().getGameScreen().setDialog(dlg);
+			Feedback.message(hero.getName() + ": " + message);
 		}
+
+		// 统一随机事件总线：有配图 -> 弹窗事件；仅有正文 -> toast 短消息
+		if (!StringUtils.isEmpty(pictureName)) {
+			RandomEvent event = new RandomEvent(getEventSource(), text, pictureName, choices);
+			RandomEventBus.post(event);
+		} else if (!StringUtils.isEmpty(text)) {
+			Feedback.message(text);
+			}
 
 		// Decrement usage
 		if (remaining > 0)
@@ -264,6 +270,14 @@ public class EventSquare extends SquareActor {
 
 	public List<ScriptChoice> getChoices() {
 		return choices;
+	}
+
+	/** 事件来源描述（用于总线日志定位）。 */
+	private String getEventSource() {
+		Square sq = getSquare();
+		if (sq == null)
+			return "eventsquare";
+		return "eventsquare@" + sq.getLocation().x + "," + sq.getLocation().y;
 	}
 
 	public void setChoices(List<ScriptChoice> choices) {
